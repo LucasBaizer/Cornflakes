@@ -1,0 +1,6 @@
+package test
+class HelloWorld
+
+static main() {
+	println("Hello, World!")
+}
