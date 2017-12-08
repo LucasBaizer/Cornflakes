@@ -1,6 +1,6 @@
-package test
+//Hello World written in Cornflakes
 class HelloWorld
 
-static main() {
-	println("Hello, World!")
+function main() {
+	System.out.println("Hello, World!")
 }

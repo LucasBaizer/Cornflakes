@@ -65,10 +65,12 @@ public class Test implements Opcodes {
 	};
 
 	public static void main(String[] args) throws Exception {
-		CompileResult result = Compiler.compile(new String(Files.readAllBytes(Paths.get("HelloWorld.cf"))));
+		ClassData result = Compiler.compile("HelloWorld.cf",
+				new String(Files.readAllBytes(Paths.get("HelloWorld.cf"))));
+		Files.write(Paths.get("HelloWorld.class"), result.getByteCode());
 
 		DynamicClassLoader loader = new DynamicClassLoader();
-		Class<?> helloWorldClass = loader.define(result.getName().trim(), result.getBytes());
+		Class<?> helloWorldClass = loader.define(result.getClassName().trim(), result.getByteCode());
 		Method method = helloWorldClass.getMethod("main");
 		method.invoke(null);
 	}
