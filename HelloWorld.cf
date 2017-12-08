@@ -1,6 +1,7 @@
 //Hello World written in Cornflakes
+
 class HelloWorld
 
-function main() {
+function main(string name) {
 	System.out.println("Hello, World!")
 }

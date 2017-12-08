@@ -18,7 +18,9 @@ public class StatementCompiler extends Compiler {
 			String prefix = val.substring(0, val.lastIndexOf('.') + 1);
 			String[] spl = val.substring(val.lastIndexOf('.') + 1).split(",");
 			for (String s : spl) {
-				data.use(prefix + s.trim());
+				String trim = s.trim();
+				Strings.handleLetterString(trim);
+				data.use(prefix + trim);
 			}
 		} else {
 			throw new CompileError("Unexpected statement: " + cmd);

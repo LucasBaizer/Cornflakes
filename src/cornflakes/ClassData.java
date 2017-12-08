@@ -13,6 +13,7 @@ public class ClassData {
 
 	public ClassData() {
 		use("java.lang.Object");
+		use("java.lang.String");
 	}
 
 	public void use(String use) {
@@ -37,6 +38,12 @@ public class ClassData {
 		try {
 			return Strings.transformClassName(Class.forName(name).getName());
 		} catch (ClassNotFoundException e) {
+			if (name.equals("string")) {
+				return "java/lang/String";
+			} else if(name.equals("object")) {
+				return "java/lang/Object";
+			}
+
 			for (String use : this.use) {
 				if (use.endsWith("/" + name)) {
 					return use;

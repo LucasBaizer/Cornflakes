@@ -15,7 +15,10 @@ public class HeadCompiler extends Compiler {
 			if (!firstLine.startsWith("package ")) {
 				throw new CompileError("Expecting space ' ' between identifiers");
 			}
+
 			className = Strings.transformClassName(firstLine.substring(firstLine.indexOf(" ") + 1)) + "/";
+
+			Strings.handleLetterString(className, Strings.PERIOD);
 			firstLine = Strings.normalizeSpaces(lines[1]);
 			index = 2;
 		}
@@ -30,12 +33,15 @@ public class HeadCompiler extends Compiler {
 			String[] keywordSplit = firstLine.split(" ");
 			className += simple = keywordSplit[1];
 
+			Strings.handleLetterString(keywordSplit[1]);
+
 			if (keywordSplit.length > 2) {
 				if (keywordSplit[2].equals("extends")) {
 					if (keywordSplit.length < 4) {
 						throw new CompileError("Expecting identifier after keyword");
 					}
 					parent = data.resolve(keywordSplit[3]);
+					Strings.handleLetterString(parent, Strings.PERIOD);
 				} else {
 					throw new CompileError("Unexpected token: " + keywordSplit[3]);
 				}

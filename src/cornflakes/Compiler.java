@@ -12,7 +12,7 @@ public abstract class Compiler implements Opcodes {
 
 	public static ClassData compile(String file, String cls) {
 		List<String> list = Arrays.asList(cls.split(System.lineSeparator())).stream().map((x) -> x.trim())
-				.filter((x) -> !x.trim().isEmpty() && !x.trim().startsWith("//")).collect(Collectors.toList());
+				.filter((x) -> !x.isEmpty() && !x.startsWith("//")).collect(Collectors.toList());
 		String[] lines = list.toArray(new String[list.size()]);
 
 		ClassWriter cw = new ClassWriter(0);
@@ -20,11 +20,11 @@ public abstract class Compiler implements Opcodes {
 		data.setSourceName(file);
 
 		new HeadCompiler().compile(data, cw, Strings.accumulate(lines), lines);
-		
-		if(!data.hasConstructor()) {
+
+		if (!data.hasConstructor()) {
 			new ConstructorCompiler().compileDefault(data, cw);
 		}
-		
+
 		cw.visitEnd();
 		data.setByteCode(cw.toByteArray());
 

@@ -5,6 +5,51 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Strings {
+	private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvywxyz";
+	public static final char[] NUMBERS = "1234567890".toCharArray();
+	public static final char[] PERIOD = new char[] { '.' };
+	public static final char[] SPACE = new char[] { ' ' };
+
+	public static char[] combineExceptions(char[]... exceptions) {
+		int len = 0;
+		for (char[] x : exceptions) {
+			len += x.length;
+		}
+
+		int i = 0;
+		char[] arr = new char[len];
+		for (char[] x : exceptions) {
+			System.arraycopy(x, 0, arr, i, x.length);
+			i += x.length;
+		}
+
+		return arr;
+	}
+
+	public static boolean isLetterString(Response<Character> res, String test, boolean handle, char... exceptions) {
+		String str = LETTERS;
+
+		for (char ch : exceptions) {
+			str += Character.toString(ch);
+		}
+
+		for (int i = 0; i < test.length(); i++) {
+			if (!str.contains(Character.toString(test.charAt(i)))) {
+				if (handle) {
+					throw new CompileError("Unexpected token: " + test.charAt(i));
+				}
+				res.setResponse(test.charAt(i));
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public static boolean handleLetterString(String test, char... exceptions) {
+		return isLetterString(null, test, true, exceptions);
+	}
+
 	public static String normalizeSpaces(String str) {
 		return str.replaceAll("\\s+", " ").trim();
 	}
@@ -71,5 +116,17 @@ public class Strings {
 		}
 
 		return count;
+	}
+
+	public static void handleMatching(String str, char open, char close) {
+		String openStr = Character.toString(open);
+		String closeStr = Character.toString(close);
+
+		if (countOccurrences(str, openStr) == 0) {
+			throw new CompileError("Expecting '" + open + "'");
+		}
+		if (countOccurrences(str, closeStr) == 0) {
+			throw new CompileError("Expecting '" + close + "'");
+		}
 	}
 }

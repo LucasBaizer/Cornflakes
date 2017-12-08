@@ -11,16 +11,16 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="dependencies/asm-6.0.jar"/>
-	<classpathentry kind="lib" path="dependencies/asm-analysis-6.0.jar"/>
-	<classpathentry kind="lib" path="dependencies/asm-commons-6.0.jar"/>
-	<classpathentry kind="lib" path="dependencies/asm-tree-6.0.jar"/>
-	<classpathentry kind="lib" path="dependencies/asm-util-6.0.jar"/>
-	<classpathentry kind="lib" path="dependencies/asm-xml-6.0.jar"/>
 	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="H:/asm-6.0-bin/asm-6.0/lib/asm-6.0.jar"/>
+	<classpathentry kind="lib" path="H:/asm-6.0-bin/asm-6.0/lib/asm-analysis-6.0.jar"/>
+	<classpathentry kind="lib" path="H:/asm-6.0-bin/asm-6.0/lib/asm-commons-6.0.jar"/>
+	<classpathentry kind="lib" path="H:/asm-6.0-bin/asm-6.0/lib/asm-tree-6.0.jar"/>
+	<classpathentry kind="lib" path="H:/asm-6.0-bin/asm-6.0/lib/asm-util-6.0.jar"/>
+	<classpathentry kind="lib" path="H:/asm-6.0-bin/asm-6.0/lib/asm-xml-6.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

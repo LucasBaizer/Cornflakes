@@ -1,5 +1,8 @@
 package cornflakes;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -7,7 +10,48 @@ import org.objectweb.asm.MethodVisitor;
 public class FunctionCompiler extends Compiler {
 	@Override
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
-		MethodVisitor mv = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "main", "()V", null, null);
+		String after = lines[0].substring("function".length()).trim();
+		String withoutBracket = after.substring(0, after.length() - 1).trim();
+		Strings.handleMatching(withoutBracket, '(', ')');
+
+		int accessor = ACC_PUBLIC + ACC_STATIC;
+		String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')')).trim();
+		List<String> parameterNames = new ArrayList<>();
+		if (!params.isEmpty()) {
+			String[] split = params.split(",");
+			for (String par : split) {
+				par = Strings.normalizeSpaces(par);
+				Strings.handleLetterString(par, Strings.combineExceptions(Strings.NUMBERS, Strings.SPACE));
+
+				if (par.equals("this")) {
+					if (parameterNames.contains(par)) {
+						throw new CompileError("Duplicate parameter name: " + par);
+					}
+
+					accessor -= ACC_STATIC;
+					parameterNames.add(par);
+					continue;
+				}
+
+				String[] spl = par.split(" ");
+				if (spl.length != 2) {
+					throw new CompileError("Expecting format 'type name'");
+				}
+
+				String type = spl[0];
+				String name = spl[1];
+
+				if (parameterNames.contains(name)) {
+					throw new CompileError("Duplicate parameter name: " + par);
+				}
+				
+				data.resolve(type);
+
+				parameterNames.add(par);
+			}
+		}
+
+		MethodVisitor mv = cw.visitMethod(accessor, "main", "()V", null, null);
 		mv.visitCode();
 		Label l0 = new Label();
 		mv.visitLabel(l0);
