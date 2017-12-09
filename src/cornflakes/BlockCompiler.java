@@ -9,7 +9,7 @@ public class BlockCompiler extends Compiler {
 
 		if (firstLine.startsWith("function ")) {
 			new FunctionCompiler().compile(data, cw, body, lines);
-		} else if (firstLine.startsWith(data.getSimpleClassName())) {
+		} else if (firstLine.startsWith("constructor")) {
 			new ConstructorCompiler().compile(data, cw, body, lines);
 			data.setHasConstructor(true);
 		} else {

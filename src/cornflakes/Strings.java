@@ -9,6 +9,7 @@ public class Strings {
 	public static final char[] NUMBERS = "1234567890".toCharArray();
 	public static final char[] PERIOD = new char[] { '.' };
 	public static final char[] SPACE = new char[] { ' ' };
+	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
 
 	public static char[] combineExceptions(char[]... exceptions) {
 		int len = 0;

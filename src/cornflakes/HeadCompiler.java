@@ -40,7 +40,7 @@ public class HeadCompiler extends Compiler {
 					if (keywordSplit.length < 4) {
 						throw new CompileError("Expecting identifier after keyword");
 					}
-					parent = data.resolve(keywordSplit[3]);
+					parent = data.resolveClass(keywordSplit[3]);
 					Strings.handleLetterString(parent, Strings.PERIOD);
 				} else {
 					throw new CompileError("Unexpected token: " + keywordSplit[3]);

@@ -34,19 +34,32 @@ public class ClassData {
 		return false;
 	}
 
-	public String resolve(String name) {
+	public String resolveClass(String name) {
+		boolean arrayType = false;
+
+		if (name.endsWith("[]")) {
+			name = name.replace("[]", "");
+			arrayType = true;
+		}
+
+		if (Signature.isPrimitive(name)) {
+			return Signature.getTypeSignature(Signature.getClassFromPrimitive(name));
+		}
+
+		Strings.handleLetterString(name, Strings.NUMBERS);
+
 		try {
 			return Strings.transformClassName(Class.forName(name).getName());
 		} catch (ClassNotFoundException e) {
 			if (name.equals("string")) {
-				return "java/lang/String";
-			} else if(name.equals("object")) {
-				return "java/lang/Object";
+				return arrayType ? "[Ljava/lang/String;" : "java/lang/String";
+			} else if (name.equals("object")) {
+				return arrayType ? "[Ljava/lang/Object;" : "java/lang/Object";
 			}
 
 			for (String use : this.use) {
 				if (use.endsWith("/" + name)) {
-					return use;
+					return arrayType ? "[L" + use + ";" : use;
 				}
 			}
 			throw new CompileError("Unresolved class: " + name);

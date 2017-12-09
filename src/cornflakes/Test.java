@@ -65,8 +65,9 @@ public class Test implements Opcodes {
 	};
 
 	public static void main(String[] args) throws Exception {
-		ClassData result = Compiler.compile("HelloWorld.cf",
-				new String(Files.readAllBytes(Paths.get("HelloWorld.cf"))));
+		String text = new String(Files.readAllBytes(Paths.get("HelloWorld.cf"))).replaceAll("\\r\\n|\\r|\\n",
+				System.lineSeparator());
+		ClassData result = Compiler.compile("HelloWorld.cf", text);
 		Files.write(Paths.get("HelloWorld.class"), result.getByteCode());
 
 		DynamicClassLoader loader = new DynamicClassLoader();

@@ -15,13 +15,15 @@ public class FunctionCompiler extends Compiler {
 		Strings.handleMatching(withoutBracket, '(', ')');
 
 		int accessor = ACC_PUBLIC + ACC_STATIC;
+		String methodName = withoutBracket.substring(0, withoutBracket.indexOf('(')).trim();
+		Strings.handleLetterString(methodName);
+
 		String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')')).trim();
 		List<String> parameterNames = new ArrayList<>();
 		if (!params.isEmpty()) {
 			String[] split = params.split(",");
 			for (String par : split) {
 				par = Strings.normalizeSpaces(par);
-				Strings.handleLetterString(par, Strings.combineExceptions(Strings.NUMBERS, Strings.SPACE));
 
 				if (par.equals("this")) {
 					if (parameterNames.contains(par)) {
@@ -41,17 +43,25 @@ public class FunctionCompiler extends Compiler {
 				String type = spl[0];
 				String name = spl[1];
 
+				Strings.handleLetterString(name, Strings.NUMBERS);
+				Strings.handleLetterString(type, Strings.combineExceptions(Strings.NUMBERS, Strings.SQUARE_BRACKETS));
+
 				if (parameterNames.contains(name)) {
 					throw new CompileError("Duplicate parameter name: " + par);
 				}
-				
-				data.resolve(type);
+
+				String resolvedType = data.resolveClass(type);
+				if (methodName.equals("main")) {
+					if (!resolvedType.equals("[Ljava/lang/String;")) {
+						throw new CompileError("Main method should either have no parameter or one of type string[]");
+					}
+				}
 
 				parameterNames.add(par);
 			}
 		}
 
-		MethodVisitor mv = cw.visitMethod(accessor, "main", "()V", null, null);
+		MethodVisitor mv = cw.visitMethod(accessor, methodName, "()V", null, null);
 		mv.visitCode();
 		Label l0 = new Label();
 		mv.visitLabel(l0);

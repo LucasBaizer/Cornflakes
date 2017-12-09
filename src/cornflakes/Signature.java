@@ -1,6 +1,45 @@
 package cornflakes;
 
 public class Signature {
+	public static boolean isPrimitive(String name) {
+		switch (name) {
+			case "boolean":
+			case "byte":
+			case "char":
+			case "short":
+			case "int":
+			case "long":
+			case "float":
+			case "double":
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	public static Class<?> getClassFromPrimitive(String primitive) {
+		switch (primitive) {
+			case "boolean":
+				return boolean.class;
+			case "byte":
+				return byte.class;
+			case "char":
+				return char.class;
+			case "short":
+				return short.class;
+			case "int":
+				return int.class;
+			case "long":
+				return long.class;
+			case "float":
+				return float.class;
+			case "double":
+				return double.class;
+			default:
+				throw new CompileError("Unresolved type: " + primitive);
+		}
+	}
+
 	public static String getTypeSignature(Class<?> type) {
 		if (type == null || type == Void.class) {
 			return "V";
