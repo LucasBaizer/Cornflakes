@@ -18,6 +18,14 @@ public class FunctionCompiler extends Compiler {
 		String methodName = withoutBracket.substring(0, withoutBracket.indexOf('(')).trim();
 		Strings.handleLetterString(methodName);
 
+		String returnType = "V";
+		if (withoutBracket.contains("->")) {
+			String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
+			Strings.handleLetterString(afterParams, Strings.NUMBERS);
+			
+			returnType = data.resolveClass(afterParams);
+		}
+
 		String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')')).trim();
 		List<String> parameterNames = new ArrayList<>();
 		if (!params.isEmpty()) {
@@ -54,6 +62,9 @@ public class FunctionCompiler extends Compiler {
 				if (methodName.equals("main")) {
 					if (!resolvedType.equals("[Ljava/lang/String;")) {
 						throw new CompileError("Main method should either have no parameter or one of type string[]");
+					}
+					if(!returnType.equals("I")) {
+						throw new CompileError("Main method should have return type 'int'");
 					}
 				}
 
