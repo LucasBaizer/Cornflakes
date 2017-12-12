@@ -6,13 +6,16 @@ import java.util.Map;
 public class MethodData {
 	private String name;
 	private String returnType;
+	private Map<String, String> parameters = new LinkedHashMap<>();
 	private Map<String, String> locals = new LinkedHashMap<>();
 	private int stackSize;
 	private int localVariables;
+	private int modifiers;
 
-	public MethodData(String name, String ret) {
+	public MethodData(String name, String ret, int mods) {
 		this.name = name;
 		this.returnType = ret;
+		this.modifiers = mods;
 	}
 
 	public String getName() {
@@ -75,5 +78,33 @@ public class MethodData {
 
 	public void setLocals(Map<String, String> locals) {
 		this.locals = new LinkedHashMap<>(locals);
+		this.parameters.remove("this");
+	}
+
+	public void setParameters(Map<String, String> params) {
+		this.parameters = new LinkedHashMap<>(params);
+		this.parameters.remove("this");
+	}
+	
+	public Map<String, String> getParameters() {
+		return this.parameters;
+	}
+
+	public int getModifiers() {
+		return modifiers;
+	}
+
+	public void setModifiers(int modifiers) {
+		this.modifiers = modifiers;
+	}
+
+	public String getSignature() {
+		String desc = "(";
+		for (String par : parameters.values()) {
+			desc += par.length() == 1 ? par : "L" + par;
+		}
+		desc += ")" + returnType;
+
+		return desc;
 	}
 }

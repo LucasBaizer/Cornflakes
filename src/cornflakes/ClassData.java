@@ -8,12 +8,11 @@ public class ClassData {
 	private String simpleClassName;
 	private String parentName;
 	private String className;
-	private String fullName;
 	private String sourceName;
 	private boolean hasConstructor;
 	private byte[] byteCode;
 	private ArrayList<String> use = new ArrayList<>();
-	private Map<String, String> methods = new LinkedHashMap<>();
+	private Map<String, MethodData> methods = new LinkedHashMap<>();
 	private Map<String, String> memberVariables = new LinkedHashMap<>();
 
 	public ClassData() {
@@ -119,23 +118,27 @@ public class ClassData {
 		this.parentName = parentName;
 	}
 
-	public String getFullName() {
-		return fullName;
-	}
-
-	public void setFullName(String fullName) {
-		this.fullName = fullName;
-	}
-
 	public boolean hasMethod(String name) {
 		return methods.containsKey(name);
 	}
 
-	public String getMethodType(String name) {
+	public MethodData getMethodData(String name) {
 		return methods.get(name);
 	}
 
-	public void addMethod(String name, String type) {
+	public void addMethod(String name, MethodData type) {
 		methods.put(name, type);
+	}
+
+	public void addMemberVariable(String name, String type) {
+		memberVariables.put(name, type);
+	}
+
+	public String getMemberVariableType(String name) {
+		return memberVariables.get(name);
+	}
+
+	public boolean hasMemberVariable(String name) {
+		return memberVariables.containsKey(name);
 	}
 }

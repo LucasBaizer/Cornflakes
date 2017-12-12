@@ -43,7 +43,7 @@ public class FunctionCompiler extends Compiler {
 					}
 
 					accessor -= ACC_STATIC;
-					parameters.put("this", "__this__");
+					parameters.put("this", "L" + data.getClassName() + ";");
 					continue;
 				}
 
@@ -76,16 +76,11 @@ public class FunctionCompiler extends Compiler {
 			}
 		}
 
-		String desc = "(";
-		for (String par : parameters.values()) {
-			desc += par;
-		}
-		desc += ")" + returnType;
-
-		MethodData methodData = new MethodData(methodName, returnType);
+		MethodData methodData = new MethodData(methodName, returnType, accessor);
 		methodData.setLocals(parameters);
+		methodData.setParameters(parameters);
 
-		MethodVisitor m = cw.visitMethod(accessor, methodName, desc, null, null);
+		MethodVisitor m = cw.visitMethod(accessor, methodName, methodData.getSignature(), null, null);
 		m.visitCode();
 
 		int line = 0;
@@ -115,7 +110,7 @@ public class FunctionCompiler extends Compiler {
 		}
 		m.visitEnd();
 
-		data.addMethod(methodName, returnType);
+		data.addMethod(methodName, methodData);
 
 		// Label l0 = new Label();
 		// mv.visitLabel(l0);

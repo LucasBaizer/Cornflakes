@@ -127,6 +127,20 @@ public class Strings {
 		return count;
 	}
 
+	public static boolean hasMatching(String str, char open, char close) {
+		String openStr = Character.toString(open);
+		String closeStr = Character.toString(close);
+
+		if (countOccurrences(str, openStr) == 0) {
+			return false;
+		}
+		if (countOccurrences(str, closeStr) == 0) {
+			return false;
+		}
+
+		return true;
+	}
+
 	public static void handleMatching(String str, char open, char close) {
 		String openStr = Character.toString(open);
 		String closeStr = Character.toString(close);

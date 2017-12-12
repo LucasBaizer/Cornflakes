@@ -2,10 +2,14 @@
 
 class HelloWorld
 
-function main() -> int {
-	return 0
+function anotherMethod(string val) -> int {
+	return 3
 }
 
 function method() -> int {
-	return 1
+	return anotherMethod(1)
+}
+
+function main() -> int {
+	return method()
 }

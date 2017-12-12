@@ -61,8 +61,23 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 				} else {
 					m.visitLineNumber(num++, ret);
-					new ReferenceCompiler(this.data).compile(data, m, num, body, lines);
-					m.visitInsn(ARETURN);
+					ReferenceCompiler compiler = new ReferenceCompiler(ret, this.data);
+					num = compiler.compile(data, m, num, par, new String[] { par });
+					
+					String ref = Types.getTypeFromSignature(compiler.getReferenceType()).getSimpleName().toLowerCase();
+
+					int op = ARETURN;
+					if (ref.equals("int")) {
+						op = IRETURN;
+					} else if (ref.equals("float")) {
+						op = FRETURN;
+					} else if (ref.equals("double")) {
+						op = DRETURN;
+					} else if (ref.equals("long")) {
+						op = LRETURN;
+					}
+
+					m.visitInsn(op);
 				}
 			} else {
 				if (this.data.getReturnTypeSignature().equals("V")) {
