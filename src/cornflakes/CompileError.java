@@ -6,4 +6,8 @@ public class CompileError extends RuntimeException {
 	public CompileError(String err) {
 		super(err);
 	}
+
+	public CompileError(Throwable e) {
+		super(e);
+	}
 }

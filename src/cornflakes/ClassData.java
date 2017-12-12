@@ -1,15 +1,20 @@
 package cornflakes;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ClassData {
 	private String simpleClassName;
 	private String parentName;
 	private String className;
+	private String fullName;
 	private String sourceName;
 	private boolean hasConstructor;
 	private byte[] byteCode;
 	private ArrayList<String> use = new ArrayList<>();
+	private Map<String, String> methods = new LinkedHashMap<>();
+	private Map<String, String> memberVariables = new LinkedHashMap<>();
 
 	public ClassData() {
 		use("java.lang.Object");
@@ -42,8 +47,8 @@ public class ClassData {
 			arrayType = true;
 		}
 
-		if (Signature.isPrimitive(name)) {
-			return Signature.getTypeSignature(Signature.getClassFromPrimitive(name));
+		if (Types.isPrimitive(name)) {
+			return Types.getTypeSignature(Types.getClassFromPrimitive(name));
 		}
 
 		Strings.handleLetterString(name, Strings.NUMBERS);
@@ -52,14 +57,14 @@ public class ClassData {
 			return Strings.transformClassName(Class.forName(name).getName());
 		} catch (ClassNotFoundException e) {
 			if (name.equals("string")) {
-				return arrayType ? "[Ljava/lang/String;" : "java/lang/String";
+				return arrayType ? "[Ljava/lang/String" : "java/lang/String";
 			} else if (name.equals("object")) {
-				return arrayType ? "[Ljava/lang/Object;" : "java/lang/Object";
+				return arrayType ? "[Ljava/lang/Object" : "java/lang/Object";
 			}
 
 			for (String use : this.use) {
 				if (use.endsWith("/" + name)) {
-					return arrayType ? "[L" + use + ";" : use;
+					return arrayType ? "[L" + use : use;
 				}
 			}
 			throw new CompileError("Unresolved class: " + name);
@@ -112,5 +117,25 @@ public class ClassData {
 
 	public void setParentName(String parentName) {
 		this.parentName = parentName;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public boolean hasMethod(String name) {
+		return methods.containsKey(name);
+	}
+
+	public String getMethodType(String name) {
+		return methods.get(name);
+	}
+
+	public void addMethod(String name, String type) {
+		methods.put(name, type);
 	}
 }

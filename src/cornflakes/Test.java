@@ -72,7 +72,9 @@ public class Test implements Opcodes {
 
 		DynamicClassLoader loader = new DynamicClassLoader();
 		Class<?> helloWorldClass = loader.define(result.getClassName().trim(), result.getByteCode());
-		Method method = helloWorldClass.getMethod("main");
-		method.invoke(null);
+		Method method = helloWorldClass.getMethod("method");
+		
+		Object invok = method.invoke(null);
+		System.out.println("response: " + invok);
 	}
 }

@@ -1,7 +1,8 @@
 package cornflakes;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
@@ -21,25 +22,28 @@ public class FunctionCompiler extends Compiler {
 		String returnType = "V";
 		if (withoutBracket.contains("->")) {
 			String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
-			Strings.handleLetterString(afterParams, Strings.NUMBERS);
-			
+			Strings.handleLetterString(afterParams, Strings.VARIABLE_TYPE);
+
 			returnType = data.resolveClass(afterParams);
+			if (returnType.length() > 1) {
+				returnType = "L" + returnType + ";";
+			}
 		}
 
 		String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')')).trim();
-		List<String> parameterNames = new ArrayList<>();
+		Map<String, String> parameters = new LinkedHashMap<>();
 		if (!params.isEmpty()) {
 			String[] split = params.split(",");
 			for (String par : split) {
 				par = Strings.normalizeSpaces(par);
 
 				if (par.equals("this")) {
-					if (parameterNames.contains(par)) {
+					if (parameters.containsKey(par)) {
 						throw new CompileError("Duplicate parameter name: " + par);
 					}
 
 					accessor -= ACC_STATIC;
-					parameterNames.add(par);
+					parameters.put("this", "__this__");
 					continue;
 				}
 
@@ -51,44 +55,89 @@ public class FunctionCompiler extends Compiler {
 				String type = spl[0];
 				String name = spl[1];
 
-				Strings.handleLetterString(name, Strings.NUMBERS);
-				Strings.handleLetterString(type, Strings.combineExceptions(Strings.NUMBERS, Strings.SQUARE_BRACKETS));
+				Strings.handleLetterString(name, Strings.VARIABLE_NAME);
+				Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
 
-				if (parameterNames.contains(name)) {
+				if (parameters.containsKey(name)) {
 					throw new CompileError("Duplicate parameter name: " + par);
 				}
 
 				String resolvedType = data.resolveClass(type);
 				if (methodName.equals("main")) {
-					if (!resolvedType.equals("[Ljava/lang/String;")) {
+					if (!resolvedType.equals("[Ljava/lang/String")) {
 						throw new CompileError("Main method should either have no parameter or one of type string[]");
 					}
-					if(!returnType.equals("I")) {
+					if (!returnType.equals("I")) {
 						throw new CompileError("Main method should have return type 'int'");
 					}
 				}
 
-				parameterNames.add(par);
+				parameters.put(name, resolvedType.length() > 1 ? resolvedType + ";" : resolvedType);
 			}
 		}
 
-		MethodVisitor mv = cw.visitMethod(accessor, methodName, "()V", null, null);
-		mv.visitCode();
-		Label l0 = new Label();
-		mv.visitLabel(l0);
-		mv.visitLineNumber(7, l0);
-		mv.visitFieldInsn(GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;");
-		mv.visitLdcInsn("Hello, world!");
-		mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/String;)V", false);
-		Label l1 = new Label();
-		mv.visitLabel(l1);
-		mv.visitLineNumber(8, l1);
-		mv.visitInsn(RETURN);
-		Label l2 = new Label();
-		mv.visitLabel(l2);
-		// mv.visitLocalVariable("args", "[Ljava/lang/String;", null, l0,
-		// l2, 0);
-		mv.visitMaxs(2, 1);
-		mv.visitEnd();
+		String desc = "(";
+		for (String par : parameters.values()) {
+			desc += par;
+		}
+		desc += ")" + returnType;
+
+		MethodData methodData = new MethodData(methodName, returnType);
+		methodData.setLocals(parameters);
+
+		MethodVisitor m = cw.visitMethod(accessor, methodName, desc, null, null);
+		m.visitCode();
+
+		int line = 0;
+		int localVariables = 0;
+
+		Label start = new Label();
+		Label post = new Label();
+		{
+			m.visitLabel(start);
+			m.visitLineNumber(line++, start);
+		}
+
+		String[] inner = Strings.before(Strings.after(lines, 1), 1);
+		String innerBody = Strings.accumulate(inner).trim();
+		String[] inner2 = Strings.accumulate(innerBody);
+		line = new GenericBodyCompiler(methodData).compile(data, m, line, innerBody, inner2);
+		{
+			m.visitLabel(post);
+			int index = 0;
+			for (Entry<String, String> par : parameters.entrySet()) {
+				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, index);
+				index++;
+				localVariables++;
+			}
+
+			m.visitMaxs(128, localVariables); // TODO 128
+		}
+		m.visitEnd();
+
+		data.addMethod(methodName, returnType);
+
+		// Label l0 = new Label();
+		// mv.visitLabel(l0);
+		// mv.visitLineNumber(7, l0);
+		// mv.visitFieldInsn(GETSTATIC, "java/lang/System", "out",
+		// "Ljava/io/PrintStream;");
+		// mv.visitLdcInsn("Hello, world!");
+		// mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println",
+		// "(Ljava/lang/String;)V", false);
+		// Label l1 = new Label();
+		// mv.visitLabel(l1);
+		// mv.visitLineNumber(8, l1);
+		// mv.visitLdcInsn(0);
+		// Label l2 = new Label();
+		// mv.visitLabel(l2);
+		// mv.visitLineNumber(9, l2);
+		// mv.visitInsn(IRETURN);
+		// Label l3 = new Label();
+		// mv.visitLabel(l3);
+		// // mv.visitLocalVariable("args", "[Ljava/lang/String;", null, l0,
+		// // l3, 0);
+		// mv.visitMaxs(2, 1);
+		// mv.visitEnd();
 	}
 }

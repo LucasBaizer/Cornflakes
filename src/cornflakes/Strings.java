@@ -10,6 +10,8 @@ public class Strings {
 	public static final char[] PERIOD = new char[] { '.' };
 	public static final char[] SPACE = new char[] { ' ' };
 	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
+	public static final char[] VARIABLE_NAME = Arrays.copyOf(NUMBERS, NUMBERS.length);
+	public static final char[] VARIABLE_TYPE = combineExceptions(NUMBERS, SQUARE_BRACKETS);
 
 	public static char[] combineExceptions(char[]... exceptions) {
 		int len = 0;
@@ -62,6 +64,12 @@ public class Strings {
 	public static String[] after(String[] arr, int index) {
 		String[] arr2 = new String[arr.length - index];
 		System.arraycopy(arr, index, arr2, 0, arr2.length);
+		return arr2;
+	}
+
+	public static String[] before(String[] arr, int before) {
+		String[] arr2 = new String[arr.length - before];
+		System.arraycopy(arr, 0, arr2, 0, arr2.length);
 		return arr2;
 	}
 

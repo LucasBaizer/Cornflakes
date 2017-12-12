@@ -2,10 +2,10 @@
 
 class HelloWorld
 
-function main(string[] args) -> int {
-	System.out.println("Hello, World!")
+function main() -> int {
+	return 0
 }
 
-function getX(int y) {
-	return y
+function method() -> int {
+	return 1
 }
