@@ -1,5 +1,6 @@
 package cornflakes;
 
+import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -10,6 +11,8 @@ import org.objectweb.asm.Opcodes;
 
 public abstract class Compiler implements Opcodes {
 	private static List<FunctionCompiler> postCompilers = new ArrayList<>();
+	
+	public static Dimension dim = new Dimension(5, 5);
 	
 	public abstract void compile(ClassData data, ClassWriter cw, String body, String[] lines);
 

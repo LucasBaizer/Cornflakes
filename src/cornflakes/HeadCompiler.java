@@ -19,9 +19,10 @@ public class HeadCompiler extends Compiler {
 				throw new CompileError("Expecting space ' ' between identifiers");
 			}
 
-			className = Strings.transformClassName(firstLine.substring(firstLine.indexOf(" ") + 1)) + "/";
-
+			className = Strings.transformClassName(firstLine.substring(firstLine.indexOf(" ") + 1));
 			Strings.handleLetterString(className, Strings.PERIOD);
+			className += "/";
+
 			firstLine = Strings.normalizeSpaces(lines[1]);
 			index = 2;
 		}

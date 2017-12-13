@@ -9,10 +9,6 @@ public class Types {
 		}
 
 		Class<?> targetClass = getTypeFromSignature(unpadSignature(target));
-		if(targetClass == Object.class) {
-			return true;
-		}
-		
 		Class<?> testClass = getTypeFromSignature(unpadSignature(test));
 		return targetClass.isAssignableFrom(testClass);
 	}
@@ -246,7 +242,7 @@ public class Types {
 
 		if (sig.startsWith("[")) {
 			try {
-				return Class.forName(sig.replace('/', '.') + ";");
+				return Class.forName(sig.replace('/', '.'));
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}

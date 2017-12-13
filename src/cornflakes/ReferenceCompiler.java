@@ -179,6 +179,12 @@ public class ReferenceCompiler implements GenericCompiler {
 					} else {
 						// TODO ensure that non-literals are accepted, but for
 						// now, just let it slide
+						if (this.data.hasLocal(par)) {
+							if (!Types.isSuitable(paramType, Types.getTypeSignature(this.data.getLocalType(par)))) {
+								success = false;
+								break;
+							}
+						}
 						break;
 					}
 					idx++;
