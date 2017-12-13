@@ -70,14 +70,23 @@ public class Test implements Opcodes {
 	public static void main(String[] args) throws Exception {
 		String text = new String(Files.readAllBytes(Paths.get("HelloWorld.cf"))).replaceAll("\\r\\n|\\r|\\n",
 				System.lineSeparator());
+
+		long time = System.currentTimeMillis();
 		ClassData result = Compiler.compile("HelloWorld.cf", text);
+		System.out.println("Compiled after " + (System.currentTimeMillis() - time) + "ms.");
+		System.out.println();
+
 		Files.write(Paths.get("HelloWorld.class"), result.getByteCode());
 
 		DynamicClassLoader loader = new DynamicClassLoader();
 		Class<?> helloWorldClass = loader.define(result.getClassName().trim(), result.getByteCode());
-		Method method = helloWorldClass.getMethod("main");
-		
+		Method method = helloWorldClass.getDeclaredMethod("main");
+		method.setAccessible(true);
+
 		Object invok = method.invoke(null);
-		System.out.println("response: " + invok);
+		System.out.println();
+		System.out.println("Exit code: " + invok);
+
+		System.exit((int) invok);
 	}
 }

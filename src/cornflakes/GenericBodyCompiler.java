@@ -4,6 +4,7 @@ import org.objectweb.asm.MethodVisitor;
 
 public class GenericBodyCompiler implements GenericCompiler {
 	private MethodData data;
+	private boolean returns;
 
 	public GenericBodyCompiler(MethodData data) {
 		this.data = data;
@@ -36,7 +37,13 @@ public class GenericBodyCompiler implements GenericCompiler {
 			// cursor++;
 			// }
 			// } else {
-			num = new GenericStatementCompiler(this.data).compile(data, m, num, line, new String[] { line });
+			GenericStatementCompiler gsc = new GenericStatementCompiler(this.data);
+			num = gsc.compile(data, m, num, line, new String[] { line });
+
+			if (gsc.getType() == GenericStatementCompiler.RETURN) {
+				returns = true;
+			}
+
 			cursor += line.length();
 			while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {
 				cursor++;
@@ -45,5 +52,9 @@ public class GenericBodyCompiler implements GenericCompiler {
 		}
 
 		return num;
+	}
+
+	public boolean returns() {
+		return returns;
 	}
 }

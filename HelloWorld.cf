@@ -1,11 +1,11 @@
 //Hello World written in Cornflakes
 
-class HelloWorld
+public class HelloWorld
 
-use cornflakes.Console
+static function main() -> int {
+	return get(5)
+}
 
-function main() -> int {
-	Console.log("hello")
-	
-	return 0
+public static function get(int x) -> int {
+	return x
 }

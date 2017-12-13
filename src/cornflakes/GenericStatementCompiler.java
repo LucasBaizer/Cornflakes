@@ -4,7 +4,10 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class GenericStatementCompiler implements GenericCompiler {
+	public static final int RETURN = 1;
+
 	private MethodData data;
+	private int type;
 
 	public GenericStatementCompiler(MethodData data) {
 		this.data = data;
@@ -13,6 +16,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 	@Override
 	public int compile(ClassData data, MethodVisitor m, int num, String body, String[] lines) {
 		if (body.startsWith("return")) {
+			type = RETURN;
+
 			body = Strings.normalizeSpaces(body);
 
 			Label ret = new Label();
@@ -21,6 +26,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			String[] split = body.split(" ", 2);
 			if (split.length == 2) {
+				if (this.data.getReturnTypeSignature().equals("V")) {
+					throw new CompileError("Cannot return a value to a void function");
+				}
+
 				String par = split[1].trim();
 
 				String type = Types.getType(par, this.data.getReturnType().getSimpleName().toLowerCase());
@@ -96,5 +105,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 			new ReferenceCompiler(label, this.data).compile(data, m, num, body, lines);
 		}
 		return num;
+	}
+
+	public int getType() {
+		return type;
 	}
 }

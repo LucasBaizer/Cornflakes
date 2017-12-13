@@ -7,8 +7,8 @@ public class BlockCompiler extends Compiler {
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
 		String firstLine = Strings.normalizeSpaces(lines[0]);
 
-		if (firstLine.startsWith("function ")) {
-			new FunctionCompiler().compile(data, cw, body, lines);
+		if (firstLine.contains("function ")) {
+			new FunctionCompiler(false).compile(data, cw, body, lines);
 		} else if (firstLine.startsWith("constructor")) {
 			new ConstructorCompiler().compile(data, cw, body, lines);
 			data.setHasConstructor(true);

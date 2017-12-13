@@ -1,9 +1,7 @@
 package cornflakes;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.regex.Pattern;
+import java.util.List;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -25,19 +23,60 @@ public class ReferenceCompiler implements GenericCompiler {
 
 	private int compile(String containerClass, ClassData containerData, ClassData data, MethodVisitor m, int num,
 			String body, String[] lines) {
-		// String[] operandSplit = body.split("\\(.*?\\)|(\\.)");
-		String[] operandSplit = body.split("\\.");
-		String part = operandSplit[0].trim();
-		System.out.println(part);
+		int end = body.length();
+		int opens = 0;
+		for (int i = 0; i < body.length(); i++) {
+			char c = body.charAt(i);
+			if (c == '(') {
+				opens++;
+			} else if (c == ')') {
+				opens--;
+			}
+			if (opens == 0) {
+				if (c == '.') {
+					end = i;
+					break;
+				}
+			}
+		}
+		String part = body.substring(0, end).trim();
 
+		boolean next = false;
 		if (Strings.hasMatching(part, '(', ')')) {
 			String name = part.substring(0, part.indexOf('(')).trim();
 
 			if (containerData.hasMethod(name)) {
-				return compileMethodCall(containerClass, containerData, data, m, num, body, lines);
+				num = compileMethodCall(containerClass, containerData, data, m, num, part, new String[] { part });
+				next = true;
 			} else {
 				throw new CompileError("Undefined function: " + name);
 			}
+		} else {
+			if (containerData.hasField(part)) {
+				num = compileVariableReference(0, containerClass, containerData, data, m, num, part,
+						new String[] { part });
+				next = true;
+			} else if (this.data.hasLocal(part)) {
+				num = compileVariableReference(1, containerClass, containerData, data, m, num, part,
+						new String[] { part });
+				next = true;
+			}
+		}
+
+		if (next) {
+			if (end != body.length()) {
+				String newBody = body.substring(end + 1, body.length()).trim();
+
+				ClassData newClass = null;
+				try {
+					newClass = ClassData
+							.fromJavaClass(Class.forName(Types.unpadSignature(referenceType).replace('/', '.')));
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
+				}
+				return compile(newClass.getClassName(), newClass, data, m, num, newBody, new String[] { newBody });
+			}
+			return num;
 		}
 
 		String clazz = null;
@@ -54,68 +93,126 @@ public class ReferenceCompiler implements GenericCompiler {
 			throw new CompileError("Class not found: " + clazz.replace('/', '.'));
 		}
 
-		String newBody = Strings.accumulate(Strings.after(operandSplit, 1)).trim();
-		ClassData container = new ClassData();
-		container.setClassName(Strings.transformClassName(cls.getName()));
-		container.setSimpleClassName(cls.getSimpleName());
+		String newBody = body.substring(end + 1).trim();
+		return compile(clazz, ClassData.fromJavaClass(cls), data, m, num, newBody, new String[] { newBody });
+	}
 
-		for (Method method : cls.getDeclaredMethods()) {
-			MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
-					method.getModifiers());
-			Parameter[] params = method.getParameters();
-			for (int i = 0; i < params.length; i++) {
-				mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
+	private int compileVariableReference(int source, String containerClass, ClassData containerData, ClassData data,
+			MethodVisitor m, int num, String body, String[] lines) {
+		if (source == 0) {
+			FieldData field = containerData.getField(body);
+			if (field.hasModifier(ACC_STATIC)) {
+				m.visitFieldInsn(GETSTATIC, containerClass, body, field.getType());
+			} else {
+				m.visitFieldInsn(GETFIELD, containerClass, body, field.getType());
+			}
+			referenceType = field.getType();
+		} else if (source == 1) {
+			String type = this.data.getLocalType(body);
+
+			int op = ALOAD;
+			if (type.equals("I")) {
+				op = ILOAD;
+			} else if (type.equals("J")) {
+				op = LLOAD;
+			} else if (type.equals("D")) {
+				op = DLOAD;
+			} else if (type.equals("F")) {
+				op = FLOAD;
 			}
 
-			container.addMethod(method.getName(), mData);
+			m.visitVarInsn(op, new ArrayList<>(this.data.getLocals().keySet()).indexOf(body));
+			referenceType = type;
 		}
-
-		return compile(clazz, container, data, m, num, newBody, new String[] { newBody });
+		return num;
 	}
 
 	private int compileMethodCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
 			int num, String body, String[] lines) {
-		String[] operandSplit = body.split(Pattern.quote("."));
+		String before = body.substring(0, body.indexOf('(')).trim();
 
-		String part = operandSplit[0].trim();
+		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
 
-		String before = part.substring(0, part.indexOf('(')).trim();
-		String pars = part.substring(part.indexOf('(') + 1, part.lastIndexOf(')')).trim();
-		String[] split = pars.isEmpty() ? new String[0] : Strings.split(pars, ",");
+		List<String> splitList = new ArrayList<>();
+		if (!pars.isEmpty()) {
+			int open = 0;
+			boolean quote = false;
+			int last = 0;
+			for (int i = 0; i < pars.length(); i++) {
+				char c = pars.charAt(i);
+				if (c == '(') {
+					open++;
+				} else if (c == ')') {
+					open--;
+				}
+				if (c == '"') {
+					quote = !quote;
+				}
 
-		MethodData method = containerData.getMethodData(before);
+				if (open == 0 && !quote) {
+					if (c == ',') {
+						splitList.add(pars.substring(last, i).trim());
+						last = i + 1;
+					}
+				}
+			}
+			splitList.add(pars.substring(last, pars.length()).trim());
+		}
+		String[] split = splitList.toArray(new String[splitList.size()]);
 
-		if (method.getParameters().size() != split.length) {
-			throw new CompileError("Method " + method.getName() + " expects " + method.getParameters().size()
-					+ " parameter" + (method.getParameters().size() == 1 ? "" : "s") + ", but " + split.length + " "
-					+ (split.length == 1 ? "was" : "were") + " given");
+		MethodData[] methods = containerData.getMethods(before);
+		MethodData method = null;
+
+		for (MethodData met : methods) {
+			if (met.getParameters().size() == split.length) {
+				int idx = 0;
+				boolean success = true;
+				for (String par : split) {
+					String type = Types.getType(par, met.getReturnType().getSimpleName().toLowerCase());
+					String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+
+					if (type != null) {
+						if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
+							success = false;
+							break;
+						}
+					} else {
+						// TODO ensure that non-literals are accepted, but for
+						// now, just let it slide
+						break;
+					}
+					idx++;
+				}
+
+				if (success) {
+					method = met;
+					break;
+				}
+			}
 		}
 
-		int idx = 0;
+		if (method == null) {
+			throw new CompileError("No overload for method " + before + " takes the given parameters");
+		}
+
 		for (String par : split) {
 			String type = Types.getType(par, this.data.getReturnType().getSimpleName().toLowerCase());
 
 			if (type != null) {
-				String paramType = new ArrayList<>(method.getParameters().values()).get(idx);
-				if (!paramType.equals(Types.getTypeSignature(type))) {
-					throw new CompileError("A parameter of type "
-							+ Types.getTypeFromSignature(Types.unpadSignature(paramType)).getSimpleName()
-							+ " was expected, but one of " + type + " was given");
-				}
-
 				m.visitLdcInsn(Types.parseLiteral(type, par));
 			} else {
 				ReferenceCompiler compiler = new ReferenceCompiler(this.label, this.data);
 				num = compiler.compile(data, m, num, par, new String[] { par });
 			}
-			idx++;
 		}
 
 		if ((method.getModifiers() & ACC_STATIC) == ACC_STATIC) {
 			m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(), false);
 		} else {
-			if ((this.data.getModifiers() & ACC_STATIC) == ACC_STATIC) {
-				throw new CompileError("Cannot access instance method from a static context");
+			if (containerData.getClassName().equals(data.getClassName())) {
+				if ((this.data.getModifiers() & ACC_STATIC) == ACC_STATIC) {
+					throw new CompileError("Cannot access instance method from a static context");
+				}
 			}
 			m.visitMethodInsn(INVOKEVIRTUAL, containerData.getClassName(), before, method.getSignature(), false);
 		}

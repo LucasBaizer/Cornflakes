@@ -1,5 +1,8 @@
 package cornflakes;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.objectweb.asm.ClassWriter;
 
 public class HeadCompiler extends Compiler {
@@ -23,14 +26,48 @@ public class HeadCompiler extends Compiler {
 			index = 2;
 		}
 
-		if (!firstLine.startsWith("class")) {
+		int accessor = ACC_SUPER;
+		if (!firstLine.contains("class ")) {
 			throw new CompileError("Expecting class definition");
 		} else {
-			if (!firstLine.startsWith("class ")) {
-				throw new CompileError("Expecting space ' ' between identifiers");
+			String before = firstLine.substring(0, firstLine.indexOf("class")).trim();
+
+			if (!before.isEmpty()) {
+				List<String> usedKeywords = new ArrayList<>();
+				String[] split = before.split(" ");
+				for (String key : split) {
+					key = key.trim();
+					if (usedKeywords.contains(key)) {
+						throw new CompileError("Duplicate keyword: " + key);
+					}
+					if (key.equals("abstract")) {
+						accessor |= ACC_ABSTRACT;
+					} else if (key.equals("public")) {
+						if (usedKeywords.contains("private") || usedKeywords.contains("protected")) {
+							throw new CompileError("Cannot have multiple access modifiers");
+						}
+
+						accessor |= ACC_PUBLIC;
+					} else if (key.equals("protected")) {
+						if (usedKeywords.contains("private") || usedKeywords.contains("public")) {
+							throw new CompileError("Cannot have multiple access modifiers");
+						}
+
+						accessor |= ACC_PROTECTED;
+					} else if (key.equals("sealed")) {
+						accessor |= ACC_FINAL;
+					} else {
+						throw new CompileError("Unexpected keyword: " + key);
+					}
+					usedKeywords.add(key);
+				}
 			}
 
-			String[] keywordSplit = firstLine.split(" ");
+			String after = firstLine.substring(firstLine.indexOf("class")).trim();
+			String[] keywordSplit = after.split(" ");
+			if (keywordSplit.length != 2) {
+				throw new CompileError("Class declaration should be in format [modifiers] class [name]");
+			}
 			className += simple = keywordSplit[1];
 
 			Strings.handleLetterString(keywordSplit[1]);
@@ -51,8 +88,9 @@ public class HeadCompiler extends Compiler {
 		data.setClassName(className);
 		data.setSimpleClassName(simple);
 		data.setParentName(parent);
+		data.setModifiers(accessor);
 
-		cw.visit(V1_8, ACC_PUBLIC + ACC_SUPER, className, null, parent, null);
+		cw.visit(V1_8, accessor, className, null, parent, null);
 		cw.visitSource(data.getSourceName(), null);
 
 		String[] after = Strings.after(lines, index);

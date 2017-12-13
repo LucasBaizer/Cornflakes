@@ -74,17 +74,19 @@ public class MethodData {
 	public void addLocal(String name, String val) {
 		locals.put(name, val);
 	}
+	
+	public Map<String, String> getLocals() {
+		return locals;
+	}
 
 	public void setLocals(Map<String, String> locals) {
 		this.locals = new LinkedHashMap<>(locals);
-		this.parameters.remove("this");
 	}
 
 	public void setParameters(Map<String, String> params) {
 		this.parameters = new LinkedHashMap<>(params);
-		this.parameters.remove("this");
 	}
-	
+
 	public void addParameter(String name, String type) {
 		this.parameters.put(name, type);
 	}
@@ -99,6 +101,10 @@ public class MethodData {
 
 	public void setModifiers(int modifiers) {
 		this.modifiers = modifiers;
+	}
+
+	public boolean hasModifier(int mod) {
+		return (this.modifiers & mod) == mod;
 	}
 
 	public String getSignature() {

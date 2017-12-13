@@ -3,6 +3,20 @@ package cornflakes;
 public class Types {
 	private static final String INTEGER = "-0123456789";
 
+	public static boolean isSuitable(String target, String test) {
+		if (target.equals(test)) {
+			return true;
+		}
+
+		Class<?> targetClass = getTypeFromSignature(unpadSignature(target));
+		if(targetClass == Object.class) {
+			return true;
+		}
+		
+		Class<?> testClass = getTypeFromSignature(unpadSignature(test));
+		return targetClass.isAssignableFrom(testClass);
+	}
+
 	public static Object parseLiteral(String type, String val) {
 		if (type.equals("string")) {
 			return val.substring(1, val.length() - 1);
@@ -25,29 +39,29 @@ public class Types {
 		}
 		throw new CompileError("Invalid literal: " + val);
 	}
-	
+
 	public static String padSignature(String sig) {
-		if(sig.length() == 1) {
+		if (sig.length() == 1) {
 			return sig;
 		}
-		if(!sig.endsWith(";")) {
+		if (!sig.endsWith(";")) {
 			sig += ";";
 		}
-		if(sig.startsWith("[")) {
+		if (sig.startsWith("[")) {
 			return sig;
 		} else {
-			if(!sig.startsWith("L")) {
+			if (!sig.startsWith("L")) {
 				return "L" + sig;
 			}
 		}
 		return sig;
 	}
-	
+
 	public static String unpadSignature(String sig) {
-		if(sig.startsWith("L")) {
+		if (sig.startsWith("L")) {
 			sig = sig.substring(1);
 		}
-		if(sig.endsWith(";")) {
+		if (sig.endsWith(";")) {
 			sig = sig.substring(0, sig.length() - 1);
 		}
 		return sig;
@@ -155,7 +169,7 @@ public class Types {
 	}
 
 	public static String getTypeSignature(Class<?> type) {
-		if (type.equals(Void.TYPE)) {
+		if (type == Void.class || type.equals(Void.TYPE)) {
 			return "V";
 		} else if (type == boolean.class || type == Boolean.class) {
 			return "Z";

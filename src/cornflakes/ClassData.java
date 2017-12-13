@@ -1,8 +1,10 @@
 package cornflakes;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 public class ClassData {
 	private String simpleClassName;
@@ -10,14 +12,46 @@ public class ClassData {
 	private String className;
 	private String sourceName;
 	private boolean hasConstructor;
+	private int modifiers;
 	private byte[] byteCode;
 	private ArrayList<String> use = new ArrayList<>();
-	private Map<String, MethodData> methods = new LinkedHashMap<>();
-	private Map<String, String> memberVariables = new LinkedHashMap<>();
-	
+	private List<MethodData> methods = new ArrayList<>();
+	private List<FieldData> fields = new ArrayList<>();
+
+	public static ClassData fromJavaClass(Class<?> cls) {
+		ClassData container = new ClassData(false);
+		container.setClassName(Strings.transformClassName(cls.getName()));
+		container.setSimpleClassName(cls.getSimpleName());
+
+		for (Method method : cls.getDeclaredMethods()) {
+			MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
+					method.getModifiers());
+			Parameter[] params = method.getParameters();
+			for (int i = 0; i < params.length; i++) {
+				mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
+			}
+
+			container.addMethod(mData);
+		}
+
+		for (Field field : cls.getDeclaredFields()) {
+			container.fields
+					.add(new FieldData(field.getName(), Types.getTypeSignature(field.getType()), field.getModifiers()));
+		}
+
+		return container;
+	}
+
 	public ClassData() {
-		use("java.lang.Object");
-		use("java.lang.String");
+		this(true);
+	}
+
+	private ClassData(boolean use) {
+		if (use) {
+			use("java.lang.Object");
+			use("java.lang.String");
+			use("java.lang.System");
+		}
 	}
 
 	public void use(String use) {
@@ -119,26 +153,52 @@ public class ClassData {
 	}
 
 	public boolean hasMethod(String name) {
-		return methods.containsKey(name);
+		return getMethods(name).length > 0;
 	}
 
-	public MethodData getMethodData(String name) {
-		return methods.get(name);
+	public MethodData[] getMethods(String name) {
+		List<MethodData> methods = new ArrayList<>();
+
+		for (MethodData data : this.methods) {
+			if (data.getName().equals(name)) {
+				methods.add(data);
+			}
+		}
+
+		return methods.toArray(new MethodData[methods.size()]);
 	}
 
-	public void addMethod(String name, MethodData type) {
-		methods.put(name, type);
+	public void addMethod(MethodData method) {
+		methods.add(method);
 	}
 
-	public void addMemberVariable(String name, String type) {
-		memberVariables.put(name, type);
+	public boolean hasField(String name) {
+		return getField(name) != null;
 	}
 
-	public String getMemberVariableType(String name) {
-		return memberVariables.get(name);
+	public FieldData getField(String name) {
+		for (FieldData data : this.fields) {
+			if (data.getName().equals(name)) {
+				return data;
+			}
+		}
+
+		return null;
 	}
 
-	public boolean hasMemberVariable(String name) {
-		return memberVariables.containsKey(name);
+	public void addField(FieldData method) {
+		fields.add(method);
+	}
+
+	public int getModifiers() {
+		return modifiers;
+	}
+
+	public void setModifiers(int modifiers) {
+		this.modifiers = modifiers;
+	}
+
+	public boolean hasModifier(int mod) {
+		return (this.modifiers & mod) == mod;
 	}
 }
