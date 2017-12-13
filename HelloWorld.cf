@@ -2,14 +2,10 @@
 
 class HelloWorld
 
-function anotherMethod(string val) -> int {
-	return 3
-}
-
-function method() -> int {
-	return anotherMethod(1)
-}
+use cornflakes.Console
 
 function main() -> int {
-	return method()
+	Console.log("hello")
+	
+	return 0
 }

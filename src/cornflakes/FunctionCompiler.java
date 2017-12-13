@@ -24,10 +24,7 @@ public class FunctionCompiler extends Compiler {
 			String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
 			Strings.handleLetterString(afterParams, Strings.VARIABLE_TYPE);
 
-			returnType = data.resolveClass(afterParams);
-			if (returnType.length() > 1) {
-				returnType = "L" + returnType + ";";
-			}
+			returnType = Types.padSignature(data.resolveClass(afterParams));
 		}
 
 		String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')')).trim();
@@ -72,7 +69,7 @@ public class FunctionCompiler extends Compiler {
 					}
 				}
 
-				parameters.put(name, resolvedType.length() > 1 ? resolvedType + ";" : resolvedType);
+				parameters.put(name, Types.padSignature(resolvedType));
 			}
 		}
 
@@ -91,6 +88,10 @@ public class FunctionCompiler extends Compiler {
 		{
 			m.visitLabel(start);
 			m.visitLineNumber(line++, start);
+
+			if ((methodData.getModifiers() & ACC_STATIC) != ACC_STATIC) {
+				m.visitVarInsn(ALOAD, 0);
+			}
 		}
 
 		String[] inner = Strings.before(Strings.after(lines, 1), 1);

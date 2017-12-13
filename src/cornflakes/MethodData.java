@@ -35,8 +35,7 @@ public class MethodData {
 	}
 
 	public Class<?> getReturnType() {
-		return Types.getTypeFromSignature(
-				returnType.length() > 1 ? returnType.substring(1, returnType.length() - 1) : returnType);
+		return Types.getTypeFromSignature(Types.unpadSignature(returnType));
 	}
 
 	public int getStackSize() {
@@ -86,6 +85,10 @@ public class MethodData {
 		this.parameters.remove("this");
 	}
 	
+	public void addParameter(String name, String type) {
+		this.parameters.put(name, type);
+	}
+
 	public Map<String, String> getParameters() {
 		return this.parameters;
 	}
@@ -101,7 +104,7 @@ public class MethodData {
 	public String getSignature() {
 		String desc = "(";
 		for (String par : parameters.values()) {
-			desc += par.length() == 1 ? par : "L" + par;
+			desc += par;
 		}
 		desc += ")" + returnType;
 

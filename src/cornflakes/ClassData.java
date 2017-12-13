@@ -14,7 +14,7 @@ public class ClassData {
 	private ArrayList<String> use = new ArrayList<>();
 	private Map<String, MethodData> methods = new LinkedHashMap<>();
 	private Map<String, String> memberVariables = new LinkedHashMap<>();
-
+	
 	public ClassData() {
 		use("java.lang.Object");
 		use("java.lang.String");

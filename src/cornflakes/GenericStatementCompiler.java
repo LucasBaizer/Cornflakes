@@ -63,8 +63,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 					m.visitLineNumber(num++, ret);
 					ReferenceCompiler compiler = new ReferenceCompiler(ret, this.data);
 					num = compiler.compile(data, m, num, par, new String[] { par });
-					
-					String ref = Types.getTypeFromSignature(compiler.getReferenceType()).getSimpleName().toLowerCase();
+
+					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
+							.getSimpleName().toLowerCase();
 
 					int op = ARETURN;
 					if (ref.equals("int")) {
@@ -87,6 +88,12 @@ public class GenericStatementCompiler implements GenericCompiler {
 					throw new CompileError("A return value of type " + this.data.getReturnType() + " is expected");
 				}
 			}
+		} else {
+			Label label = new Label();
+			m.visitLabel(label);
+			m.visitLineNumber(num++, label);
+
+			new ReferenceCompiler(label, this.data).compile(data, m, num, body, lines);
 		}
 		return num;
 	}

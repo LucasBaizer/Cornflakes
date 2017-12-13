@@ -13,6 +13,10 @@ public class Strings {
 	public static final char[] VARIABLE_NAME = Arrays.copyOf(NUMBERS, NUMBERS.length);
 	public static final char[] VARIABLE_TYPE = combineExceptions(NUMBERS, SQUARE_BRACKETS);
 
+	public static String[] split(String x, String d) {
+		return x.split(d + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+	}
+
 	public static char[] combineExceptions(char[]... exceptions) {
 		int len = 0;
 		for (char[] x : exceptions) {

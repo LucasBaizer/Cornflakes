@@ -1,4 +1,4 @@
-package cornflakes;
+package test;
 
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -8,6 +8,9 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+
+import cornflakes.ClassData;
+import cornflakes.Compiler;
 
 public class Test implements Opcodes {
 	public static byte[] compile(String name) {

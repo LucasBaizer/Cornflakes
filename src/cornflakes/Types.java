@@ -25,6 +25,33 @@ public class Types {
 		}
 		throw new CompileError("Invalid literal: " + val);
 	}
+	
+	public static String padSignature(String sig) {
+		if(sig.length() == 1) {
+			return sig;
+		}
+		if(!sig.endsWith(";")) {
+			sig += ";";
+		}
+		if(sig.startsWith("[")) {
+			return sig;
+		} else {
+			if(!sig.startsWith("L")) {
+				return "L" + sig;
+			}
+		}
+		return sig;
+	}
+	
+	public static String unpadSignature(String sig) {
+		if(sig.startsWith("L")) {
+			sig = sig.substring(1);
+		}
+		if(sig.endsWith(";")) {
+			sig = sig.substring(0, sig.length() - 1);
+		}
+		return sig;
+	}
 
 	/**
 	 * @returns null for objects/arrays, but returns a valid string for
@@ -128,7 +155,7 @@ public class Types {
 	}
 
 	public static String getTypeSignature(Class<?> type) {
-		if (type == Void.class) {
+		if (type.equals(Void.TYPE)) {
 			return "V";
 		} else if (type == boolean.class || type == Boolean.class) {
 			return "Z";
