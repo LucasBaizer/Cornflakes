@@ -3,9 +3,6 @@
 public class HelloWorld
 
 static function main() -> int {
-	return get(5)
-}
-
-public static function get(int x) -> int {
-	return x
+	System.out.println("Hello, World!")
+	return 0
 }

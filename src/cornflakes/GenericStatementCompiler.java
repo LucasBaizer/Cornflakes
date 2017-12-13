@@ -45,7 +45,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						m.visitLdcInsn(val);
 						m.visitInsn(ARETURN);
 					} else {
-						if (!this.data.getReturnTypeSignature().equals(Types.getTypeSignature(type))) {
+						if (!Types.isSuitable(this.data.getReturnTypeSignature(), Types.getTypeSignature(type))) {
 							throw new CompileError("A return value of type " + this.data.getReturnType().getSimpleName()
 									+ " is expected, but one of type " + type + " was given");
 						}
@@ -76,6 +76,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
 							.getSimpleName().toLowerCase();
 
+					if (!Types.isSuitable(this.data.getReturnTypeSignature(), compiler.getReferenceType())) {
+						throw new CompileError("A return value of type " + this.data.getReturnType().getSimpleName()
+								+ " is expected, but one of type "
+								+ Types.getTypeFromSignature(compiler.getReferenceType()).getSimpleName()
+								+ " was given");
+					}
+
 					int op = ARETURN;
 					if (ref.equals("int")) {
 						op = IRETURN;
@@ -86,6 +93,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 					} else if (ref.equals("long")) {
 						op = LRETURN;
 					}
+
+					// TODO check return type here
 
 					m.visitInsn(op);
 				}

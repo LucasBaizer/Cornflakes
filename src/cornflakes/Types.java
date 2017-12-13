@@ -252,7 +252,7 @@ public class Types {
 			}
 		} else {
 			try {
-				return Class.forName(sig.replace('/', '.'));
+				return Class.forName(unpadSignature(sig.replace('/', '.')));
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}
