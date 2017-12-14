@@ -151,7 +151,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			methodData = new MethodData(methodName, returnType, accessor);
-			methodData.setLocals(parameters);
 			methodData.setParameters(parameters);
 
 			data.addMethod(methodData);
@@ -160,18 +159,20 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			m.visitCode();
 
 			int line = 0;
-			int localVariables = 0;
 
 			Label start = new Label();
 			Label post = new Label();
-			{
-				m.visitLabel(start);
-				m.visitLineNumber(line++, start);
+			m.visitLabel(post);
+			m.visitLineNumber(127, post); // TODO 127
 
-				if (!methodData.hasModifier(ACC_STATIC)) {
-					m.visitVarInsn(ALOAD, 0);
-					localVariables++;
-				}
+			m.visitLabel(start);
+			m.visitLineNumber(line++, start);
+
+			this.methodData.setLabels(start, post);
+
+			if (!methodData.hasModifier(ACC_STATIC)) {
+				m.visitVarInsn(ALOAD, 0);
+				this.methodData.addLocalVariable();
 			}
 
 			String[] inner = Strings.before(Strings.after(lines, 1), 1);
@@ -193,10 +194,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
 				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, index);
 				index++;
-				localVariables++;
+				this.methodData.addLocalVariable();
 			}
 
-			m.visitMaxs(128, localVariables); // TODO 128
+			m.visitMaxs(128, this.methodData.getLocalVariables()); // TODO 128
 			m.visitEnd();
 		}
 	}

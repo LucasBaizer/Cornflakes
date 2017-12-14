@@ -111,7 +111,6 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			}
 
 			methodData = new ConstructorData(methodName, "V", accessor);
-			methodData.setLocals(parameters);
 			methodData.setParameters(parameters);
 
 			data.addConstructor(methodData);

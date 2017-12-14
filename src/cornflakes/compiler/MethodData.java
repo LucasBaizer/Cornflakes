@@ -2,14 +2,19 @@ package cornflakes.compiler;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+
+import org.objectweb.asm.Label;
 
 public class MethodData {
 	private String name;
 	private String returnType;
 	private Map<String, String> parameters = new LinkedHashMap<>();
-	private Map<String, String> locals = new LinkedHashMap<>();
+	private List<LocalData> locals = new ArrayList<>();
 	private int stackSize;
 	private int localVariables;
 	private int modifiers;
@@ -75,28 +80,38 @@ public class MethodData {
 		this.stackSize++;
 	}
 
-	public boolean hasLocal(String name) {
-		return locals.containsKey(name);
+	public boolean hasLocal(String name, Label start, Label end) {
+		return getLocal(name, start, end) != null;
 	}
 
-	public String getLocalType(String name) {
-		return locals.get(name);
+	public LocalData getLocal(String name, Label start, Label end) {
+		for (LocalData data : this.locals) {
+			if (data.getName().equals(name) && data.getStart().getOffset() >= start.getOffset()
+			/* && data.getEnd().getOffset() <= end.getOffset() */) {
+				return data;
+			}
+		}
+		return null;
 	}
 
-	public void addLocal(String name, String val) {
-		locals.put(name, val);
-	}
-
-	public Map<String, String> getLocals() {
-		return locals;
-	}
-
-	public void setLocals(Map<String, String> locals) {
-		this.locals = new LinkedHashMap<>(locals);
+	public void addLocal(LocalData local) {
+		locals.add(local);
 	}
 
 	public void setParameters(Map<String, String> params) {
 		this.parameters = new LinkedHashMap<>(params);
+
+		int idx = 0;
+		for (Entry<String, String> par : this.parameters.entrySet()) {
+			this.locals.add(new LocalData(par.getKey(), par.getValue(), null, null, idx++, 0));
+		}
+	}
+
+	public void setLabels(Label start, Label end) {
+		for (LocalData local : this.locals) {
+			local.setStart(start);
+			local.setEnd(end);
+		}
 	}
 
 	public void addParameter(String name, String type) {
@@ -106,11 +121,11 @@ public class MethodData {
 	public Map<String, String> getParameters() {
 		return this.parameters;
 	}
-	
+
 	public String getParameterType(String name) {
 		return parameters.get(name);
 	}
-	
+
 	public boolean hasParameter(String name) {
 		return parameters.containsKey(name);
 	}
@@ -133,7 +148,7 @@ public class MethodData {
 			desc += par;
 		}
 		desc += ")" + getReturnTypeSignature();
-		
+
 		return desc;
 	}
 
@@ -149,5 +164,9 @@ public class MethodData {
 	@Override
 	public String toString() {
 		return getName() + getSignature();
+	}
+
+	public List<LocalData> getLocals() {
+		return this.locals;
 	}
 }

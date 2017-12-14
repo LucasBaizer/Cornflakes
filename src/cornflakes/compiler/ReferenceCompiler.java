@@ -8,9 +8,11 @@ import org.objectweb.asm.MethodVisitor;
 
 public class ReferenceCompiler implements GenericCompiler {
 	private MethodData data;
+	private boolean write;
 	private String referenceType;
 
-	public ReferenceCompiler(MethodData data) {
+	public ReferenceCompiler(boolean write, MethodData data) {
+		this.write = write;
 		this.data = data;
 	}
 
@@ -64,10 +66,12 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 		} else {
 			if (containerData.hasField(part)) {
-				num = compileVariableReference(0, containerClass, containerData, data, m, num, part);
+				num = compileVariableReference(0, containerClass, containerData, data, m, startLabel, endLabel, num,
+						part);
 				next = true;
-			} else if (this.data.hasLocal(part)) {
-				num = compileVariableReference(1, containerClass, containerData, data, m, num, part);
+			} else if (this.data.hasLocal(part, startLabel, endLabel)) {
+				num = compileVariableReference(1, containerClass, containerData, data, m, startLabel, endLabel, num,
+						part);
 				next = true;
 			}
 		}
@@ -112,30 +116,35 @@ public class ReferenceCompiler implements GenericCompiler {
 	}
 
 	private int compileVariableReference(int source, String containerClass, ClassData containerData, ClassData data,
-			MethodVisitor m, int num, String body) {
+			MethodVisitor m, Label startLabel, Label endLabel, int num, String body) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
-			if (field.hasModifier(ACC_STATIC)) {
-				m.visitFieldInsn(GETSTATIC, containerClass, body, field.getType());
-			} else {
-				m.visitFieldInsn(GETFIELD, containerClass, body, field.getType());
+			if (write) {
+				if (field.hasModifier(ACC_STATIC)) {
+					m.visitFieldInsn(GETSTATIC, containerClass, body, field.getType());
+				} else {
+					m.visitFieldInsn(GETFIELD, containerClass, body, field.getType());
+				}
 			}
 			referenceType = field.getType();
 		} else if (source == 1) {
-			String type = this.data.getLocalType(body);
+			LocalData local = this.data.getLocal(body, startLabel, endLabel);
+			String type = local.getType();
 
-			int op = ALOAD;
-			if (type.equals("I")) {
-				op = ILOAD;
-			} else if (type.equals("J")) {
-				op = LLOAD;
-			} else if (type.equals("D")) {
-				op = DLOAD;
-			} else if (type.equals("F")) {
-				op = FLOAD;
+			if (write) {
+				int op = ALOAD;
+				if (type.equals("I")) {
+					op = ILOAD;
+				} else if (type.equals("J")) {
+					op = LLOAD;
+				} else if (type.equals("D")) {
+					op = DLOAD;
+				} else if (type.equals("F")) {
+					op = FLOAD;
+				}
+				m.visitVarInsn(op, local.getIndex());
 			}
 
-			m.visitVarInsn(op, new ArrayList<>(this.data.getLocals().keySet()).indexOf(body));
 			referenceType = type;
 		}
 		return num;
@@ -164,15 +173,14 @@ public class ReferenceCompiler implements GenericCompiler {
 							break;
 						}
 					} else {
-						// TODO ensure that non-literals are accepted, but for
-						// now, just let it slide
-						if (this.data.hasLocal(par)) {
-							if (!Types.isSuitable(paramType, Types.getTypeSignature(this.data.getLocalType(par)))) {
-								success = false;
-								break;
-							}
+						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
+						compiler.compile(containerClass, containerData, data, m, start, end, num, par,
+								new String[] { par });
+
+						if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
+							success = false;
+							break;
 						}
-						break;
 					}
 					idx++;
 				}
@@ -189,21 +197,27 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		}
 
-		m.visitTypeInsn(NEW, containerData.getClassName());
-		m.visitInsn(DUP);
+		if (write) {
+			m.visitTypeInsn(NEW, containerData.getClassName());
+			m.visitInsn(DUP);
+		}
 
 		for (String par : split) {
 			String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
 
 			if (type != null) {
-				m.visitLdcInsn(Types.parseLiteral(type, par));
+				if (write) {
+					m.visitLdcInsn(Types.parseLiteral(type, par));
+				}
 			} else {
-				ReferenceCompiler compiler = new ReferenceCompiler(this.data);
+				ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
 				num = compiler.compile(data, m, start, end, num, par, new String[] { par });
 			}
 		}
 
-		m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
+		if (write) {
+			m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
+		}
 
 		referenceType = method.getReturnTypeSignature();
 
@@ -235,15 +249,14 @@ public class ReferenceCompiler implements GenericCompiler {
 							break;
 						}
 					} else {
-						// TODO ensure that non-literals are accepted, but for
-						// now, just let it slide
-						if (this.data.hasLocal(par)) {
-							if (!Types.isSuitable(paramType, Types.getTypeSignature(this.data.getLocalType(par)))) {
-								success = false;
-								break;
-							}
+						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
+						compiler.compile(containerClass, containerData, data, m, startLabel, endLabel, num, par,
+								new String[] { par });
+
+						if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
+							success = false;
+							break;
 						}
-						break;
 					}
 					idx++;
 				}
@@ -263,22 +276,28 @@ public class ReferenceCompiler implements GenericCompiler {
 			String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
 
 			if (type != null) {
-				m.visitLdcInsn(Types.parseLiteral(type, par));
+				if (write) {
+					m.visitLdcInsn(Types.parseLiteral(type, par));
+				}
 			} else {
-				ReferenceCompiler compiler = new ReferenceCompiler(this.data);
+				ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
 				num = compiler.compile(data, m, startLabel, endLabel, num, par, new String[] { par });
 			}
 		}
 
 		if ((method.getModifiers() & ACC_STATIC) == ACC_STATIC) {
-			m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(), false);
+			if (write) {
+				m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(), false);
+			}
 		} else {
 			if (containerData.getClassName().equals(data.getClassName())) {
 				if ((this.data.getModifiers() & ACC_STATIC) == ACC_STATIC) {
 					throw new CompileError("Cannot access instance method from a static context");
 				}
 			}
-			m.visitMethodInsn(INVOKEVIRTUAL, containerData.getClassName(), before, method.getSignature(), false);
+			if (write) {
+				m.visitMethodInsn(INVOKEVIRTUAL, containerData.getClassName(), before, method.getSignature(), false);
+			}
 		}
 
 		referenceType = method.getReturnTypeSignature();

@@ -66,7 +66,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						num++;
 					}
 				} else {
-					ReferenceCompiler compiler = new ReferenceCompiler(this.data);
+					ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
 					num = compiler.compile(data, m, start, end, num, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
@@ -135,16 +135,28 @@ public class GenericStatementCompiler implements GenericCompiler {
 				if (set.length > 1) {
 					String givenValue = set[1].trim();
 
-					if (Types.getType(givenValue, type).equals(type)) {
-						// TODO do this
+					String inputType = Types.getType(givenValue, type);
+					if (!Types.isSuitable(type, inputType)) {
+						throw new CompileError(inputType + " is not assignable to " + type);
 					}
 
 					value = Types.parseLiteral(type, givenValue);
 				}
+
+				type = Types.getTypeSignature(type);
 			}
 
+			int idx = this.data.getLocalVariables();
+			m.visitLocalVariable(variableName, type, null, start, end, idx);
+			if (value != null) {
+				m.visitLdcInsn(value);
+				m.visitVarInsn(ASTORE, idx);
+			}
+
+			this.data.addLocal(new LocalData(variableName, type, start, end, idx, 0));
+			this.data.addLocalVariable();
 		} else {
-			num = new ReferenceCompiler(this.data).compile(data, m, start, end, num, body, lines);
+			num = new ReferenceCompiler(true, this.data).compile(data, m, start, end, num, body, lines);
 		}
 
 		return num + 1;
