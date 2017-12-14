@@ -1,10 +1,11 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class GenericStatementCompiler implements GenericCompiler {
 	public static final int RETURN = 1;
+	public static final int LET = 2;
 
 	private MethodData data;
 	private int type;
@@ -14,15 +15,11 @@ public class GenericStatementCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public int compile(ClassData data, MethodVisitor m, int num, String body, String[] lines) {
+	public int compile(ClassData data, MethodVisitor m, Label start, Label end, int num, String body, String[] lines) {
 		if (body.startsWith("return")) {
 			type = RETURN;
 
 			body = Strings.normalizeSpaces(body);
-
-			Label ret = new Label();
-
-			m.visitLabel(ret);
 
 			String[] split = body.split(" ", 2);
 			if (split.length == 2) {
@@ -42,7 +39,6 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 
 						Object val = Types.parseLiteral(type, par);
-						m.visitLineNumber(num++, ret);
 						m.visitLdcInsn(val);
 						m.visitInsn(ARETURN);
 					} else {
@@ -53,7 +49,6 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 
 						Object val = Types.parseLiteral(type, par);
-						m.visitLineNumber(num++, ret);
 						m.visitLdcInsn(val);
 
 						int op = 0;
@@ -71,9 +66,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 						num++;
 					}
 				} else {
-					m.visitLineNumber(num++, ret);
-					ReferenceCompiler compiler = new ReferenceCompiler(ret, this.data);
-					num = compiler.compile(data, m, num, par, new String[] { par });
+					ReferenceCompiler compiler = new ReferenceCompiler(this.data);
+					num = compiler.compile(data, m, start, end, num, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
 							.getSimpleClassName().toLowerCase();
@@ -102,20 +96,58 @@ public class GenericStatementCompiler implements GenericCompiler {
 				}
 			} else {
 				if (this.data.getReturnTypeSignature().equals("V")) {
-					m.visitLineNumber(num++, ret);
 					m.visitInsn(RETURN);
 				} else {
 					throw new CompileError("A return value of type " + this.data.getReturnType() + " is expected");
 				}
 			}
-		} else {
-			Label label = new Label();
-			m.visitLabel(label);
-			m.visitLineNumber(num++, label);
+		} else if (body.startsWith("let")) {
+			type = LET;
 
-			new ReferenceCompiler(label, this.data).compile(data, m, num, body, lines);
+			body = Strings.normalizeSpaces(body);
+
+			String[] split = body.split(":");
+			String[] look = split.length == 1 ? body.split(" ") : split[0].split(" ");
+			if (look.length == 1) {
+				throw new CompileError("Expecting variable name after let");
+			}
+
+			String variableName = look[1].trim();
+			String type = null;
+			Object value = null;
+			if (split.length == 1) {
+				String[] set = body.split("=");
+				if (set.length == 1) {
+					throw new CompileError("A variable with an unspecified type must have an initial value");
+				}
+
+				String givenValue = set[1].trim();
+				String valType = Types.getType(givenValue, "");
+				if (valType == null) {
+					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
+				}
+				value = Types.parseLiteral(valType, givenValue);
+			} else {
+				String[] spaces = split[1].trim().split(" ");
+				type = spaces[0];
+
+				String[] set = body.split("=");
+				if (set.length > 1) {
+					String givenValue = set[1].trim();
+
+					if (Types.getType(givenValue, type).equals(type)) {
+						// TODO do this
+					}
+
+					value = Types.parseLiteral(type, givenValue);
+				}
+			}
+
+		} else {
+			num = new ReferenceCompiler(this.data).compile(data, m, start, end, num, body, lines);
 		}
-		return num;
+
+		return num + 1;
 	}
 
 	public int getType() {

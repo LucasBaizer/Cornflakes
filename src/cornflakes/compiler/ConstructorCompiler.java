@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -10,8 +10,8 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
-public class FunctionCompiler extends Compiler implements PostCompiler {
-	private MethodData methodData;
+public class ConstructorCompiler extends Compiler implements PostCompiler {
+	private ConstructorData methodData;
 	private boolean write;
 	private int accessor;
 	private ClassData data;
@@ -19,7 +19,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	private String body;
 	private String[] lines;
 
-	public FunctionCompiler(boolean write) {
+	public ConstructorCompiler(boolean write) {
 		this.write = write;
 	}
 
@@ -33,7 +33,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.body = body;
 			this.lines = lines;
 
-			String keywords = lines[0].substring(0, lines[0].indexOf("function")).trim();
+			String keywords = lines[0].substring(0, lines[0].indexOf("constructor")).trim();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
 				String[] split = keywords.split(" ");
@@ -42,21 +42,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					if (usedKeywords.contains(key)) {
 						throw new CompileError("Duplicate keyword: " + key);
 					}
-					if (key.equals("abstract")) {
-						if (!data.hasModifier(ACC_ABSTRACT)) {
-							throw new CompileError("Cannot have abstract methods in a non-abstract class");
-						}
-
-						if (usedKeywords.contains("static")) {
-							throw new CompileError("Abstract methods cannot be static");
-						}
-
-						if (usedKeywords.contains("private")) {
-							throw new CompileError("Abstract methods cannot be private");
-						}
-
-						accessor |= ACC_ABSTRACT;
-					} else if (key.equals("public")) {
+					if (key.equals("public")) {
 						if (usedKeywords.contains("private") || usedKeywords.contains("protected")) {
 							throw new CompileError("Cannot have multiple access modifiers");
 						}
@@ -78,14 +64,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						}
 
 						accessor |= ACC_PROTECTED;
-					} else if (key.equals("final")) {
-						accessor |= ACC_FINAL;
-					} else if (key.equals("static")) {
-						if (usedKeywords.contains("abstract")) {
-							throw new CompileError("Abstract methods cannot be static");
-						}
-
-						accessor |= ACC_STATIC;
 					} else {
 						throw new CompileError("Unexpected keyword: " + key);
 					}
@@ -102,14 +80,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			if (data.hasMethod(methodName)) {
 				throw new CompileError("Duplicate method: " + methodName);
-			}
-
-			String returnType = "V";
-			if (withoutBracket.contains("->")) {
-				String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
-				Strings.handleLetterString(afterParams, Strings.VARIABLE_TYPE);
-
-				returnType = Types.padSignature(data.resolveClass(afterParams));
 			}
 
 			String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')'))
@@ -136,31 +106,21 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					}
 
 					String resolvedType = data.resolveClass(type);
-					if (methodName.equals("main")) {
-						if (!resolvedType.equals("[Ljava/lang/String")) {
-							throw new CompileError(
-									"Main method should either have no parameter or one of type string[]");
-						}
-						if (!returnType.equals("I")) {
-							throw new CompileError("Main method should have return type 'int'");
-						}
-					}
-
 					parameters.put(name, Types.padSignature(resolvedType));
 				}
 			}
 
-			methodData = new MethodData(methodName, returnType, accessor);
+			methodData = new ConstructorData(methodName, "V", accessor);
 			methodData.setLocals(parameters);
 			methodData.setParameters(parameters);
 
-			data.addMethod(methodData);
+			data.addConstructor(methodData);
 		} else {
-			MethodVisitor m = cw.visitMethod(accessor, methodData.getName(), methodData.getSignature(), null, null);
+			MethodVisitor m = cw.visitMethod(accessor, "<init>", methodData.getSignature(), null, null);
 			m.visitCode();
 
 			int line = 0;
-			int localVariables = 0;
+			int localVariables = 1;
 
 			Label start = new Label();
 			Label post = new Label();
@@ -168,17 +128,14 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				m.visitLabel(start);
 				m.visitLineNumber(line++, start);
 
-				if (!methodData.hasModifier(ACC_STATIC)) {
-					m.visitVarInsn(ALOAD, 0);
-					localVariables++;
-				}
+				m.visitVarInsn(ALOAD, 0);
 			}
 
 			String[] inner = Strings.before(Strings.after(lines, 1), 1);
 			String innerBody = Strings.accumulate(inner).trim();
 			String[] inner2 = Strings.accumulate(innerBody);
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			line = gbc.compile(data, m, line, innerBody, inner2);
+			line = gbc.compile(data, m, start, post, line, innerBody, inner2);
 
 			if (!gbc.returns()) {
 				if (methodData.getReturnTypeSignature().equals("V")) {
@@ -204,5 +161,21 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	public void write() {
 		write = true;
 		compile(data, cw, body, lines);
+	}
+
+	public void compileDefault(ClassData data, ClassWriter cw) {
+		MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
+		mv.visitCode();
+		Label l0 = new Label();
+		mv.visitLabel(l0);
+		mv.visitLineNumber(4, l0);
+		mv.visitVarInsn(ALOAD, 0);
+		mv.visitMethodInsn(INVOKESPECIAL, Strings.transformClassName(data.getParentName()), "<init>", "()V", false);
+		mv.visitInsn(RETURN);
+		Label l1 = new Label();
+		mv.visitLabel(l1);
+		mv.visitLocalVariable("this", "L" + Strings.transformClassName(data.getClassName()) + ";", null, l0, l1, 0);
+		mv.visitMaxs(1, 1);
+		mv.visitEnd();
 	}
 }

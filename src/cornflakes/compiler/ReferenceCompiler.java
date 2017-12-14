@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,21 +8,19 @@ import org.objectweb.asm.MethodVisitor;
 
 public class ReferenceCompiler implements GenericCompiler {
 	private MethodData data;
-	private Label label;
 	private String referenceType;
 
-	public ReferenceCompiler(Label label, MethodData data) {
-		this.label = label;
+	public ReferenceCompiler(MethodData data) {
 		this.data = data;
 	}
 
 	@Override
-	public int compile(ClassData data, MethodVisitor m, int num, String body, String[] lines) {
-		return compile(data.getClassName(), data, data, m, num, body, lines);
+	public int compile(ClassData data, MethodVisitor m, Label start, Label end, int num, String body, String[] lines) {
+		return compile(data.getClassName(), data, data, m, start, end, num, body, lines);
 	}
 
-	private int compile(String containerClass, ClassData containerData, ClassData data, MethodVisitor m, int num,
-			String body, String[] lines) {
+	private int compile(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
+			Label startLabel, Label endLabel, int num, String body, String[] lines) {
 		int end = body.length();
 		int opens = 0;
 		for (int i = 0; i < body.length(); i++) {
@@ -46,7 +44,7 @@ public class ReferenceCompiler implements GenericCompiler {
 			String name = part.substring(0, part.indexOf('(')).trim();
 
 			if (containerData.hasMethod(name)) {
-				num = compileMethodCall(containerClass, containerData, data, m, num, part, new String[] { part });
+				num = compileMethodCall(containerClass, containerData, data, m, startLabel, endLabel, num, part);
 				next = true;
 			} else {
 				String resolved = null;
@@ -57,7 +55,8 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 
 				try {
-					num = compileConstructorCall(resolved, ClassData.forName(resolved), data, m, num, part, resolved);
+					num = compileConstructorCall(resolved, ClassData.forName(resolved), data, m, startLabel, endLabel,
+							num, part, resolved);
 				} catch (ClassNotFoundException e) {
 					throw new CompileError(e);
 				}
@@ -65,17 +64,17 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 		} else {
 			if (containerData.hasField(part)) {
-				num = compileVariableReference(0, containerClass, containerData, data, m, num, part,
-						new String[] { part });
+				num = compileVariableReference(0, containerClass, containerData, data, m, num, part);
 				next = true;
 			} else if (this.data.hasLocal(part)) {
-				num = compileVariableReference(1, containerClass, containerData, data, m, num, part,
-						new String[] { part });
+				num = compileVariableReference(1, containerClass, containerData, data, m, num, part);
 				next = true;
 			}
 		}
 
-		if (next) {
+		if (next)
+
+		{
 			if (end != body.length()) {
 				String newBody = body.substring(end + 1, body.length()).trim();
 
@@ -85,7 +84,8 @@ public class ReferenceCompiler implements GenericCompiler {
 				} catch (ClassNotFoundException e) {
 					throw new CompileError(e);
 				}
-				return compile(newClass.getClassName(), newClass, data, m, num, newBody, new String[] { newBody });
+				return compile(newClass.getClassName(), newClass, data, m, startLabel, endLabel, num, newBody,
+						new String[] { newBody });
 			}
 			return num;
 		}
@@ -94,7 +94,7 @@ public class ReferenceCompiler implements GenericCompiler {
 		try {
 			clazz = data.resolveClass(part);
 		} catch (CompileError e) {
-			throw new CompileError("Unexpected token: " + part);
+			throw new CompileError("Could not find a class, variable, or method named '" + part + "'");
 		}
 
 		ClassData cls = null;
@@ -105,11 +105,14 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 
 		String newBody = body.substring(end + 1).trim();
-		return compile(clazz, cls, data, m, num, newBody, new String[] { newBody });
+		return
+
+		compile(clazz, cls, data, m, startLabel, endLabel, num, newBody, new String[] { newBody });
+
 	}
 
 	private int compileVariableReference(int source, String containerClass, ClassData containerData, ClassData data,
-			MethodVisitor m, int num, String body, String[] lines) {
+			MethodVisitor m, int num, String body) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
 			if (field.hasModifier(ACC_STATIC)) {
@@ -139,40 +142,13 @@ public class ReferenceCompiler implements GenericCompiler {
 	}
 
 	private int compileConstructorCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
-			int num, String body, String clazz) {
-		String before = body.substring(0, body.indexOf('(')).trim();
-
+			Label start, Label end, int num, String body, String clazz) {
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
-
-		List<String> splitList = new ArrayList<>();
-		if (!pars.isEmpty()) {
-			int open = 0;
-			boolean quote = false;
-			int last = 0;
-			for (int i = 0; i < pars.length(); i++) {
-				char c = pars.charAt(i);
-				if (c == '(') {
-					open++;
-				} else if (c == ')') {
-					open--;
-				}
-				if (c == '"') {
-					quote = !quote;
-				}
-
-				if (open == 0 && !quote) {
-					if (c == ',') {
-						splitList.add(pars.substring(last, i).trim());
-						last = i + 1;
-					}
-				}
-			}
-			splitList.add(pars.substring(last, pars.length()).trim());
-		}
-		String[] split = splitList.toArray(new String[splitList.size()]);
 
 		MethodData[] methods = containerData.getConstructors();
 		MethodData method = null;
+
+		String[] split = getParameters(pars);
 
 		for (MethodData met : methods) {
 			if (met.getParameters().size() == split.length) {
@@ -210,7 +186,11 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		if (method == null) {
 			throw new CompileError("No constructor overload takes the given parameters");
+
 		}
+
+		m.visitTypeInsn(NEW, containerData.getClassName());
+		m.visitInsn(DUP);
 
 		for (String par : split) {
 			String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
@@ -218,12 +198,12 @@ public class ReferenceCompiler implements GenericCompiler {
 			if (type != null) {
 				m.visitLdcInsn(Types.parseLiteral(type, par));
 			} else {
-				ReferenceCompiler compiler = new ReferenceCompiler(this.label, this.data);
-				num = compiler.compile(data, m, num, par, new String[] { par });
+				ReferenceCompiler compiler = new ReferenceCompiler(this.data);
+				num = compiler.compile(data, m, start, end, num, par, new String[] { par });
 			}
 		}
 
-		m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), before, method.getSignature(), false);
+		m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
 
 		referenceType = method.getReturnTypeSignature();
 
@@ -231,37 +211,12 @@ public class ReferenceCompiler implements GenericCompiler {
 	}
 
 	private int compileMethodCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
-			int num, String body, String[] lines) {
+			Label startLabel, Label endLabel, int num, String body) {
 		String before = body.substring(0, body.indexOf('(')).trim();
 
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
 
-		List<String> splitList = new ArrayList<>();
-		if (!pars.isEmpty()) {
-			int open = 0;
-			boolean quote = false;
-			int last = 0;
-			for (int i = 0; i < pars.length(); i++) {
-				char c = pars.charAt(i);
-				if (c == '(') {
-					open++;
-				} else if (c == ')') {
-					open--;
-				}
-				if (c == '"') {
-					quote = !quote;
-				}
-
-				if (open == 0 && !quote) {
-					if (c == ',') {
-						splitList.add(pars.substring(last, i).trim());
-						last = i + 1;
-					}
-				}
-			}
-			splitList.add(pars.substring(last, pars.length()).trim());
-		}
-		String[] split = splitList.toArray(new String[splitList.size()]);
+		String[] split = getParameters(pars);
 
 		MethodData[] methods = containerData.getMethods(before);
 		MethodData method = null;
@@ -310,8 +265,8 @@ public class ReferenceCompiler implements GenericCompiler {
 			if (type != null) {
 				m.visitLdcInsn(Types.parseLiteral(type, par));
 			} else {
-				ReferenceCompiler compiler = new ReferenceCompiler(this.label, this.data);
-				num = compiler.compile(data, m, num, par, new String[] { par });
+				ReferenceCompiler compiler = new ReferenceCompiler(this.data);
+				num = compiler.compile(data, m, startLabel, endLabel, num, par, new String[] { par });
 			}
 		}
 
@@ -329,6 +284,35 @@ public class ReferenceCompiler implements GenericCompiler {
 		referenceType = method.getReturnTypeSignature();
 
 		return num;
+	}
+
+	private String[] getParameters(String pars) {
+		List<String> splitList = new ArrayList<>();
+		if (!pars.isEmpty()) {
+			int open = 0;
+			boolean quote = false;
+			int last = 0;
+			for (int i = 0; i < pars.length(); i++) {
+				char c = pars.charAt(i);
+				if (c == '(') {
+					open++;
+				} else if (c == ')') {
+					open--;
+				}
+				if (c == '"') {
+					quote = !quote;
+				}
+
+				if (open == 0 && !quote) {
+					if (c == ',') {
+						splitList.add(pars.substring(last, i).trim());
+						last = i + 1;
+					}
+				}
+			}
+			splitList.add(pars.substring(last, pars.length()).trim());
+		}
+		return splitList.toArray(new String[splitList.size()]);
 	}
 
 	public String getReferenceType() {

@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import org.objectweb.asm.ClassWriter;
 

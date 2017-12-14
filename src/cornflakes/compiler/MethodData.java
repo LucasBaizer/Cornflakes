@@ -1,6 +1,5 @@
-package cornflakes;
+package cornflakes.compiler;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
@@ -17,16 +16,6 @@ public class MethodData {
 
 	public static MethodData fromJavaMethod(Method method) {
 		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
-				method.getModifiers());
-		Parameter[] params = method.getParameters();
-		for (int i = 0; i < params.length; i++) {
-			mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
-		}
-		return mData;
-	}
-
-	public static MethodData fromJavaConstructor(Constructor<?> method) {
-		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getDeclaringClass()),
 				method.getModifiers());
 		Parameter[] params = method.getParameters();
 		for (int i = 0; i < params.length; i++) {
@@ -117,6 +106,14 @@ public class MethodData {
 	public Map<String, String> getParameters() {
 		return this.parameters;
 	}
+	
+	public String getParameterType(String name) {
+		return parameters.get(name);
+	}
+	
+	public boolean hasParameter(String name) {
+		return parameters.containsKey(name);
+	}
 
 	public int getModifiers() {
 		return modifiers;
@@ -135,8 +132,8 @@ public class MethodData {
 		for (String par : parameters.values()) {
 			desc += par;
 		}
-		desc += ")" + returnType;
-
+		desc += ")" + getReturnTypeSignature();
+		
 		return desc;
 	}
 
@@ -144,8 +141,13 @@ public class MethodData {
 	public boolean equals(Object obj) {
 		if ((obj instanceof MethodData)) {
 			MethodData data = (MethodData) obj;
-			return data.getSignature().equals(this.getSignature());
+			return data.toString().equals(this.toString());
 		}
 		return false;
+	}
+
+	@Override
+	public String toString() {
+		return getName() + getSignature();
 	}
 }

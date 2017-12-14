@@ -1,10 +1,12 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Strings {
+	private static final String[] KEYWORDS = { "package", "use", "public", "private", "protected", "function", "final",
+			"const", "sealed", "abstract", "if", "do", "while", "else", "for" };
 	private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvywxyz";
 	public static final char[] NUMBERS = "1234567890".toCharArray();
 	public static final char[] PERIOD = new char[] { '.' };
@@ -34,6 +36,13 @@ public class Strings {
 	}
 
 	public static boolean isLetterString(Response<Character> res, String test, boolean handle, char... exceptions) {
+		if (Arrays.asList(KEYWORDS).contains(test)) {
+			if (handle) {
+				throw new CompileError("Unexpected keyword: " + test);
+			}
+			return false;
+		}
+
 		String str = LETTERS;
 
 		for (char ch : exceptions) {

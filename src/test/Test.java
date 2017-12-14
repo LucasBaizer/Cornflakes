@@ -8,8 +8,8 @@ import java.util.List;
 
 import org.objectweb.asm.Opcodes;
 
-import cornflakes.ClassData;
-import cornflakes.Compiler;
+import cornflakes.compiler.ClassData;
+import cornflakes.compiler.Compiler;
 
 public class Test implements Opcodes {
 	public static class DynamicClassLoader extends ClassLoader {

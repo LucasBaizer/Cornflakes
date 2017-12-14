@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -18,7 +18,7 @@ public class ClassData {
 	private byte[] byteCode;
 	private ArrayList<String> use = new ArrayList<>();
 	private List<MethodData> methods = new ArrayList<>();
-	private List<MethodData> constructors = new ArrayList<>();
+	private List<ConstructorData> constructors = new ArrayList<>();
 	private List<FieldData> fields = new ArrayList<>();
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
@@ -54,7 +54,7 @@ public class ClassData {
 		}
 
 		for (Constructor<?> constructor : cls.getConstructors()) {
-			container.addConstructor(MethodData.fromJavaConstructor(constructor));
+			container.addConstructor(ConstructorData.fromJavaConstructor(constructor));
 		}
 
 		for (Field field : cls.getDeclaredFields()) {
@@ -192,19 +192,19 @@ public class ClassData {
 		return methods.toArray(new MethodData[methods.size()]);
 	}
 
+	public MethodData[] getMethods() {
+		return methods.toArray(new MethodData[methods.size()]);
+	}
+
 	public void addMethod(MethodData method) {
 		methods.add(method);
 	}
 
-	public boolean hasConstructor(String name) {
-		return getMethods(name).length > 0;
+	public ConstructorData[] getConstructors() {
+		return constructors.toArray(new ConstructorData[constructors.size()]);
 	}
 
-	public MethodData[] getConstructors() {
-		return constructors.toArray(new MethodData[constructors.size()]);
-	}
-
-	public void addConstructor(MethodData method) {
+	public void addConstructor(ConstructorData method) {
 		constructors.add(method);
 	}
 

@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,7 @@ public class AfterCompile {
 	
 	public void end() {
 		if (!data.hasConstructor()) {
-			new ConstructorCompiler().compileDefault(data, cw);
+			new ConstructorCompiler(true).compileDefault(data, cw);
 		}
 
 		cw.visitEnd();

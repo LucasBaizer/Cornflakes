@@ -4,12 +4,16 @@ package cornflakes.lang
 public class ClassA
 
 use javax.swing.JFrame
+use javax.swing.UIManager
 
 public static function main() -> int {
-	do(JFrame("Hello, world!"))
+	let lookAndFeel: string = "com.sun.java.swing.plaf.windows.WindowsLookAndFeel"
+	UIManager.setLookAndFeel(lookAndFeel)
+	set(JFrame("Hello, World!"))
+	
 	return 0
 }
 
-public static function do(JFrame obj) {
+public static function set(JFrame obj) {
 	obj.setVisible(true)
 }

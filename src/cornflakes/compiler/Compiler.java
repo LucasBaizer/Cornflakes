@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 import java.awt.Dimension;
 import java.util.Arrays;

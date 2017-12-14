@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 public class CompileResult {
 	private String name;

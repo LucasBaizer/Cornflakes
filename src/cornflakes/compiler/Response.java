@@ -1,4 +1,4 @@
-package cornflakes;
+package cornflakes.compiler;
 
 public class Response<T> {
 	private T response;
