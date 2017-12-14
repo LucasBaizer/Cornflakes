@@ -1,8 +1,0 @@
-//Hello World written in Cornflakes
-
-public class HelloWorld
-
-static function main() -> int {
-	System.out.println("Hello, World!");
-	return 0
-}

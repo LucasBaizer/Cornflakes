@@ -19,9 +19,9 @@ public class HeadCompiler extends Compiler {
 				throw new CompileError("Expecting space ' ' between identifiers");
 			}
 
-			className = Strings.transformClassName(firstLine.substring(firstLine.indexOf(" ") + 1));
+			className = firstLine.substring(firstLine.indexOf(" ") + 1);
 			Strings.handleLetterString(className, Strings.PERIOD);
-			className += "/";
+			className = Strings.transformClassName(className) + "/";
 
 			firstLine = Strings.normalizeSpaces(lines[1]);
 			index = 2;
@@ -87,6 +87,9 @@ public class HeadCompiler extends Compiler {
 		}
 
 		data.setClassName(className);
+		Compiler.register(cw, data);
+		ClassData.registerCornflakesClass(data);
+
 		data.setSimpleClassName(simple);
 		data.setParentName(parent);
 		data.setModifiers(accessor);
@@ -95,6 +98,8 @@ public class HeadCompiler extends Compiler {
 		cw.visitSource(data.getSourceName(), null);
 
 		String[] after = Strings.after(lines, index);
-		new BodyCompiler().compile(data, cw, Strings.accumulate(after), after);
+		
+		BodyCompiler compiler = new BodyCompiler(data, cw, Strings.accumulate(after), after);
+		Compiler.addPostCompiler(data.getClassName(), compiler);
 	}
 }

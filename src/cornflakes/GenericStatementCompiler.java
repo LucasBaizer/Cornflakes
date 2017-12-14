@@ -32,12 +32,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				String par = split[1].trim();
 
-				String type = Types.getType(par, this.data.getReturnType().getSimpleName().toLowerCase());
+				String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
 				if (type != null) {
 					if (type.equals("string")) {
 						if (!this.data.getReturnTypeSignature().equals("Ljava/lang/String;")) {
-							throw new CompileError("A return value of type " + this.data.getReturnType().getSimpleName()
-									+ " is expected, but one of type string was given");
+							throw new CompileError(
+									"A return value of type " + this.data.getReturnType().getSimpleClassName()
+											+ " is expected, but one of type string was given");
 						}
 
 						Object val = Types.parseLiteral(type, par);
@@ -46,8 +47,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 						m.visitInsn(ARETURN);
 					} else {
 						if (!Types.isSuitable(this.data.getReturnTypeSignature(), Types.getTypeSignature(type))) {
-							throw new CompileError("A return value of type " + this.data.getReturnType().getSimpleName()
-									+ " is expected, but one of type " + type + " was given");
+							throw new CompileError(
+									"A return value of type " + this.data.getReturnType().getSimpleClassName()
+											+ " is expected, but one of type " + type + " was given");
 						}
 
 						Object val = Types.parseLiteral(type, par);
@@ -74,12 +76,12 @@ public class GenericStatementCompiler implements GenericCompiler {
 					num = compiler.compile(data, m, num, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
-							.getSimpleName().toLowerCase();
+							.getSimpleClassName().toLowerCase();
 
 					if (!Types.isSuitable(this.data.getReturnTypeSignature(), compiler.getReferenceType())) {
-						throw new CompileError("A return value of type " + this.data.getReturnType().getSimpleName()
-								+ " is expected, but one of type "
-								+ Types.getTypeFromSignature(compiler.getReferenceType()).getSimpleName()
+						throw new CompileError("A return value of type "
+								+ this.data.getReturnType().getSimpleClassName() + " is expected, but one of type "
+								+ Types.getTypeFromSignature(compiler.getReferenceType()).getSimpleClassName()
 								+ " was given");
 					}
 

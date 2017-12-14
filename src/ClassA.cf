@@ -1,0 +1,15 @@
+//Hello World written in Cornflakes
+
+package cornflakes.lang
+public class ClassA
+
+use javax.swing.JFrame
+
+public static function main() -> int {
+	do(JFrame("Hello, world!"))
+	return 0
+}
+
+public static function do(JFrame obj) {
+	obj.setVisible(true)
+}

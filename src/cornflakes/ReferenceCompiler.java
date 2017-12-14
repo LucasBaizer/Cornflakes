@@ -49,7 +49,19 @@ public class ReferenceCompiler implements GenericCompiler {
 				num = compileMethodCall(containerClass, containerData, data, m, num, part, new String[] { part });
 				next = true;
 			} else {
-				throw new CompileError("Undefined function: " + name);
+				String resolved = null;
+				try {
+					resolved = data.resolveClass(name);
+				} catch (CompileError e) {
+					throw new CompileError("Undefined function: " + name);
+				}
+
+				try {
+					num = compileConstructorCall(resolved, ClassData.forName(resolved), data, m, num, part, resolved);
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
+				}
+				next = true;
 			}
 		} else {
 			if (containerData.hasField(part)) {
@@ -69,8 +81,7 @@ public class ReferenceCompiler implements GenericCompiler {
 
 				ClassData newClass = null;
 				try {
-					newClass = ClassData
-							.fromJavaClass(Class.forName(Types.unpadSignature(referenceType).replace('/', '.')));
+					newClass = ClassData.forName(Types.unpadSignature(referenceType));
 				} catch (ClassNotFoundException e) {
 					throw new CompileError(e);
 				}
@@ -86,15 +97,15 @@ public class ReferenceCompiler implements GenericCompiler {
 			throw new CompileError("Unexpected token: " + part);
 		}
 
-		Class<?> cls = null;
+		ClassData cls = null;
 		try {
-			cls = Class.forName(clazz.replace('/', '.'));
+			cls = ClassData.forName(clazz);
 		} catch (ClassNotFoundException e) {
-			throw new CompileError("Class not found: " + clazz.replace('/', '.'));
+			throw new CompileError("Unresolved class: " + clazz.replace('/', '.'));
 		}
 
 		String newBody = body.substring(end + 1).trim();
-		return compile(clazz, ClassData.fromJavaClass(cls), data, m, num, newBody, new String[] { newBody });
+		return compile(clazz, cls, data, m, num, newBody, new String[] { newBody });
 	}
 
 	private int compileVariableReference(int source, String containerClass, ClassData containerData, ClassData data,
@@ -124,6 +135,98 @@ public class ReferenceCompiler implements GenericCompiler {
 			m.visitVarInsn(op, new ArrayList<>(this.data.getLocals().keySet()).indexOf(body));
 			referenceType = type;
 		}
+		return num;
+	}
+
+	private int compileConstructorCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
+			int num, String body, String clazz) {
+		String before = body.substring(0, body.indexOf('(')).trim();
+
+		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
+
+		List<String> splitList = new ArrayList<>();
+		if (!pars.isEmpty()) {
+			int open = 0;
+			boolean quote = false;
+			int last = 0;
+			for (int i = 0; i < pars.length(); i++) {
+				char c = pars.charAt(i);
+				if (c == '(') {
+					open++;
+				} else if (c == ')') {
+					open--;
+				}
+				if (c == '"') {
+					quote = !quote;
+				}
+
+				if (open == 0 && !quote) {
+					if (c == ',') {
+						splitList.add(pars.substring(last, i).trim());
+						last = i + 1;
+					}
+				}
+			}
+			splitList.add(pars.substring(last, pars.length()).trim());
+		}
+		String[] split = splitList.toArray(new String[splitList.size()]);
+
+		MethodData[] methods = containerData.getConstructors();
+		MethodData method = null;
+
+		for (MethodData met : methods) {
+			if (met.getParameters().size() == split.length) {
+				int idx = 0;
+				boolean success = true;
+				for (String par : split) {
+					String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
+					String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+
+					if (type != null) {
+						if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
+							success = false;
+							break;
+						}
+					} else {
+						// TODO ensure that non-literals are accepted, but for
+						// now, just let it slide
+						if (this.data.hasLocal(par)) {
+							if (!Types.isSuitable(paramType, Types.getTypeSignature(this.data.getLocalType(par)))) {
+								success = false;
+								break;
+							}
+						}
+						break;
+					}
+					idx++;
+				}
+
+				if (success) {
+					method = met;
+					break;
+				}
+			}
+		}
+
+		if (method == null) {
+			throw new CompileError("No constructor overload takes the given parameters");
+		}
+
+		for (String par : split) {
+			String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
+
+			if (type != null) {
+				m.visitLdcInsn(Types.parseLiteral(type, par));
+			} else {
+				ReferenceCompiler compiler = new ReferenceCompiler(this.label, this.data);
+				num = compiler.compile(data, m, num, par, new String[] { par });
+			}
+		}
+
+		m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), before, method.getSignature(), false);
+
+		referenceType = method.getReturnTypeSignature();
+
 		return num;
 	}
 
@@ -168,7 +271,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				int idx = 0;
 				boolean success = true;
 				for (String par : split) {
-					String type = Types.getType(par, met.getReturnType().getSimpleName().toLowerCase());
+					String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
 					String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
 
 					if (type != null) {
@@ -202,7 +305,7 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 
 		for (String par : split) {
-			String type = Types.getType(par, this.data.getReturnType().getSimpleName().toLowerCase());
+			String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
 
 			if (type != null) {
 				m.visitLdcInsn(Types.parseLiteral(type, par));

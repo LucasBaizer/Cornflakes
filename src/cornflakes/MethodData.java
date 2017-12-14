@@ -1,5 +1,8 @@
 package cornflakes;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -11,6 +14,26 @@ public class MethodData {
 	private int stackSize;
 	private int localVariables;
 	private int modifiers;
+
+	public static MethodData fromJavaMethod(Method method) {
+		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
+				method.getModifiers());
+		Parameter[] params = method.getParameters();
+		for (int i = 0; i < params.length; i++) {
+			mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
+		}
+		return mData;
+	}
+
+	public static MethodData fromJavaConstructor(Constructor<?> method) {
+		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getDeclaringClass()),
+				method.getModifiers());
+		Parameter[] params = method.getParameters();
+		for (int i = 0; i < params.length; i++) {
+			mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
+		}
+		return mData;
+	}
 
 	public MethodData(String name, String ret, int mods) {
 		this.name = name;
@@ -34,7 +57,7 @@ public class MethodData {
 		this.returnType = returnType;
 	}
 
-	public Class<?> getReturnType() {
+	public ClassData getReturnType() {
 		return Types.getTypeFromSignature(Types.unpadSignature(returnType));
 	}
 
@@ -74,7 +97,7 @@ public class MethodData {
 	public void addLocal(String name, String val) {
 		locals.put(name, val);
 	}
-	
+
 	public Map<String, String> getLocals() {
 		return locals;
 	}
@@ -115,5 +138,14 @@ public class MethodData {
 		desc += ")" + returnType;
 
 		return desc;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if ((obj instanceof MethodData)) {
+			MethodData data = (MethodData) obj;
+			return data.getSignature().equals(this.getSignature());
+		}
+		return false;
 	}
 }

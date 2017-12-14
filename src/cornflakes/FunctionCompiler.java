@@ -10,7 +10,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
-public class FunctionCompiler extends Compiler {
+public class FunctionCompiler extends Compiler implements PostCompiler {
 	private MethodData methodData;
 	private boolean write;
 	private int accessor;
@@ -26,7 +26,7 @@ public class FunctionCompiler extends Compiler {
 	@Override
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
 		if (!write) {
-			Compiler.addPostCompiler(this);
+			Compiler.addPostCompiler(data.getClassName(), this);
 
 			this.data = data;
 			this.cw = cw;

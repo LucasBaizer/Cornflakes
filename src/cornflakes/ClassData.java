@@ -1,12 +1,14 @@
 package cornflakes;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class ClassData {
+	private static final HashMap<String, ClassData> classes = new HashMap<>();
 	private String simpleClassName;
 	private String parentName;
 	private String className;
@@ -16,22 +18,43 @@ public class ClassData {
 	private byte[] byteCode;
 	private ArrayList<String> use = new ArrayList<>();
 	private List<MethodData> methods = new ArrayList<>();
+	private List<MethodData> constructors = new ArrayList<>();
 	private List<FieldData> fields = new ArrayList<>();
 
+	public static ClassData forName(String name) throws ClassNotFoundException {
+		name = Strings.transformClassName(name);
+
+		if (classes.containsKey(name)) {
+			return classes.get(name);
+		}
+
+		return fromJavaClass(Class.forName(name.replace('/', '.')));
+	}
+
 	public static ClassData fromJavaClass(Class<?> cls) {
+		String t = Strings.transformClassName(cls.getName());
+
+		if (classes.containsKey(t)) {
+			return classes.get(t);
+		}
+
 		ClassData container = new ClassData(false);
-		container.setClassName(Strings.transformClassName(cls.getName()));
+		container.setClassName(t);
 		container.setSimpleClassName(cls.getSimpleName());
 
 		for (Method method : cls.getDeclaredMethods()) {
-			MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
-					method.getModifiers());
-			Parameter[] params = method.getParameters();
-			for (int i = 0; i < params.length; i++) {
-				mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
-			}
+			container.addMethod(MethodData.fromJavaMethod(method));
+		}
 
-			container.addMethod(mData);
+		for (Method method : cls.getMethods()) {
+			MethodData data = MethodData.fromJavaMethod(method);
+			if (!container.methods.contains(data)) {
+				container.addMethod(data);
+			}
+		}
+
+		for (Constructor<?> constructor : cls.getConstructors()) {
+			container.addConstructor(MethodData.fromJavaConstructor(constructor));
 		}
 
 		for (Field field : cls.getDeclaredFields()) {
@@ -39,6 +62,7 @@ public class ClassData {
 					.add(new FieldData(field.getName(), Types.getTypeSignature(field.getType()), field.getModifiers()));
 		}
 
+		classes.put(t, container);
 		return container;
 	}
 
@@ -56,7 +80,7 @@ public class ClassData {
 
 	public void use(String use) {
 		try {
-			Class.forName(use);
+			ClassData.forName(use);
 			this.use.add(Strings.transformClassName(use));
 		} catch (ClassNotFoundException e) {
 			throw new CompileError("Unresolved class: " + use);
@@ -87,7 +111,7 @@ public class ClassData {
 		Strings.handleLetterString(name, Strings.NUMBERS);
 
 		try {
-			return Strings.transformClassName(Class.forName(name).getName());
+			return ClassData.forName(name).getClassName();
 		} catch (ClassNotFoundException e) {
 			if (name.equals("string")) {
 				return arrayType ? "[Ljava/lang/String" : "java/lang/String";
@@ -172,6 +196,18 @@ public class ClassData {
 		methods.add(method);
 	}
 
+	public boolean hasConstructor(String name) {
+		return getMethods(name).length > 0;
+	}
+
+	public MethodData[] getConstructors() {
+		return constructors.toArray(new MethodData[constructors.size()]);
+	}
+
+	public void addConstructor(MethodData method) {
+		constructors.add(method);
+	}
+
 	public boolean hasField(String name) {
 		return getField(name) != null;
 	}
@@ -200,5 +236,18 @@ public class ClassData {
 
 	public boolean hasModifier(int mod) {
 		return (this.modifiers & mod) == mod;
+	}
+
+	public boolean isAssignableFrom(ClassData testClass) {
+		return false; // TODO
+	}
+
+	public static void registerCornflakesClass(ClassData data) {
+		classes.put(data.getClassName(), data);
+	}
+
+	@Override
+	public String toString() {
+		return "class " + getClassName();
 	}
 }

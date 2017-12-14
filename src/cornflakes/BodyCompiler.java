@@ -2,7 +2,19 @@ package cornflakes;
 
 import org.objectweb.asm.ClassWriter;
 
-public class BodyCompiler extends Compiler {
+public class BodyCompiler extends Compiler implements PostCompiler {
+	private ClassData data;
+	private ClassWriter cw;
+	private String accumulate;
+	private String[] after;
+
+	public BodyCompiler(ClassData data, ClassWriter cw, String accumulate, String[] after) {
+		this.data = data;
+		this.cw = cw;
+		this.accumulate = accumulate;
+		this.after = after;
+	}
+
 	@Override
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
 		int cursor = 0;
@@ -18,7 +30,7 @@ public class BodyCompiler extends Compiler {
 				String block = body.substring(cursor, close);
 				String[] blockLines = Strings.accumulate(block);
 				new BlockCompiler().compile(data, cw, block, blockLines);
-
+				
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {
 					cursor++;
@@ -31,5 +43,10 @@ public class BodyCompiler extends Compiler {
 				}
 			}
 		}
+	}
+
+	@Override
+	public void write() {
+		compile(data, cw, accumulate, after);
 	}
 }

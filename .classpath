@@ -22,5 +22,6 @@
 	<classpathentry kind="lib" path="dependencies/asm-tree-6.0.jar"/>
 	<classpathentry kind="lib" path="dependencies/asm-util-6.0.jar"/>
 	<classpathentry kind="lib" path="dependencies/asm-xml-6.0.jar"/>
+	<classpathentry kind="lib" path="bin"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
