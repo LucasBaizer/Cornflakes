@@ -26,10 +26,6 @@ public class AfterCompile {
 	}
 	
 	public void end() {
-		if (!data.hasConstructor()) {
-			new ConstructorCompiler(true).compileDefault(data, cw);
-		}
-
 		cw.visitEnd();
 		data.setByteCode(cw.toByteArray());		
 	}

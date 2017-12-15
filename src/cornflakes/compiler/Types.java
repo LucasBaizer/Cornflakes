@@ -111,23 +111,28 @@ public class Types implements Opcodes {
 			return ALOAD;
 		} else if (op == RETURN) {
 			return ARETURN;
+		} else {
+			if (type.equals("string")) {
+				if (op == PUSH) {
+					return LDC;
+				}
+			}
 		}
 
-		throw new CompileError("Could not get opcode for type: " + type);
+		throw new CompileError("Could not get opcode for type '" + type + "' with code " + op);
 	}
 
 	public static boolean isSuitable(String target, String test) {
-		if (target.equals(test)) {
-			return true;
-		}
+		target = unpadSignature(target);
+		test = unpadSignature(test);
 
 		if (isPrimitive(target) || isPrimitive(test)) {
 			// TODO check more
 			return false;
 		}
 
-		ClassData targetClass = getTypeFromSignature(unpadSignature(target));
-		ClassData testClass = getTypeFromSignature(unpadSignature(test));
+		ClassData targetClass = getTypeFromSignature(target);
+		ClassData testClass = getTypeFromSignature(test);
 		return targetClass.isAssignableFrom(testClass);
 	}
 
@@ -211,9 +216,9 @@ public class Types implements Opcodes {
 			if (!INTEGER.contains(Character.toString(l))) {
 				if (l == '.') {
 					if (Strings.countOccurrences(x, ".") == 1) {
-						if (context.equals("float")) {
+						if (context.equals("float") || context.equals("F")) {
 							return "float";
-						} else if (context.equals("double")) {
+						} else if (context.equals("double") || context.equals("D")) {
 							return "double";
 						} else if (!context.isEmpty()) {
 							throw new CompileError("A non-fractional type was expected, but one was given");
@@ -227,13 +232,13 @@ public class Types implements Opcodes {
 			}
 		}
 
-		if (context.equals("byte")) {
+		if (context.equals("byte") || context.equals("B")) {
 			return "byte";
-		} else if (context.equals("short")) {
+		} else if (context.equals("short") || context.equals("S")) {
 			return "short";
-		} else if (context.equals("int")) {
+		} else if (context.equals("int") || context.equals("I")) {
 			return "int";
-		} else if (context.equals("long")) {
+		} else if (context.equals("long") || context.equals("J")) {
 			return "long";
 		}
 
@@ -242,43 +247,43 @@ public class Types implements Opcodes {
 
 	public static boolean isPrimitive(String name) {
 		switch (name) {
-			case "void":
-			case "bool":
-			case "byte":
-			case "char":
-			case "short":
-			case "int":
-			case "long":
-			case "float":
-			case "double":
-				return true;
-			default:
-				return false;
+		case "void":
+		case "bool":
+		case "byte":
+		case "char":
+		case "short":
+		case "int":
+		case "long":
+		case "float":
+		case "double":
+			return true;
+		default:
+			return false;
 		}
 	}
 
 	public static Class<?> getClassFromPrimitive(String primitive) {
 		switch (primitive) {
-			case "void":
-				return Void.class;
-			case "bool":
-				return boolean.class;
-			case "byte":
-				return byte.class;
-			case "char":
-				return char.class;
-			case "short":
-				return short.class;
-			case "int":
-				return int.class;
-			case "long":
-				return long.class;
-			case "float":
-				return float.class;
-			case "double":
-				return double.class;
-			default:
-				throw new CompileError("Unresolved type: " + primitive);
+		case "void":
+			return Void.class;
+		case "bool":
+			return boolean.class;
+		case "byte":
+			return byte.class;
+		case "char":
+			return char.class;
+		case "short":
+			return short.class;
+		case "int":
+			return int.class;
+		case "long":
+			return long.class;
+		case "float":
+			return float.class;
+		case "double":
+			return double.class;
+		default:
+			throw new CompileError("Unresolved type: " + primitive);
 		}
 	}
 
@@ -340,24 +345,24 @@ public class Types implements Opcodes {
 
 	public static ClassData getTypeFromSignature(String sig) {
 		switch (sig) {
-			case "V":
-				return ClassData.fromJavaClass(Void.class);
-			case "Z":
-				return ClassData.fromJavaClass(boolean.class);
-			case "B":
-				return ClassData.fromJavaClass(byte.class);
-			case "C":
-				return ClassData.fromJavaClass(char.class);
-			case "D":
-				return ClassData.fromJavaClass(double.class);
-			case "F":
-				return ClassData.fromJavaClass(float.class);
-			case "I":
-				return ClassData.fromJavaClass(int.class);
-			case "J":
-				return ClassData.fromJavaClass(long.class);
-			case "S":
-				return ClassData.fromJavaClass(short.class);
+		case "V":
+			return ClassData.fromJavaClass(Void.class);
+		case "Z":
+			return ClassData.fromJavaClass(boolean.class);
+		case "B":
+			return ClassData.fromJavaClass(byte.class);
+		case "C":
+			return ClassData.fromJavaClass(char.class);
+		case "D":
+			return ClassData.fromJavaClass(double.class);
+		case "F":
+			return ClassData.fromJavaClass(float.class);
+		case "I":
+			return ClassData.fromJavaClass(int.class);
+		case "J":
+			return ClassData.fromJavaClass(long.class);
+		case "S":
+			return ClassData.fromJavaClass(short.class);
 		}
 
 		if (sig.startsWith("[")) {

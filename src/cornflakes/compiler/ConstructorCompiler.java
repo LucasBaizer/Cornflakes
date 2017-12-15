@@ -176,5 +176,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitLocalVariable("this", "L" + Strings.transformClassName(data.getClassName()) + ";", null, l0, l1, 0);
 		mv.visitMaxs(1, 1);
 		mv.visitEnd();
+
+		data.addConstructor(new ConstructorData("<init>", "V", ACC_PUBLIC));
 	}
 }

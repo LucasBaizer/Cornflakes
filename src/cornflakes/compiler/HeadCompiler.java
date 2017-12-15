@@ -5,12 +5,20 @@ import java.util.List;
 
 import org.objectweb.asm.ClassWriter;
 
-public class HeadCompiler extends Compiler {
+public class HeadCompiler extends Compiler implements PostCompiler {
+	private String[] after;
+	private ClassWriter cw;
+	private ClassData data;
+	
 	@Override
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+		this.cw = cw;
+		this.data = data;
+		
 		String className = "";
 		String simple = "";
 		String parent = "java/lang/Object";
+		String packageName = "";
 		String firstLine = Strings.normalizeSpaces(lines[0]);
 		int index = 1;
 
@@ -22,6 +30,7 @@ public class HeadCompiler extends Compiler {
 			className = firstLine.substring(firstLine.indexOf(" ") + 1);
 			Strings.handleLetterString(className, Strings.PERIOD);
 			className = Strings.transformClassName(className) + "/";
+			packageName = className.substring(0, className.length() - 1);
 
 			firstLine = Strings.normalizeSpaces(lines[1]);
 			index = 2;
@@ -87,18 +96,25 @@ public class HeadCompiler extends Compiler {
 		}
 
 		data.setClassName(className);
-		Compiler.register(cw, data);
-		ClassData.registerCornflakesClass(data);
-
+		data.setClassWriter(cw);
 		data.setSimpleClassName(simple);
 		data.setParentName(parent);
 		data.setModifiers(accessor);
+		data.setPackageName(packageName);
+
+		Compiler.register(cw, data);
+		ClassData.registerCornflakesClass(data);
 
 		cw.visit(V1_8, accessor, className, null, parent, null);
 		cw.visitSource(data.getSourceName(), null);
 
-		String[] after = Strings.after(lines, index);
+		after = Strings.after(lines, index);
 		
+		Compiler.addPostCompiler(className, this);
+	}
+
+	@Override
+	public void write() {
 		BodyCompiler compiler = new BodyCompiler(data, cw, Strings.accumulate(after), after);
 		Compiler.addPostCompiler(data.getClassName(), compiler);
 	}

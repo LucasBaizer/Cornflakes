@@ -7,9 +7,18 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class ReferenceCompiler implements GenericCompiler {
+	public static final int LOCAL_VARIABLE = 0;
+	public static final int MEMBER_VARIABLE = 1;
+	public static final int METHOD = 2;
+	public static final int CONSTRUCTOR = 3;
+
 	private MethodData data;
 	private boolean write;
-	private String referenceType;
+	private boolean loadVariableReference = true;
+	private String referenceSignature;
+	private String referenceName;
+	private ClassData referenceOwner;
+	private int referenceType;
 
 	public ReferenceCompiler(boolean write, MethodData data) {
 		this.write = write;
@@ -66,10 +75,12 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 		} else {
 			if (containerData.hasField(part)) {
-				compileVariableReference(0, containerClass, containerData, data, m, startLabel, endLabel, part);
+				compileVariableReference(0, containerClass, containerData, data, m, startLabel, endLabel, part,
+						end == body.length());
 				next = true;
 			} else if (this.data.hasLocal(part, startLabel, endLabel)) {
-				compileVariableReference(1, containerClass, containerData, data, m, startLabel, endLabel, part);
+				compileVariableReference(1, containerClass, containerData, data, m, startLabel, endLabel, part,
+						end == body.length());
 				next = true;
 			}
 		}
@@ -80,7 +91,7 @@ public class ReferenceCompiler implements GenericCompiler {
 
 				ClassData newClass = null;
 				try {
-					newClass = ClassData.forName(Types.unpadSignature(referenceType));
+					newClass = ClassData.forName(Types.unpadSignature(referenceSignature));
 				} catch (ClassNotFoundException e) {
 					throw new CompileError(e);
 				}
@@ -94,7 +105,8 @@ public class ReferenceCompiler implements GenericCompiler {
 		try {
 			clazz = data.resolveClass(part);
 		} catch (CompileError e) {
-			throw new CompileError("Could not find a class, variable, method, or keyword named '" + part.split(" ")[0] + "'");
+			throw new CompileError("Could not find a class, variable, method, or keyword named '" + part.split(" ")[0]
+					+ "' in class " + containerData.getSimpleClassName());
 		}
 
 		ClassData cls = null;
@@ -111,30 +123,40 @@ public class ReferenceCompiler implements GenericCompiler {
 	}
 
 	private void compileVariableReference(int source, String containerClass, ClassData containerData, ClassData data,
-			MethodVisitor m, Label startLabel, Label endLabel, String body) {
+			MethodVisitor m, Label startLabel, Label endLabel, String body, boolean isLast) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
 			if (write) {
-				if (field.hasModifier(ACC_STATIC)) {
-					m.visitFieldInsn(GETSTATIC, containerClass, body, field.getType());
-				} else {
-					m.visitFieldInsn(GETFIELD, containerClass, body, field.getType());
-				}
+				if (!(!loadVariableReference && isLast)) {
+					if (field.hasModifier(ACC_STATIC)) {
+						m.visitFieldInsn(GETSTATIC, containerClass, body, field.getType());
+					} else {
+						m.visitFieldInsn(GETFIELD, containerClass, body, field.getType());
+					}
 
-				this.data.increaseStackSize();
+					this.data.increaseStackSize();
+				}
 			}
-			referenceType = field.getType();
+
+			referenceSignature = field.getType();
+			referenceType = MEMBER_VARIABLE;
+			referenceName = field.getName();
+			referenceOwner = containerData;
 		} else if (source == 1) {
 			LocalData local = this.data.getLocal(body, startLabel, endLabel);
 			String type = local.getType();
 
 			if (write) {
-				int op = Types.getOpcode(Types.LOAD, type);
-				m.visitVarInsn(op, local.getIndex());
-				this.data.increaseStackSize();
+				if (!(!loadVariableReference && isLast)) {
+					int op = Types.getOpcode(Types.LOAD, type);
+					m.visitVarInsn(op, local.getIndex());
+				}
 			}
 
-			referenceType = type;
+			referenceSignature = type;
+			referenceType = LOCAL_VARIABLE;
+			referenceName = local.getName();
+			referenceOwner = containerData;
 		}
 	}
 
@@ -164,7 +186,7 @@ public class ReferenceCompiler implements GenericCompiler {
 						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
 						compiler.compile(containerClass, containerData, data, m, start, end, par, new String[] { par });
 
-						if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
+						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
 							success = false;
 							break;
 						}
@@ -210,7 +232,10 @@ public class ReferenceCompiler implements GenericCompiler {
 			this.data.increaseStackSize();
 		}
 
-		referenceType = method.getReturnTypeSignature();
+		referenceSignature = Types.getTypeSignature(containerData.getClassName());
+		referenceType = CONSTRUCTOR;
+		referenceName = containerData.getSimpleClassName();
+		referenceOwner = containerData;
 	}
 
 	private void compileMethodCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
@@ -242,7 +267,7 @@ public class ReferenceCompiler implements GenericCompiler {
 						compiler.compile(containerClass, containerData, data, m, startLabel, endLabel, par,
 								new String[] { par });
 
-						if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
+						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
 							success = false;
 							break;
 						}
@@ -296,7 +321,10 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 		}
 
-		referenceType = method.getReturnTypeSignature();
+		referenceSignature = method.getReturnTypeSignature();
+		referenceType = METHOD;
+		referenceName = method.getName();
+		referenceOwner = containerData;
 	}
 
 	private String[] getParameters(String pars) {
@@ -328,11 +356,23 @@ public class ReferenceCompiler implements GenericCompiler {
 		return splitList.toArray(new String[splitList.size()]);
 	}
 
-	public String getReferenceType() {
+	public String getReferenceSignature() {
+		return referenceSignature;
+	}
+
+	public void setLoadVariableReference(boolean loadVariableReference) {
+		this.loadVariableReference = loadVariableReference;
+	}
+
+	public int getReferenceType() {
 		return referenceType;
 	}
 
-	public void setReferenceType(String referenceType) {
-		this.referenceType = referenceType;
+	public String getReferenceName() {
+		return referenceName;
+	}
+
+	public ClassData getReferenceOwner() {
+		return referenceOwner;
 	}
 }

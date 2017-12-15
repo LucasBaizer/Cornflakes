@@ -1,6 +1,7 @@
 package cornflakes.compiler;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,13 +121,15 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				for (String par : split) {
 					par = Strings.normalizeSpaces(par);
 
-					String[] spl = par.split(" ");
-					if (spl.length != 2) {
-						throw new CompileError("Expecting format 'type name'");
+					String[] spl = par.split(":");
+					if (spl.length == 1) {
+						throw new CompileError("Parameters must have a specified type");
+					} else if (spl.length > 2) {
+						throw new CompileError("Unexpected symbol: " + spl[2]);
 					}
 
-					String type = spl[0];
-					String name = spl[1];
+					String name = spl[0].trim();
+					String type = spl[1].trim();
 
 					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
 					Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
@@ -135,16 +138,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Duplicate parameter name: " + par);
 					}
 
-					String resolvedType = data.resolveClass(type);
-					if (methodName.equals("main")) {
-						if (!resolvedType.equals("[Ljava/lang/String")) {
-							throw new CompileError(
-									"Main method should either have no parameter or one of type string[]");
-						}
-						if (!returnType.equals("I")) {
-							throw new CompileError("Main method should have return type 'int'");
-						}
-					}
+					String resolvedType = Types.isPrimitive(type) ? type : data.resolveClass(type);
 
 					parameters.put(name, Types.padSignature(resolvedType));
 				}
@@ -164,10 +158,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			Label post = new Label();
 			m.visitLabel(post);
 			m.visitLineNumber(127, post); // TODO 127
-			
+
 			m.visitLabel(start);
 			m.visitLineNumber(line++, start);
-			
+
 			this.methodData.setLabels(start, post);
 
 			if (!methodData.hasModifier(ACC_STATIC)) {
@@ -175,9 +169,16 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				this.methodData.addLocalVariable();
 			}
 
+			HashMap<String, Integer> paramMap = new HashMap<>();
+			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
+				paramMap.put(par.getKey(), this.methodData.getLocalVariables());
+				this.methodData.addLocalVariable();
+			}
+
 			String[] inner = Strings.before(Strings.after(lines, 1), 1);
 			String innerBody = Strings.accumulate(inner).trim();
 			String[] inner2 = Strings.accumulate(innerBody);
+
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
 			gbc.compile(data, m, start, post, innerBody, inner2);
 
@@ -190,11 +191,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			m.visitLabel(post);
-			int index = 0;
 			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
-				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, index);
-				index++;
-				this.methodData.addLocalVariable();
+				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, paramMap.get(par.getKey()));
 			}
 
 			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());

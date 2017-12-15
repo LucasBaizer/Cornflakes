@@ -8,15 +8,7 @@ import java.util.List;
 
 import org.objectweb.asm.Opcodes;
 
-import cornflakes.lang.Console;
-
 public class MainCompiler implements Opcodes {
-	public static class DynamicClassLoader extends ClassLoader {
-		public Class<?> define(String className, byte[] bytecode) {
-			return super.defineClass(className, bytecode, 0, bytecode.length);
-		}
-	};
-
 	public static void main(String[] args) throws Exception {
 		long time = System.currentTimeMillis();
 
@@ -29,9 +21,26 @@ public class MainCompiler implements Opcodes {
 				}
 			}
 		}
-		
-		// compile bodies
+
+		// compile class head
 		Compiler.executePostCompilers();
+
+		for (ClassData data : list) {
+			for (ClassData other : list) {
+				if (data.getPackageName().equals(other.getPackageName())) {
+					data.use(other.getClassName());
+				}
+			}
+		}
+
+		// compile function signatures
+		Compiler.executePostCompilers();
+
+		for (ClassData data : list) {
+			if (!data.hasConstructor()) {
+				new ConstructorCompiler(true).compileDefault(data, data.getClassWriter());
+			}
+		}
 
 		// compile functions
 		Compiler.executePostCompilers();

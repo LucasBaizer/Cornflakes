@@ -7,12 +7,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.objectweb.asm.ClassWriter;
+
 public class ClassData {
 	private static final HashMap<String, ClassData> classes = new HashMap<>();
 	private String simpleClassName;
 	private String parentName;
 	private String className;
 	private String sourceName;
+	private String packageName;
 	private boolean hasConstructor;
 	private int modifiers;
 	private byte[] byteCode;
@@ -20,6 +23,8 @@ public class ClassData {
 	private List<MethodData> methods = new ArrayList<>();
 	private List<ConstructorData> constructors = new ArrayList<>();
 	private List<FieldData> fields = new ArrayList<>();
+	private ClassWriter classWriter;
+	private Class<?> javaClass;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
 		name = Strings.transformClassName(name);
@@ -39,6 +44,7 @@ public class ClassData {
 		}
 
 		ClassData container = new ClassData(false);
+		container.javaClass = cls;
 		container.setClassName(t);
 		container.setSimpleClassName(cls.getSimpleName());
 
@@ -235,7 +241,26 @@ public class ClassData {
 		return (this.modifiers & mod) == mod;
 	}
 
-	public boolean isAssignableFrom(ClassData testClass) {
+	public boolean isAssignableFrom(ClassData test) {
+		if (test.className.equals(className)) {
+			return true;
+		}
+		if (javaClass != null && test.javaClass != null) {
+			return javaClass.isAssignableFrom(test.javaClass);
+		}
+
+		while (!test.className.equals("java/lang/Object")) {
+			try {
+				test = ClassData.forName(test.parentName);
+
+				if (test.className.equals(className)) {
+					return true;
+				}
+			} catch (ClassNotFoundException e) {
+				throw new CompileError("Invalid parent: " + test.parentName);
+			}
+		}
+
 		return false; // TODO
 	}
 
@@ -246,5 +271,21 @@ public class ClassData {
 	@Override
 	public String toString() {
 		return "class " + getClassName();
+	}
+
+	public ClassWriter getClassWriter() {
+		return classWriter;
+	}
+
+	public void setClassWriter(ClassWriter classWriter) {
+		this.classWriter = classWriter;
+	}
+
+	public String getPackageName() {
+		return packageName;
+	}
+
+	public void setPackageName(String packageName) {
+		this.packageName = packageName;
 	}
 }

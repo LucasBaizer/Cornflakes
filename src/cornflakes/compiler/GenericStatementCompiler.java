@@ -66,13 +66,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 					ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
 					compiler.compile(data, m, start, end, par, new String[] { par });
 
-					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
+					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceSignature()))
 							.getSimpleClassName().toLowerCase();
 
-					if (!Types.isSuitable(this.data.getReturnTypeSignature(), compiler.getReferenceType())) {
+					if (!Types.isSuitable(this.data.getReturnTypeSignature(), compiler.getReferenceSignature())) {
 						throw new CompileError("A return value of type "
 								+ this.data.getReturnType().getSimpleClassName() + " is expected, but one of type "
-								+ Types.getTypeFromSignature(compiler.getReferenceType()).getSimpleClassName()
+								+ Types.getTypeFromSignature(compiler.getReferenceSignature()).getSimpleClassName()
 								+ " was given");
 					}
 
@@ -86,7 +86,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					throw new CompileError("A return value of type " + this.data.getReturnType() + " is expected");
 				}
 			}
-		} else if (body.startsWith("var")) {
+		} else if (body.startsWith("var") || body.startsWith("const")) {
 			type = VAR;
 
 			body = Strings.normalizeSpaces(body);
@@ -94,7 +94,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			String[] split = body.split(":");
 			String[] look = split.length == 1 ? body.split(" ") : split[0].split(" ");
 			if (look.length == 1) {
-				throw new CompileError("Expecting variable name after var");
+				throw new CompileError("Expecting variable name");
 			}
 
 			String variableName = look[1].trim();
@@ -120,7 +120,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
 					ref.compile(data, m, start, end, givenValue, new String[] { givenValue });
 
-					if ((valueType = ref.getReferenceType()) == null) {
+					if ((valueType = ref.getReferenceSignature()) == null) {
 						throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 					}
 
@@ -134,16 +134,30 @@ public class GenericStatementCompiler implements GenericCompiler {
 				String[] spaces = split[1].trim().split(" ");
 				variableType = spaces[0];
 
+				if (!Types.isPrimitive(variableType)) {
+					variableType = data.resolveClass(variableType);
+				}
+
 				String[] set = body.split("=");
 				if (set.length > 1) {
 					String givenValue = set[1].trim();
 
 					valueType = Types.getType(givenValue, variableType);
+
+					if (valueType == null) {
+						ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+						compiler.compile(data, m, start, end, givenValue, new String[] { givenValue });
+						valueType = compiler.getReferenceSignature();
+						isRef = true;
+					}
+
 					if (!Types.isSuitable(variableType, valueType)) {
 						throw new CompileError(valueType + " is not assignable to " + variableType);
 					}
 
-					value = Types.parseLiteral(variableType, givenValue);
+					if (!isRef) {
+						value = Types.parseLiteral(variableType, givenValue);
+					}
 				}
 
 				variableType = Types.getTypeSignature(variableType);
@@ -170,10 +184,65 @@ public class GenericStatementCompiler implements GenericCompiler {
 				}
 			}
 
-			this.data.addLocal(new LocalData(variableName, variableType, start, end, idx, 0));
+			this.data.addLocal(
+					new LocalData(variableName, variableType, start, end, idx, body.startsWith("var") ? 0 : ACC_FINAL));
 			this.data.addLocalVariable();
 		} else {
-			new ReferenceCompiler(true, this.data).compile(data, m, start, end, body, lines);
+			boolean ref = true;
+
+			if (body.contains("=")) {
+				String[] split = body.split("=", 2);
+				String name = split[0].trim();
+				String value = split[1].trim();
+
+				ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+				compiler.setLoadVariableReference(false);
+				compiler.compile(data, m, start, end, name, new String[] { name });
+
+				String refName = compiler.getReferenceName();
+				FieldData field = null;
+				if (this.data.hasLocal(refName, start, end)) {
+					field = this.data.getLocal(refName, start, end);
+				} else if (compiler.getReferenceOwner().hasField(refName)) {
+					field = compiler.getReferenceOwner().getField(refName);
+				}
+
+				if (field != null) {
+					ref = false;
+
+					String valueType = Types.getType(value, field.getType());
+					if (valueType != null) {
+						if (!Types.isSuitable(field.getType(), Types.getTypeSignature(valueType))) {
+							throw new CompileError(valueType + " is not assignable to " + field.getType());
+						}
+
+						Object obj = Types.parseLiteral(valueType, value);
+
+						int push = Types.getOpcode(Types.PUSH, valueType);
+
+						if (push == LDC) {
+							m.visitLdcInsn(obj);
+							this.data.increaseStackSize();
+						} else {
+							m.visitVarInsn(push, Integer.parseInt(obj.toString()));
+							this.data.increaseStackSize();
+						}
+
+						if (field instanceof LocalData) {
+							int store = Types.getOpcode(Types.STORE, field.getType());
+							m.visitVarInsn(store, ((LocalData) field).getIndex());
+						} else if (field instanceof FieldData) {
+							m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
+									compiler.getReferenceOwner().getClassName(), refName,
+									compiler.getReferenceSignature());
+						}
+					}
+				}
+			}
+
+			if (ref) {
+				new ReferenceCompiler(true, this.data).compile(data, m, start, end, body, lines);
+			}
 		}
 	}
 

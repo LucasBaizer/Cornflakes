@@ -1,0 +1,11 @@
+package cornflakes.lang;
+public class CornflakesClass;
+
+use java.awt.Dimension;
+
+public static function main(args: string[]) {
+	var dim = Dimension();
+	dim.width = 50;
+	
+	System.out.println(dim);
+}
