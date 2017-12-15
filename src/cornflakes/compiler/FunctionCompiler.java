@@ -164,10 +164,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			Label post = new Label();
 			m.visitLabel(post);
 			m.visitLineNumber(127, post); // TODO 127
-
+			
 			m.visitLabel(start);
 			m.visitLineNumber(line++, start);
-
+			
 			this.methodData.setLabels(start, post);
 
 			if (!methodData.hasModifier(ACC_STATIC)) {
@@ -179,7 +179,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			String innerBody = Strings.accumulate(inner).trim();
 			String[] inner2 = Strings.accumulate(innerBody);
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			line = gbc.compile(data, m, start, post, line, innerBody, inner2);
+			gbc.compile(data, m, start, post, innerBody, inner2);
 
 			if (!gbc.returns()) {
 				if (methodData.getReturnTypeSignature().equals("V")) {
@@ -197,7 +197,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				this.methodData.addLocalVariable();
 			}
 
-			m.visitMaxs(128, this.methodData.getLocalVariables()); // TODO 128
+			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());
 			m.visitEnd();
 		}
 	}

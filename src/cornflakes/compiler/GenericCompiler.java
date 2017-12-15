@@ -5,5 +5,5 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 public interface GenericCompiler extends Opcodes {
-	public int compile(ClassData data, MethodVisitor m, Label startLabel, Label endLabel, int num, String body, String[] lines);
+	public void compile(ClassData data, MethodVisitor m, Label startLabel, Label endLabel, String body, String[] lines);
 }

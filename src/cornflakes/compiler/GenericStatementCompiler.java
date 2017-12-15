@@ -5,7 +5,7 @@ import org.objectweb.asm.MethodVisitor;
 
 public class GenericStatementCompiler implements GenericCompiler {
 	public static final int RETURN = 1;
-	public static final int LET = 2;
+	public static final int VAR = 2;
 
 	private MethodData data;
 	private int type;
@@ -15,7 +15,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public int compile(ClassData data, MethodVisitor m, Label start, Label end, int num, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Label start, Label end, String body, String[] lines) {
 		if (body.startsWith("return")) {
 			type = RETURN;
 
@@ -41,6 +41,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 						Object val = Types.parseLiteral(type, par);
 						m.visitLdcInsn(val);
 						m.visitInsn(ARETURN);
+
+						this.data.increaseStackSize();
 					} else {
 						if (!Types.isSuitable(this.data.getReturnTypeSignature(), Types.getTypeSignature(type))) {
 							throw new CompileError(
@@ -49,25 +51,20 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 
 						Object val = Types.parseLiteral(type, par);
-						m.visitLdcInsn(val);
-
-						int op = 0;
-						if (type.equals("int")) {
-							op = IRETURN;
-						} else if (type.equals("float")) {
-							op = FRETURN;
-						} else if (type.equals("double")) {
-							op = DRETURN;
-						} else if (type.equals("long")) {
-							op = LRETURN;
+						int push = Types.getOpcode(Types.PUSH, type);
+						if (push == LDC) {
+							m.visitLdcInsn(val);
+						} else {
+							m.visitVarInsn(push, Integer.parseInt(val.toString()));
 						}
+						this.data.increaseStackSize();
 
+						int op = Types.getOpcode(Types.RETURN, type);
 						m.visitInsn(op);
-						num++;
 					}
 				} else {
 					ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
-					num = compiler.compile(data, m, start, end, num, par, new String[] { par });
+					compiler.compile(data, m, start, end, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceType()))
 							.getSimpleClassName().toLowerCase();
@@ -79,19 +76,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 								+ " was given");
 					}
 
-					int op = ARETURN;
-					if (ref.equals("int")) {
-						op = IRETURN;
-					} else if (ref.equals("float")) {
-						op = FRETURN;
-					} else if (ref.equals("double")) {
-						op = DRETURN;
-					} else if (ref.equals("long")) {
-						op = LRETURN;
-					}
-
-					// TODO check return type here
-
+					int op = Types.getOpcode(RETURN, ref);
 					m.visitInsn(op);
 				}
 			} else {
@@ -101,20 +86,28 @@ public class GenericStatementCompiler implements GenericCompiler {
 					throw new CompileError("A return value of type " + this.data.getReturnType() + " is expected");
 				}
 			}
-		} else if (body.startsWith("let")) {
-			type = LET;
+		} else if (body.startsWith("var")) {
+			type = VAR;
 
 			body = Strings.normalizeSpaces(body);
 
 			String[] split = body.split(":");
 			String[] look = split.length == 1 ? body.split(" ") : split[0].split(" ");
 			if (look.length == 1) {
-				throw new CompileError("Expecting variable name after let");
+				throw new CompileError("Expecting variable name after var");
 			}
 
 			String variableName = look[1].trim();
-			String type = null;
+
+			if (this.data.hasLocal(variableName, start, end)) {
+				throw new CompileError("Duplicate variable: " + variableName);
+			}
+
+			String variableType = null;
 			Object value = null;
+			String valueType = null;
+			boolean isRef = false;
+
 			if (split.length == 1) {
 				String[] set = body.split("=");
 				if (set.length == 1) {
@@ -122,44 +115,66 @@ public class GenericStatementCompiler implements GenericCompiler {
 				}
 
 				String givenValue = set[1].trim();
-				String valType = Types.getType(givenValue, "");
-				if (valType == null) {
-					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
+				valueType = Types.getType(givenValue, "");
+				if (valueType == null) {
+					ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
+					ref.compile(data, m, start, end, givenValue, new String[] { givenValue });
+
+					if ((valueType = ref.getReferenceType()) == null) {
+						throw new CompileError("A type for the variable could not be assumed; one must be assigned");
+					}
+
+					isRef = true;
+				} else {
+					value = Types.parseLiteral(valueType, givenValue);
 				}
-				value = Types.parseLiteral(valType, givenValue);
+
+				variableType = Types.getTypeSignature(valueType);
 			} else {
 				String[] spaces = split[1].trim().split(" ");
-				type = spaces[0];
+				variableType = spaces[0];
 
 				String[] set = body.split("=");
 				if (set.length > 1) {
 					String givenValue = set[1].trim();
 
-					String inputType = Types.getType(givenValue, type);
-					if (!Types.isSuitable(type, inputType)) {
-						throw new CompileError(inputType + " is not assignable to " + type);
+					valueType = Types.getType(givenValue, variableType);
+					if (!Types.isSuitable(variableType, valueType)) {
+						throw new CompileError(valueType + " is not assignable to " + variableType);
 					}
 
-					value = Types.parseLiteral(type, givenValue);
+					value = Types.parseLiteral(variableType, givenValue);
 				}
 
-				type = Types.getTypeSignature(type);
+				variableType = Types.getTypeSignature(variableType);
 			}
 
 			int idx = this.data.getLocalVariables();
-			m.visitLocalVariable(variableName, type, null, start, end, idx);
+			m.visitLocalVariable(variableName, variableType, null, start, end, idx);
 			if (value != null) {
-				m.visitLdcInsn(value);
-				m.visitVarInsn(ASTORE, idx);
+				int push = Types.getOpcode(Types.PUSH, valueType);
+				int store = Types.getOpcode(Types.STORE, variableType);
+
+				if (push == LDC) {
+					m.visitLdcInsn(value);
+					this.data.increaseStackSize();
+				} else {
+					m.visitVarInsn(push, Integer.parseInt(value.toString()));
+					this.data.increaseStackSize();
+				}
+
+				m.visitVarInsn(store, idx);
+			} else {
+				if (isRef) {
+					m.visitVarInsn(Types.getOpcode(Types.STORE, valueType), idx);
+				}
 			}
 
-			this.data.addLocal(new LocalData(variableName, type, start, end, idx, 0));
+			this.data.addLocal(new LocalData(variableName, variableType, start, end, idx, 0));
 			this.data.addLocalVariable();
 		} else {
-			num = new ReferenceCompiler(true, this.data).compile(data, m, start, end, num, body, lines);
+			new ReferenceCompiler(true, this.data).compile(data, m, start, end, body, lines);
 		}
-
-		return num + 1;
 	}
 
 	public int getType() {

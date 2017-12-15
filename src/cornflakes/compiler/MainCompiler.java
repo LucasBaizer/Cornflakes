@@ -1,4 +1,4 @@
-package test;
+package cornflakes.compiler;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -8,10 +8,9 @@ import java.util.List;
 
 import org.objectweb.asm.Opcodes;
 
-import cornflakes.compiler.ClassData;
-import cornflakes.compiler.Compiler;
+import cornflakes.lang.Console;
 
-public class Test implements Opcodes {
+public class MainCompiler implements Opcodes {
 	public static class DynamicClassLoader extends ClassLoader {
 		public Class<?> define(String className, byte[] bytecode) {
 			return super.defineClass(className, bytecode, 0, bytecode.length);
@@ -30,7 +29,7 @@ public class Test implements Opcodes {
 				}
 			}
 		}
-
+		
 		// compile bodies
 		Compiler.executePostCompilers();
 

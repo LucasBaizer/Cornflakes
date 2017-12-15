@@ -134,7 +134,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			String innerBody = Strings.accumulate(inner).trim();
 			String[] inner2 = Strings.accumulate(innerBody);
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			line = gbc.compile(data, m, start, post, line, innerBody, inner2);
+			gbc.compile(data, m, start, post, innerBody, inner2);
 
 			if (!gbc.returns()) {
 				if (methodData.getReturnTypeSignature().equals("V")) {

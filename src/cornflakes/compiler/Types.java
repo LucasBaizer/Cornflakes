@@ -1,7 +1,120 @@
 package cornflakes.compiler;
 
-public class Types {
+import org.objectweb.asm.Opcodes;
+
+public class Types implements Opcodes {
+	public static final int STORE = 0;
+	public static final int LOAD = 1;
+	public static final int PUSH = 2;
+	public static final int RETURN = 3;
+
 	private static final String INTEGER = "-0123456789";
+
+	public static int getOpcode(int op, String type) {
+		if (type == null) {
+			if (op == STORE) {
+				return ASTORE;
+			} else if (op == LOAD) {
+				return ALOAD;
+			} else if (op == RETURN) {
+				return ARETURN;
+			}
+
+			throw new CompileError("APUSH is not a valid opcode");
+		}
+
+		if (type.equals("byte") || type.equals("B")) {
+			if (op == STORE) {
+				return ISTORE;
+			} else if (op == LOAD) {
+				return ILOAD;
+			} else if (op == PUSH) {
+				return BIPUSH;
+			} else if (op == RETURN) {
+				return IRETURN;
+			}
+		} else if (type.equals("bool") || type.equals("Z")) {
+			if (op == STORE) {
+				return ISTORE;
+			} else if (op == LOAD) {
+				return ILOAD;
+			} else if (op == PUSH) {
+				return SIPUSH;
+			} else if (op == RETURN) {
+				return IRETURN;
+			}
+		} else if (type.equals("short") || type.equals("S")) {
+			if (op == STORE) {
+				return ISTORE;
+			} else if (op == LOAD) {
+				return ILOAD;
+			} else if (op == PUSH) {
+				return SIPUSH;
+			} else if (op == RETURN) {
+				return IRETURN;
+			}
+		} else if (type.equals("int") || type.equals("I")) {
+			if (op == STORE) {
+				return ISTORE;
+			} else if (op == LOAD) {
+				return ILOAD;
+			} else if (op == PUSH) {
+				return LDC;
+			} else if (op == RETURN) {
+				return IRETURN;
+			}
+		} else if (type.equals("long") || type.equals("J")) {
+			if (op == STORE) {
+				return LSTORE;
+			} else if (op == LOAD) {
+				return LLOAD;
+			} else if (op == PUSH) {
+				return LDC;
+			} else if (op == RETURN) {
+				return LRETURN;
+			}
+		} else if (type.equals("char") || type.equals("C")) {
+			if (op == STORE) {
+				return ISTORE;
+			} else if (op == LOAD) {
+				return ILOAD;
+			} else if (op == PUSH) {
+				return SIPUSH;
+			} else if (op == RETURN) {
+				return IRETURN;
+			}
+		} else if (type.equals("float") || type.equals("F")) {
+			if (op == STORE) {
+				return FSTORE;
+			} else if (op == LOAD) {
+				return FLOAD;
+			} else if (op == PUSH) {
+				return LDC;
+			} else if (op == RETURN) {
+				return FRETURN;
+			}
+		} else if (type.equals("double") || type.equals("D")) {
+			if (op == STORE) {
+				return DSTORE;
+			} else if (op == LOAD) {
+				return DLOAD;
+			} else if (op == PUSH) {
+				return LDC;
+			} else if (op == RETURN) {
+				return DRETURN;
+			}
+		}
+
+		if (op == STORE) {
+			return ASTORE;
+		} else if (op == LOAD) {
+			return ALOAD;
+		} else if (op == RETURN) {
+			return ARETURN;
+		}
+
+		throw new CompileError("Could not get opcode for type: " + type);
+	}
 
 	public static boolean isSuitable(String target, String test) {
 		if (target.equals(test)) {
@@ -129,43 +242,43 @@ public class Types {
 
 	public static boolean isPrimitive(String name) {
 		switch (name) {
-		case "void":
-		case "bool":
-		case "byte":
-		case "char":
-		case "short":
-		case "int":
-		case "long":
-		case "float":
-		case "double":
-			return true;
-		default:
-			return false;
+			case "void":
+			case "bool":
+			case "byte":
+			case "char":
+			case "short":
+			case "int":
+			case "long":
+			case "float":
+			case "double":
+				return true;
+			default:
+				return false;
 		}
 	}
 
 	public static Class<?> getClassFromPrimitive(String primitive) {
 		switch (primitive) {
-		case "void":
-			return Void.class;
-		case "bool":
-			return boolean.class;
-		case "byte":
-			return byte.class;
-		case "char":
-			return char.class;
-		case "short":
-			return short.class;
-		case "int":
-			return int.class;
-		case "long":
-			return long.class;
-		case "float":
-			return float.class;
-		case "double":
-			return double.class;
-		default:
-			throw new CompileError("Unresolved type: " + primitive);
+			case "void":
+				return Void.class;
+			case "bool":
+				return boolean.class;
+			case "byte":
+				return byte.class;
+			case "char":
+				return char.class;
+			case "short":
+				return short.class;
+			case "int":
+				return int.class;
+			case "long":
+				return long.class;
+			case "float":
+				return float.class;
+			case "double":
+				return double.class;
+			default:
+				throw new CompileError("Unresolved type: " + primitive);
 		}
 	}
 
@@ -197,7 +310,7 @@ public class Types {
 
 	public static String getTypeSignature(String type) {
 		type = unpadSignature(type);
-		
+
 		if (type.equals("void")) {
 			return "V";
 		} else if (type.equals("bool")) {
@@ -227,24 +340,24 @@ public class Types {
 
 	public static ClassData getTypeFromSignature(String sig) {
 		switch (sig) {
-		case "V":
-			return ClassData.fromJavaClass(Void.class);
-		case "Z":
-			return ClassData.fromJavaClass(boolean.class);
-		case "B":
-			return ClassData.fromJavaClass(byte.class);
-		case "C":
-			return ClassData.fromJavaClass(char.class);
-		case "D":
-			return ClassData.fromJavaClass(double.class);
-		case "F":
-			return ClassData.fromJavaClass(float.class);
-		case "I":
-			return ClassData.fromJavaClass(int.class);
-		case "J":
-			return ClassData.fromJavaClass(long.class);
-		case "S":
-			return ClassData.fromJavaClass(short.class);
+			case "V":
+				return ClassData.fromJavaClass(Void.class);
+			case "Z":
+				return ClassData.fromJavaClass(boolean.class);
+			case "B":
+				return ClassData.fromJavaClass(byte.class);
+			case "C":
+				return ClassData.fromJavaClass(char.class);
+			case "D":
+				return ClassData.fromJavaClass(double.class);
+			case "F":
+				return ClassData.fromJavaClass(float.class);
+			case "I":
+				return ClassData.fromJavaClass(int.class);
+			case "J":
+				return ClassData.fromJavaClass(long.class);
+			case "S":
+				return ClassData.fromJavaClass(short.class);
 		}
 
 		if (sig.startsWith("[")) {

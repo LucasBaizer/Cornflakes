@@ -18,6 +18,7 @@ public class MethodData {
 	private int stackSize;
 	private int localVariables;
 	private int modifiers;
+	private int blocks;
 
 	public static MethodData fromJavaMethod(Method method) {
 		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
@@ -73,7 +74,6 @@ public class MethodData {
 
 	public void addLocalVariable() {
 		this.localVariables++;
-		this.stackSize++;
 	}
 
 	public void increaseStackSize() {
@@ -168,5 +168,17 @@ public class MethodData {
 
 	public List<LocalData> getLocals() {
 		return this.locals;
+	}
+
+	public int getBlocks() {
+		return blocks;
+	}
+
+	public void setBlocks(int blocks) {
+		this.blocks = blocks;
+	}
+	
+	public void addBlock() {
+		this.blocks++;
 	}
 }

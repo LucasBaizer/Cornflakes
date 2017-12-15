@@ -12,7 +12,7 @@ public class GenericBodyCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public int compile(ClassData data, MethodVisitor m, Label start, Label end, int num, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Label start, Label end, String body, String[] lines) {
 		int cursor = 0;
 		while (cursor < body.length()) {
 			int idx = body.indexOf(System.lineSeparator(), cursor);
@@ -29,7 +29,7 @@ public class GenericBodyCompiler implements GenericCompiler {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
 				String block = body.substring(cursor, close);
 				String[] blockLines = Strings.accumulate(block);
-				new GenericBlockCompiler(this.data).compile(data, m, start, end, num, body, blockLines);
+				new GenericBlockCompiler(this.data).compile(data, m, start, end, body, blockLines);
 
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {
@@ -37,7 +37,7 @@ public class GenericBodyCompiler implements GenericCompiler {
 				}
 			} else {
 				GenericStatementCompiler gsc = new GenericStatementCompiler(this.data);
-				num = gsc.compile(data, m, start, end, num, line, new String[] { line });
+				gsc.compile(data, m, start, end, line, new String[] { line });
 
 				if (gsc.getType() == GenericStatementCompiler.RETURN) {
 					returns = true;
@@ -49,8 +49,6 @@ public class GenericBodyCompiler implements GenericCompiler {
 				}
 			}
 		}
-
-		return num;
 	}
 
 	public boolean returns() {

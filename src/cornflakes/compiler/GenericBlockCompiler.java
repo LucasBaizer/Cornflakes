@@ -11,7 +11,7 @@ public class GenericBlockCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public int compile(ClassData data, MethodVisitor m, Label startLabel, Label endLabel, int num, String body,
+	public void compile(ClassData data, MethodVisitor m, Label startLabel, Label endLabel, String body,
 			String[] lines) {
 		String firstLine = Strings.normalizeSpaces(lines[0]);
 
@@ -19,13 +19,16 @@ public class GenericBlockCompiler implements GenericCompiler {
 		if (condition.isEmpty()) {
 			Label start = new Label();
 
+			this.data.addBlock();
+
 			m.visitLabel(start);
-			m.visitLineNumber(num, start);
+			m.visitLineNumber(this.data.getBlocks(), start);
 
 			String[] newLines = Strings.before(Strings.after(lines, 1), 1);
 			String newBlock = Strings.accumulate(newLines).trim();
-			
-			return new GenericBodyCompiler(this.data).compile(data, m, start, endLabel, num, newBlock, Strings.accumulate(newBlock));
+
+			new GenericBodyCompiler(this.data).compile(data, m, start, endLabel, newBlock,
+					Strings.accumulate(newBlock));
 		} else {
 			throw new CompileError("Unresolved block condition: " + condition);
 		}

@@ -75,6 +75,7 @@ public class ClassData {
 			use("java.lang.Object");
 			use("java.lang.String");
 			use("java.lang.System");
+			use("cornflakes.lang.Console");
 		}
 	}
 
@@ -189,10 +190,6 @@ public class ClassData {
 			}
 		}
 
-		return methods.toArray(new MethodData[methods.size()]);
-	}
-
-	public MethodData[] getMethods() {
 		return methods.toArray(new MethodData[methods.size()]);
 	}
 
