@@ -34,6 +34,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.body = body;
 			this.lines = lines;
 
+			boolean override = false;
 			String keywords = lines[0].substring(0, lines[0].indexOf("function")).trim();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
@@ -87,6 +88,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						}
 
 						accessor |= ACC_STATIC;
+					} else if (key.equals("sync")) {
+						accessor |= ACC_SYNCHRONIZED;
+					} else if (key.equals("override")) {
+						override = true;
 					} else {
 						throw new CompileError("Unexpected keyword: " + key);
 					}
@@ -123,7 +128,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 					String[] spl = par.split(":");
 					if (spl.length == 1) {
-						throw new CompileError("Parameters must have a specified type");
+						throw new CompileError("Parameters must have a specified type, in the format 'name': 'type'");
 					} else if (spl.length > 2) {
 						throw new CompileError("Unexpected symbol: " + spl[2]);
 					}
@@ -147,6 +152,22 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			methodData = new MethodData(methodName, returnType, accessor);
 			methodData.setParameters(parameters);
 
+			try {
+				boolean hasAny = data.hasMethodBySignature(methodName, methodData.getSignature());
+				if (hasAny) {
+					if (!override) {
+						throw new CompileError("A superclass of " + data.getSimpleClassName() + " has a method named "
+								+ methodName + ". If you meant to override it, use the 'override' keyword");
+					}
+				} else {
+					if (override) {
+						throw new CompileError("There is no superclass method named " + methodName);
+					}
+				}
+			} catch (ClassNotFoundException e) {
+				throw new CompileError(e);
+			}
+
 			data.addMethod(methodData);
 		} else {
 			MethodVisitor m = cw.visitMethod(accessor, methodData.getName(), methodData.getSignature(), null, null);
@@ -165,7 +186,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.methodData.setLabels(start, post);
 
 			if (!methodData.hasModifier(ACC_STATIC)) {
-				m.visitVarInsn(ALOAD, 0);
 				this.methodData.addLocalVariable();
 			}
 

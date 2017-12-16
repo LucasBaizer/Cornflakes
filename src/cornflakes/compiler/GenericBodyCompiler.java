@@ -27,9 +27,9 @@ public class GenericBodyCompiler implements GenericCompiler {
 
 			if (line.endsWith("{")) {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
-				String block = body.substring(cursor, close);
+				String block = body.substring(cursor, close).trim();
 				String[] blockLines = Strings.accumulate(block);
-				new GenericBlockCompiler(this.data).compile(data, m, start, end, body, blockLines);
+				new GenericBlockCompiler(this.data).compile(data, m, start, end, block, blockLines);
 
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {

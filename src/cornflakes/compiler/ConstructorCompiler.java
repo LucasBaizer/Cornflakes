@@ -90,13 +90,15 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				for (String par : split) {
 					par = Strings.normalizeSpaces(par);
 
-					String[] spl = par.split(" ");
-					if (spl.length != 2) {
-						throw new CompileError("Expecting format 'type name'");
+					String[] spl = par.split(":");
+					if (spl.length == 1) {
+						throw new CompileError("Parameters must have a specified type");
+					} else if (spl.length > 2) {
+						throw new CompileError("Unexpected symbol: " + spl[2]);
 					}
 
-					String type = spl[0];
-					String name = spl[1];
+					String name = spl[0].trim();
+					String type = spl[1].trim();
 
 					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
 					Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
@@ -105,7 +107,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Duplicate parameter name: " + par);
 					}
 
-					String resolvedType = data.resolveClass(type);
+					String resolvedType = Types.isPrimitive(type) ? type : data.resolveClass(type);
+
 					parameters.put(name, Types.padSignature(resolvedType));
 				}
 			}
@@ -123,11 +126,40 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 
 			Label start = new Label();
 			Label post = new Label();
-			{
-				m.visitLabel(start);
-				m.visitLineNumber(line++, start);
+			m.visitLabel(start);
+			m.visitLineNumber(line++, start);
 
-				m.visitVarInsn(ALOAD, 0);
+			for (FieldData datum : data.getFields()) {
+				if (!datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
+					m.visitVarInsn(ALOAD, 0);
+
+					String type = datum.getType();
+
+					if (Types.isPrimitive(type) || type.equals("Ljava/lang/String;")) {
+						int push = Types.getOpcode(Types.PUSH, type);
+						if (push == LDC) {
+							m.visitLdcInsn(datum.getProposedData());
+							this.methodData.increaseStackSize();
+						} else {
+							m.visitVarInsn(push, Integer.parseInt(datum.getProposedData().toString()));
+							this.methodData.increaseStackSize();
+						}
+
+						m.visitFieldInsn(PUTFIELD, this.data.getClassName(), datum.getName(), datum.getType());
+					} else {
+						String raw = (String) datum.getProposedData();
+
+						ReferenceCompiler compiler = new ReferenceCompiler(true, this.methodData);
+						compiler.compile(data, m, start, post, raw, new String[] { raw });
+
+						if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
+							throw new CompileError(
+									compiler.getReferenceSignature() + " is not assignable to " + datum.getType());
+						}
+
+						m.visitFieldInsn(PUTFIELD, this.data.getClassName(), datum.getName(), datum.getType());
+					}
+				}
 			}
 
 			String[] inner = Strings.before(Strings.after(lines, 1), 1);
@@ -167,7 +199,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitCode();
 		Label l0 = new Label();
 		mv.visitLabel(l0);
-		mv.visitLineNumber(4, l0);
+		mv.visitLineNumber(0, l0);
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitMethodInsn(INVOKESPECIAL, Strings.transformClassName(data.getParentName()), "<init>", "()V", false);
 		mv.visitInsn(RETURN);

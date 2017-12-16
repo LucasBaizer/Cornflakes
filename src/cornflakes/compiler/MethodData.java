@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.objectweb.asm.Label;
+import org.objectweb.asm.Opcodes;
 
 public class MethodData {
 	private String name;
@@ -86,8 +87,7 @@ public class MethodData {
 
 	public LocalData getLocal(String name, Label start, Label end) {
 		for (LocalData data : this.locals) {
-			if (data.getName().equals(name) && data.getStart().getOffset() >= start.getOffset()
-			/* && data.getEnd().getOffset() <= end.getOffset() */) {
+			if (data.getName().equals(name) && start.getOffset() >= data.getStart().getOffset()) {
 				return data;
 			}
 		}
@@ -101,7 +101,7 @@ public class MethodData {
 	public void setParameters(Map<String, String> params) {
 		this.parameters = new LinkedHashMap<>(params);
 
-		int idx = 0;
+		int idx = hasModifier(Opcodes.ACC_STATIC) ? 0 : 1;
 		for (Entry<String, String> par : this.parameters.entrySet()) {
 			this.locals.add(new LocalData(par.getKey(), par.getValue(), null, null, idx++, 0));
 		}
@@ -177,7 +177,7 @@ public class MethodData {
 	public void setBlocks(int blocks) {
 		this.blocks = blocks;
 	}
-	
+
 	public void addBlock() {
 		this.blocks++;
 	}

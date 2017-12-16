@@ -3,6 +3,7 @@ package cornflakes.compiler;
 public class FieldData {
 	private String name;
 	private String type;
+	private Object proposedData;
 	private int modifiers;
 
 	public FieldData(String name, String type, int mods) {
@@ -37,5 +38,13 @@ public class FieldData {
 
 	public boolean hasModifier(int mod) {
 		return (this.modifiers & mod) == mod;
+	}
+
+	public Object getProposedData() {
+		return proposedData;
+	}
+
+	public void setProposedData(Object proposedData) {
+		this.proposedData = proposedData;
 	}
 }

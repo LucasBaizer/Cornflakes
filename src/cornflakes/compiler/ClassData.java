@@ -47,6 +47,8 @@ public class ClassData {
 		container.javaClass = cls;
 		container.setClassName(t);
 		container.setSimpleClassName(cls.getSimpleName());
+		container.setParentName(
+				cls.getSuperclass() == null ? "java/lang/Object" : cls.getSuperclass().getName().replace('.', '/'));
 
 		for (Method method : cls.getDeclaredMethods()) {
 			container.addMethod(MethodData.fromJavaMethod(method));
@@ -131,7 +133,7 @@ public class ClassData {
 					return arrayType ? "[L" + use : use;
 				}
 			}
-			throw new CompileError("Unresolved class: " + name);
+			throw new CompileError("Unresolved type: " + name);
 		}
 	}
 
@@ -179,6 +181,10 @@ public class ClassData {
 		return parentName;
 	}
 
+	public ClassData getParentClass() throws ClassNotFoundException {
+		return className.equals("java/lang/Object") ? null : ClassData.forName(parentName);
+	}
+
 	public void setParentName(String parentName) {
 		this.parentName = parentName;
 	}
@@ -187,16 +193,56 @@ public class ClassData {
 		return getMethods(name).length > 0;
 	}
 
+	public boolean hasMethodBySignature(String name, String sig) throws ClassNotFoundException {
+		return getAllMethodsBySignature(name, sig).length > 0;
+	}
+
 	public MethodData[] getMethods(String name) {
 		List<MethodData> methods = new ArrayList<>();
 
+		getMethods(name, methods);
+
+		return methods.toArray(new MethodData[methods.size()]);
+	}
+
+	public MethodData[] getAllMethods(String name) throws ClassNotFoundException {
+		List<MethodData> methods = new ArrayList<>();
+		this.getMethods(name, methods);
+
+		ClassData parent = this;
+		while ((parent = parent.getParentClass()) != null) {
+			parent.getMethods(name, methods);
+		}
+
+		return methods.toArray(new MethodData[methods.size()]);
+	}
+
+	public MethodData[] getAllMethodsBySignature(String name, String signature) throws ClassNotFoundException {
+		List<MethodData> methods = new ArrayList<>();
+		this.getMethodsBySignature(name, signature, methods);
+
+		ClassData parent = this;
+		while ((parent = parent.getParentClass()) != null) {
+			parent.getMethodsBySignature(name, signature, methods);
+		}
+
+		return methods.toArray(new MethodData[methods.size()]);
+	}
+
+	private void getMethods(String name, List<MethodData> methods) {
 		for (MethodData data : this.methods) {
 			if (data.getName().equals(name)) {
 				methods.add(data);
 			}
 		}
+	}
 
-		return methods.toArray(new MethodData[methods.size()]);
+	private void getMethodsBySignature(String name, String signature, List<MethodData> methods) {
+		for (MethodData data : this.methods) {
+			if (data.getName().equals(name) && data.getSignature().equals(signature)) {
+				methods.add(data);
+			}
+		}
 	}
 
 	public void addMethod(MethodData method) {
@@ -287,5 +333,9 @@ public class ClassData {
 
 	public void setPackageName(String packageName) {
 		this.packageName = packageName;
+	}
+
+	public List<FieldData> getFields() {
+		return fields;
 	}
 }

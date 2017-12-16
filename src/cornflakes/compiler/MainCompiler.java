@@ -40,6 +40,8 @@ public class MainCompiler implements Opcodes {
 			if (!data.hasConstructor()) {
 				new ConstructorCompiler(true).compileDefault(data, data.getClassWriter());
 			}
+			
+			new StaticInitializerCompiler().compile(data, data.getClassWriter(), null, null);
 		}
 
 		// compile functions

@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 public class Console {
 	private static final Scanner in = new Scanner(System.in);
-	
+
 	private static String replace(Object msg, Object... values) {
 		if (msg == null) {
 			return null;
@@ -30,11 +30,11 @@ public class Console {
 		String str = replace(msg, values);
 		System.out.print(str);
 	}
-	
+
 	public static Scanner getInput() {
 		return in;
 	}
-	
+
 	public static String readLine() {
 		return in.nextLine();
 	}

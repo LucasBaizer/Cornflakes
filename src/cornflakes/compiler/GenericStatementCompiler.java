@@ -3,6 +3,8 @@ package cornflakes.compiler;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
+import cornflakes.compiler.CompileUtils.VariableDeclaration;
+
 public class GenericStatementCompiler implements GenericCompiler {
 	public static final int RETURN = 1;
 	public static final int VAR = 2;
@@ -55,7 +57,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 						if (push == LDC) {
 							m.visitLdcInsn(val);
 						} else {
-							m.visitVarInsn(push, Integer.parseInt(val.toString()));
+							String toString = val.toString();
+
+							if (toString.equals("true") || toString.equals("false")) {
+								m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+							} else {
+								m.visitVarInsn(push, Integer.parseInt(val.toString()));
+							}
 						}
 						this.data.increaseStackSize();
 
@@ -103,65 +111,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 				throw new CompileError("Duplicate variable: " + variableName);
 			}
 
-			String variableType = null;
-			Object value = null;
-			String valueType = null;
-			boolean isRef = false;
-
-			if (split.length == 1) {
-				String[] set = body.split("=");
-				if (set.length == 1) {
-					throw new CompileError("A variable with an unspecified type must have an initial value");
-				}
-
-				String givenValue = set[1].trim();
-				valueType = Types.getType(givenValue, "");
-				if (valueType == null) {
-					ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
-					ref.compile(data, m, start, end, givenValue, new String[] { givenValue });
-
-					if ((valueType = ref.getReferenceSignature()) == null) {
-						throw new CompileError("A type for the variable could not be assumed; one must be assigned");
-					}
-
-					isRef = true;
-				} else {
-					value = Types.parseLiteral(valueType, givenValue);
-				}
-
-				variableType = Types.getTypeSignature(valueType);
-			} else {
-				String[] spaces = split[1].trim().split(" ");
-				variableType = spaces[0];
-
-				if (!Types.isPrimitive(variableType)) {
-					variableType = data.resolveClass(variableType);
-				}
-
-				String[] set = body.split("=");
-				if (set.length > 1) {
-					String givenValue = set[1].trim();
-
-					valueType = Types.getType(givenValue, variableType);
-
-					if (valueType == null) {
-						ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
-						compiler.compile(data, m, start, end, givenValue, new String[] { givenValue });
-						valueType = compiler.getReferenceSignature();
-						isRef = true;
-					}
-
-					if (!Types.isSuitable(variableType, valueType)) {
-						throw new CompileError(valueType + " is not assignable to " + variableType);
-					}
-
-					if (!isRef) {
-						value = Types.parseLiteral(variableType, givenValue);
-					}
-				}
-
-				variableType = Types.getTypeSignature(variableType);
-			}
+			VariableDeclaration decl = CompileUtils.declareVariable(this.data, data, m, start, end, body, split);
+			Object value = decl.getValue();
+			String valueType = decl.getValueType();
+			String variableType = decl.getVariableType();
 
 			int idx = this.data.getLocalVariables();
 			m.visitLocalVariable(variableName, variableType, null, start, end, idx);
@@ -179,7 +132,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				m.visitVarInsn(store, idx);
 			} else {
-				if (isRef) {
+				if (decl.isReference()) {
 					m.visitVarInsn(Types.getOpcode(Types.STORE, valueType), idx);
 				}
 			}
@@ -226,6 +179,23 @@ public class GenericStatementCompiler implements GenericCompiler {
 						} else {
 							m.visitVarInsn(push, Integer.parseInt(obj.toString()));
 							this.data.increaseStackSize();
+						}
+
+						if (field instanceof LocalData) {
+							int store = Types.getOpcode(Types.STORE, field.getType());
+							m.visitVarInsn(store, ((LocalData) field).getIndex());
+						} else if (field instanceof FieldData) {
+							m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
+									compiler.getReferenceOwner().getClassName(), refName,
+									compiler.getReferenceSignature());
+						}
+					} else {
+						ReferenceCompiler compiler1 = new ReferenceCompiler(true, this.data);
+						compiler1.compile(data, m, start, end, value, new String[] { body });
+
+						if (!Types.isSuitable(field.getType(), compiler1.getReferenceSignature())) {
+							throw new CompileError(
+									compiler1.getReferenceSignature() + " is not assignable to " + field.getType());
 						}
 
 						if (field instanceof LocalData) {
