@@ -87,6 +87,8 @@ public class MethodData {
 
 	public LocalData getLocal(String name, Label start, Label end) {
 		for (LocalData data : this.locals) {
+			if(data.getName().equals(name))
+				return data;
 			if (data.getName().equals(name) && start.getOffset() >= data.getStart().getOffset()) {
 				return data;
 			}

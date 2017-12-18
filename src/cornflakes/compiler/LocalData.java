@@ -9,7 +9,7 @@ public class LocalData extends FieldData {
 
 	public LocalData(String name, String type, Label start, Label end, int index, int mods) {
 		super(name, type, mods);
-		
+
 		this.start = start;
 		this.end = end;
 		this.index = index;

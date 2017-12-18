@@ -143,8 +143,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Duplicate parameter name: " + par);
 					}
 
-					String resolvedType = Types.isPrimitive(type) ? type : data.resolveClass(type);
-
+					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
+							: data.resolveClass(type);
 					parameters.put(name, Types.padSignature(resolvedType));
 				}
 			}

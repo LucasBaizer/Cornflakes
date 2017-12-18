@@ -11,6 +11,7 @@ public class ReferenceCompiler implements GenericCompiler {
 	public static final int MEMBER_VARIABLE = 1;
 	public static final int METHOD = 2;
 	public static final int CONSTRUCTOR = 3;
+	public static final int THIS = 4;
 
 	private MethodData data;
 	private boolean write;
@@ -60,7 +61,13 @@ public class ReferenceCompiler implements GenericCompiler {
 			if (this.data.hasModifier(ACC_STATIC)) {
 				throw new CompileError("Cannot access this from a static context");
 			}
-			thisType = true;
+			m.visitVarInsn(ALOAD, 0);
+			this.data.increaseStackSize();
+
+			referenceName = "this";
+			referenceOwner = data;
+			referenceSignature = Types.getTypeSignature(data.getClassName());
+			referenceType = THIS;
 			next = true;
 		} else if (Strings.hasMatching(part, '(', ')')) {
 			String name = part.substring(0, part.indexOf('(')).trim();
@@ -105,25 +112,29 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 			}
 		} else {
-			if (data.hasField(part)) {
-				compileVariableReference(0, data.getClassName(), data, data, m, startLabel, endLabel, part,
+			if (this.data != null && this.data.hasLocal(part, startLabel, endLabel)) {
+				compileVariableReference(1, containerClass, containerData, data, m, startLabel, endLabel, part,
 						end == body.length());
 				next = true;
-			} else if (!thisType) {
-				if (containerData.hasField(part)) {
-					compileVariableReference(0, containerClass, containerData, data, m, startLabel, endLabel, part,
+			} else {
+				if (data.hasField(part)) {
+					compileVariableReference(0, data.getClassName(), data, data, m, startLabel, endLabel, part,
 							end == body.length());
 					next = true;
-				} else if (this.data != null && this.data.hasLocal(part, startLabel, endLabel)) {
-					compileVariableReference(1, containerClass, containerData, data, m, startLabel, endLabel, part,
-							end == body.length());
-					next = true;
+				} else if (!thisType) {
+					if (containerData.hasField(part)) {
+						compileVariableReference(0, containerClass, containerData, data, m, startLabel, endLabel, part,
+								end == body.length());
+						next = true;
+					}
 				}
 			}
 		}
 
 		if (next) {
 			if (end != body.length()) {
+				thisType = false;
+
 				String newBody = body.substring(end + 1, body.length()).trim();
 
 				if (referenceSignature != null) {
@@ -170,7 +181,7 @@ public class ReferenceCompiler implements GenericCompiler {
 			FieldData field = containerData.getField(body);
 			if (write) {
 				if (this.data != null) {
-					if (!this.data.hasModifier(ACC_STATIC) && containerClass.equals(data.getClassName())) {
+					if (!this.data.hasModifier(ACC_STATIC) && !thisType && containerClass.equals(data.getClassName())) {
 						m.visitVarInsn(ALOAD, 0);
 						this.data.increaseStackSize();
 					}
@@ -347,14 +358,17 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 
 		if (!superCall) {
-			if (!this.data.hasModifier(ACC_STATIC) && containerClass.equals(data.getClassName())) {
+			if (!this.data.hasModifier(ACC_STATIC) && !thisType && containerClass.equals(data.getClassName())) {
 				m.visitVarInsn(ALOAD, 0);
 
 				if (this.data != null)
 					this.data.increaseStackSize();
 			}
-		} else {
+		} else if (!thisType) {
 			m.visitVarInsn(ALOAD, 0);
+
+			if (this.data != null)
+				this.data.increaseStackSize();
 		}
 
 		for (String par : split) {

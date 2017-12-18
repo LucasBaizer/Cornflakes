@@ -75,7 +75,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					compiler.compile(data, m, start, end, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceSignature()))
-							.getSimpleClassName().toLowerCase();
+							.getSimpleClassName();
 
 					if (!Types.isSuitable(this.data.getReturnTypeSignature(), compiler.getReferenceSignature())) {
 						throw new CompileError("A return value of type "
@@ -84,7 +84,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 								+ " was given");
 					}
 
-					int op = Types.getOpcode(RETURN, ref);
+					int op = Types.getOpcode(Types.RETURN, ref);
 					m.visitInsn(op);
 				}
 			} else {

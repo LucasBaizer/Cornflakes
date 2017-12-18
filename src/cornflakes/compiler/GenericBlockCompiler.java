@@ -131,6 +131,10 @@ public class GenericBlockCompiler implements GenericCompiler {
 
 			m.visitLabel(end);
 			m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getStackSize(), null);
+		} else if (body.startsWith("else")) {
+			String after = body.substring(4).trim();
+			new GenericBlockCompiler(this.data).compile(data, m, startLabel, endLabel, after,
+					Strings.accumulate(after));
 		} else {
 			throw new CompileError("Unresolved block condition: " + condition);
 		}

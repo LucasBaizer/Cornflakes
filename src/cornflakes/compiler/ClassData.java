@@ -117,7 +117,7 @@ public class ClassData {
 			return Types.getTypeSignature(Types.getClassFromPrimitive(name));
 		}
 
-		Strings.handleLetterString(name, Strings.NUMBERS);
+		Strings.handleLetterString(name, Strings.combineExceptions(Strings.NUMBERS, Strings.PERIOD));
 
 		try {
 			return ClassData.forName(name).getClassName();
@@ -129,8 +129,8 @@ public class ClassData {
 			}
 
 			for (String use : this.use) {
-				if (use.endsWith("/" + name)) {
-					return arrayType ? "[L" + use : use;
+				if (use.equals(name.replace('.', '/')) || use.endsWith("/" + name)) {
+					return arrayType ? "[L" + use.replace('.', '/') : use.replace('.', '/');
 				}
 			}
 			throw new CompileError("Unresolved type: " + name);

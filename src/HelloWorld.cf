@@ -1,0 +1,12 @@
+package cornflakes.lang;
+public class HelloWorld;
+
+public static function main(args: string[]) {
+	System.out.println("Hello, World!");
+}
+
+public constructor() {
+	var x = this;
+	System.out.println(x);
+	
+}

@@ -1,6 +1,7 @@
 package cornflakes.compiler;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,8 +108,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Duplicate parameter name: " + par);
 					}
 
-					String resolvedType = Types.isPrimitive(type) ? type : data.resolveClass(type);
-
+					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
+							: data.resolveClass(type);
 					parameters.put(name, Types.padSignature(resolvedType));
 				}
 			}
@@ -122,12 +123,20 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			m.visitCode();
 
 			int line = 0;
-			int localVariables = 1;
 
 			Label start = new Label();
 			Label post = new Label();
 			m.visitLabel(start);
 			m.visitLineNumber(line++, start);
+
+			this.methodData.setLabels(start, post);
+
+			this.methodData.addLocalVariable();
+			HashMap<String, Integer> paramMap = new HashMap<>();
+			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
+				paramMap.put(par.getKey(), this.methodData.getLocalVariables());
+				this.methodData.addLocalVariable();
+			}
 
 			for (FieldData datum : data.getFields()) {
 				if (!datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
@@ -177,14 +186,11 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			}
 
 			m.visitLabel(post);
-			int index = 0;
 			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
-				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, index);
-				index++;
-				localVariables++;
+				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, paramMap.get(par.getKey()));
 			}
 
-			m.visitMaxs(128, localVariables); // TODO 128
+			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());
 			m.visitEnd();
 		}
 	}

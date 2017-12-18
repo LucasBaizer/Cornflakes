@@ -47,4 +47,9 @@ public class FieldData {
 	public void setProposedData(Object proposedData) {
 		this.proposedData = proposedData;
 	}
+
+	@Override
+	public String toString() {
+		return name + ": " + type;
+	}
 }

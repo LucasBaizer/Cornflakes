@@ -13,7 +13,7 @@ public class MainCompiler implements Opcodes {
 		long time = System.currentTimeMillis();
 
 		List<ClassData> list = new ArrayList<>();
-		for (File file : new File("src").listFiles()) {
+		for (File file : new File("src/cornflakes/compiler").listFiles()) {
 			if (file.isFile()) {
 				if (file.getName().endsWith(".cf")) {
 					list.add(Compiler.compile(file.getName(), new String(Files.readAllBytes(file.toPath()))
@@ -40,7 +40,7 @@ public class MainCompiler implements Opcodes {
 			if (!data.hasConstructor()) {
 				new ConstructorCompiler(true).compileDefault(data, data.getClassWriter());
 			}
-			
+
 			new StaticInitializerCompiler().compile(data, data.getClassWriter(), null, null);
 		}
 
@@ -55,18 +55,5 @@ public class MainCompiler implements Opcodes {
 		for (ClassData datum : list) {
 			Files.write(Paths.get("bin/" + datum.getClassName() + ".class"), datum.getByteCode());
 		}
-
-		/*
-		 * DynamicClassLoader loader = new DynamicClassLoader(); Class<?>
-		 * helloWorldClass = loader.define(result.getClassName().trim(),
-		 * result.getByteCode()); Method method =
-		 * helloWorldClass.getDeclaredMethod("main");
-		 * method.setAccessible(true);
-		 * 
-		 * Object invok = method.invoke(null); System.out.println();
-		 * System.out.println("Exit code: " + invok);
-		 * 
-		 * System.exit((int) invok);
-		 */
 	}
 }

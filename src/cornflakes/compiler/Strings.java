@@ -14,6 +14,7 @@ public class Strings {
 	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
 	public static final char[] VARIABLE_NAME = Arrays.copyOf(NUMBERS, NUMBERS.length);
 	public static final char[] VARIABLE_TYPE = combineExceptions(NUMBERS, SQUARE_BRACKETS);
+	public static final char[] SLASH = new char[] { '/' };
 
 	public static String[] split(String x, String d) {
 		return x.split(d + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");

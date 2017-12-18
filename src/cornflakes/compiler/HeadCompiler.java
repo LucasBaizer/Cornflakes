@@ -75,9 +75,6 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 
 			String after = firstLine.substring(firstLine.indexOf("class")).trim();
 			String[] keywordSplit = after.split(" ");
-			if (keywordSplit.length != 2) {
-				throw new CompileError("Class declaration should be in format [modifiers] class [name]");
-			}
 			className += simple = keywordSplit[1];
 
 			Strings.handleLetterString(keywordSplit[1]);
@@ -88,7 +85,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Expecting identifier after keyword");
 					}
 					parent = data.resolveClass(keywordSplit[3]);
-					Strings.handleLetterString(parent, Strings.PERIOD);
+					Strings.handleLetterString(parent, Strings.SLASH);
 				} else {
 					throw new CompileError("Unexpected token: " + keywordSplit[3]);
 				}

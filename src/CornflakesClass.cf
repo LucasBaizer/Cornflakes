@@ -1,8 +1,0 @@
-package cornflakes.lang;
-public class CornflakesClass;
-
-public static function main(args: string[]) {
-	if 1 < 2 {
-		System.out.println("less than");
-	}
-}
