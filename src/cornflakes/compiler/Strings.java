@@ -5,8 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Strings {
-	private static final String[] KEYWORDS = { "package", "use", "public", "private", "protected", "function", "final",
-			"const", "sealed", "abstract", "if", "do", "while", "else", "for", "var", "sync" };
+	private static final String[] KEYWORDS = { "package", "use", "public", "private", "protected", "func", "final",
+			"const", "sealed", "abstract", "if", "do", "while", "else", "for", "var", "sync", "serial" };
 	private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvywxyz";
 	public static final char[] NUMBERS = "1234567890".toCharArray();
 	public static final char[] PERIOD = new char[] { '.' };

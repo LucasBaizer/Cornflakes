@@ -125,8 +125,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 					m.visitLdcInsn(value);
 					this.data.increaseStackSize();
 				} else {
-					m.visitVarInsn(push, Integer.parseInt(value.toString()));
-					this.data.increaseStackSize();
+					String toString = value.toString();
+					if (toString.equals("true") || toString.equals("false")) {
+						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+					} else {
+						m.visitVarInsn(push, Integer.parseInt(toString));
+						this.data.increaseStackSize();
+					}
 				}
 
 				m.visitVarInsn(store, idx);

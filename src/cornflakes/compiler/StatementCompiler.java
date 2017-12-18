@@ -82,7 +82,7 @@ public class StatementCompiler extends Compiler {
 				throw new CompileError("Duplicate variable: " + variableName);
 			}
 
-			VariableDeclaration decl = CompileUtils.declareVariable(null, data, null, null, null, body, split);
+			VariableDeclaration decl = CompileUtils.declareVariable(null, data, null, null, body, split);
 			Object value = decl.getValue();
 			String valueType = decl.getValueType();
 			String variableType = decl.getVariableType();

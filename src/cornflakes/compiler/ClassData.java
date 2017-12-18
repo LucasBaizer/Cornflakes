@@ -19,12 +19,14 @@ public class ClassData {
 	private boolean hasConstructor;
 	private int modifiers;
 	private byte[] byteCode;
+	private String[] interfaces;
 	private ArrayList<String> use = new ArrayList<>();
 	private List<MethodData> methods = new ArrayList<>();
 	private List<ConstructorData> constructors = new ArrayList<>();
 	private List<FieldData> fields = new ArrayList<>();
 	private ClassWriter classWriter;
 	private Class<?> javaClass;
+	private boolean isInterface;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
 		name = Strings.transformClassName(name);
@@ -45,6 +47,7 @@ public class ClassData {
 
 		ClassData container = new ClassData(false);
 		container.javaClass = cls;
+		container.setIsInterface(cls.isInterface());
 		container.setClassName(t);
 		container.setSimpleClassName(cls.getSimpleName());
 		container.setParentName(
@@ -61,13 +64,14 @@ public class ClassData {
 			}
 		}
 
-		for (Constructor<?> constructor : cls.getConstructors()) {
-			container.addConstructor(ConstructorData.fromJavaConstructor(constructor));
-		}
-
-		for (Field field : cls.getDeclaredFields()) {
-			container.fields
-					.add(new FieldData(field.getName(), Types.getTypeSignature(field.getType()), field.getModifiers()));
+		if (!cls.isInterface()) {
+			for (Constructor<?> constructor : cls.getConstructors()) {
+				container.addConstructor(ConstructorData.fromJavaConstructor(constructor));
+			}
+			for (Field field : cls.getDeclaredFields()) {
+				container.fields.add(
+						new FieldData(field.getName(), Types.getTypeSignature(field.getType()), field.getModifiers()));
+			}
 		}
 
 		classes.put(t, container);
@@ -195,6 +199,10 @@ public class ClassData {
 
 	public boolean hasMethodBySignature(String name, String sig) throws ClassNotFoundException {
 		return getAllMethodsBySignature(name, sig).length > 0;
+	}
+
+	public MethodData[] getMethods() {
+		return this.methods.toArray(new MethodData[this.methods.size()]);
 	}
 
 	public MethodData[] getMethods(String name) {
@@ -337,5 +345,21 @@ public class ClassData {
 
 	public List<FieldData> getFields() {
 		return fields;
+	}
+
+	public void setInterfaces(String[] intArr) {
+		this.interfaces = intArr;
+	}
+
+	public String[] getInterfaces() {
+		return this.interfaces;
+	}
+
+	public boolean isInterface() {
+		return isInterface;
+	}
+
+	public void setIsInterface(boolean isInterface) {
+		this.isInterface = isInterface;
 	}
 }

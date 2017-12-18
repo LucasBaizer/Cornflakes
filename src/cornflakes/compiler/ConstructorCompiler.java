@@ -72,7 +72,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			String after = lines[0].substring(lines[0].indexOf("function") + "function".length()).trim();
+			String after = lines[0].substring(lines[0].indexOf("constructor") + "constructor".length()).trim();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
 			Strings.handleMatching(withoutBracket, '(', ')');
 
@@ -114,7 +114,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			methodData = new ConstructorData(methodName, "V", accessor);
+			methodData = new ConstructorData(methodName, accessor);
 			methodData.setParameters(parameters);
 
 			data.addConstructor(methodData);
@@ -174,7 +174,11 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			String innerBody = Strings.accumulate(inner).trim();
 			String[] inner2 = Strings.accumulate(innerBody);
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			gbc.compile(data, m, start, post, innerBody, inner2);
+			gbc.compile(data, m, block, innerBody, inner2);
+
+			if (!block.hasCalledSuper()) {
+				throw new CompileError("Super must be called exactly one time before the constructor ends");
+			}
 
 			if (!gbc.returns()) {
 				if (methodData.getReturnTypeSignature().equals("V")) {
@@ -214,6 +218,6 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitMaxs(1, 1);
 		mv.visitEnd();
 
-		data.addConstructor(new ConstructorData("<init>", "V", ACC_PUBLIC));
+		data.addConstructor(new ConstructorData("<init>", ACC_PUBLIC));
 	}
 }

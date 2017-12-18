@@ -23,7 +23,7 @@ public class StaticInitializerCompiler extends Compiler {
 		MethodVisitor m = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
 		m.visitCode();
 
-		MethodData method = new MethodData("<clinit>", "()V", ACC_STATIC);
+		MethodData method = new MethodData("<clinit>", "()V", false, ACC_STATIC);
 
 		Label start = new Label();
 		Label post = new Label();
@@ -31,6 +31,7 @@ public class StaticInitializerCompiler extends Compiler {
 		m.visitLabel(start);
 		m.visitLineNumber(0, start);
 
+		Block block = new Block(0, start, post);
 		for (FieldData datum : data.getFields()) {
 			if (datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
 				String type = datum.getType();
@@ -50,7 +51,7 @@ public class StaticInitializerCompiler extends Compiler {
 					String raw = (String) datum.getProposedData();
 
 					ReferenceCompiler compiler = new ReferenceCompiler(true, method);
-					compiler.compile(data, m, start, post, raw, new String[] { raw });
+					compiler.compile(data, m, block, raw, new String[] { raw });
 
 					if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
 						throw new CompileError(

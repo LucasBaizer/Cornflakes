@@ -35,7 +35,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.lines = lines;
 
 			boolean override = false;
-			String keywords = lines[0].substring(0, lines[0].indexOf("function")).trim();
+			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
 				String[] split = keywords.split(" ");
@@ -99,12 +99,12 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			String after = lines[0].substring(lines[0].indexOf("function") + "function".length()).trim();
+			String after = lines[0].substring(lines[0].indexOf("func") + "func".length()).trim();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
 			Strings.handleMatching(withoutBracket, '(', ')');
 
 			String methodName = withoutBracket.substring(0, withoutBracket.indexOf('(')).trim();
-			Strings.handleLetterString(methodName);
+			Strings.handleLetterString(methodName, Strings.NUMBERS);
 
 			if (data.hasMethod(methodName)) {
 				throw new CompileError("Duplicate method: " + methodName);
@@ -149,7 +149,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			methodData = new MethodData(methodName, returnType, accessor);
+			methodData = new MethodData(methodName, returnType, false, accessor);
 			methodData.setParameters(parameters);
 
 			try {
@@ -183,7 +183,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			m.visitLabel(start);
 			m.visitLineNumber(line++, start);
 
-			this.methodData.setLabels(start, post);
+			Block block = new Block(0, start, post);
+			this.methodData.setBlock(block);
 
 			if (!methodData.hasModifier(ACC_STATIC)) {
 				this.methodData.addLocalVariable();
@@ -200,7 +201,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			String[] inner2 = Strings.accumulate(innerBody);
 
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			gbc.compile(data, m, start, post, innerBody, inner2);
+			gbc.compile(data, m, block, innerBody, inner2);
 
 			if (!gbc.returns()) {
 				if (methodData.getReturnTypeSignature().equals("V")) {

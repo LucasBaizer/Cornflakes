@@ -1,11 +1,15 @@
 package cornflakes.lang;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import cornflakes.compiler.MainCompiler;
 
 public class Main {
 	public static void main(String[] args) throws Exception {
 		MainCompiler.main(args);
 		
-		new HelloWorld();
+		int x = ThreadLocalRandom.current().nextInt();
+		
+		int y = x & 155;
 	}
 }

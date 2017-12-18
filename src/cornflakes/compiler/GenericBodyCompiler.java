@@ -1,6 +1,5 @@
 package cornflakes.compiler;
 
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class GenericBodyCompiler implements GenericCompiler {
@@ -12,7 +11,7 @@ public class GenericBodyCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Label start, Label end, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		int cursor = 0;
 		while (cursor < body.length()) {
 			int idx = body.indexOf(System.lineSeparator(), cursor);
@@ -27,9 +26,9 @@ public class GenericBodyCompiler implements GenericCompiler {
 
 			if (line.endsWith("{")) {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
-				String block = body.substring(cursor, close).trim();
-				String[] blockLines = Strings.accumulate(block);
-				new GenericBlockCompiler(this.data).compile(data, m, start, end, block, blockLines);
+				String newBlock = body.substring(cursor, close).trim();
+				String[] blockLines = Strings.accumulate(newBlock);
+				new GenericBlockCompiler(this.data).compile(data, m, block, newBlock, blockLines);
 
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {
@@ -37,7 +36,7 @@ public class GenericBodyCompiler implements GenericCompiler {
 				}
 			} else {
 				GenericStatementCompiler gsc = new GenericStatementCompiler(this.data);
-				gsc.compile(data, m, start, end, line, new String[] { line });
+				gsc.compile(data, m, block, line, new String[] { line });
 
 				if (gsc.getType() == GenericStatementCompiler.RETURN) {
 					returns = true;

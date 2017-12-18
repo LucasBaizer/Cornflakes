@@ -47,6 +47,33 @@ public class MainCompiler implements Opcodes {
 		// compile functions
 		Compiler.executePostCompilers();
 
+		// ensure all neccesary functions are implemented
+		for (ClassData data : list) {
+			if (data.isInterface() || data.hasModifier(Opcodes.ACC_ABSTRACT)) {
+				continue;
+			}
+
+			for (String ifn : data.getInterfaces()) {
+				if (!ifn.equals("java/io/Serializable")) {
+					ClassData ifd = ClassData.forName(ifn);
+
+					for (MethodData method : ifd.getMethods()) {
+						boolean match = false;
+						for (MethodData impl : data.getMethods()) {
+							if (method.toString().equals(impl.toString())) {
+								match = true;
+							}
+						}
+
+						if (!match) {
+							throw new CompileError("The interface " + ifd.getSimpleClassName()
+									+ " requires the method '" + method.getName() + "' to be implemented");
+						}
+					}
+				}
+			}
+		}
+
 		// clean up and finish
 		Compiler.endPostCompilers();
 		System.out.println("Compiled after " + (System.currentTimeMillis() - time) + "ms.");

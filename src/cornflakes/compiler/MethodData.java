@@ -19,10 +19,11 @@ public class MethodData {
 	private int localVariables;
 	private int modifiers;
 	private int blocks;
+	private boolean interfaceMethod;
 
 	public static MethodData fromJavaMethod(Method method) {
 		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
-				method.getModifiers());
+				method.getDeclaringClass().isInterface(), method.getModifiers());
 		Parameter[] params = method.getParameters();
 		for (int i = 0; i < params.length; i++) {
 			mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
@@ -30,9 +31,10 @@ public class MethodData {
 		return mData;
 	}
 
-	public MethodData(String name, String ret, int mods) {
+	public MethodData(String name, String ret, boolean ifm, int mods) {
 		this.name = name;
 		this.returnType = ret;
+		this.setInterfaceMethod(ifm);
 		this.modifiers = mods;
 	}
 
@@ -181,5 +183,13 @@ public class MethodData {
 
 	public void addBlock() {
 		this.blocks++;
+	}
+
+	public boolean isInterfaceMethod() {
+		return interfaceMethod;
+	}
+
+	public void setInterfaceMethod(boolean interfaceMethod) {
+		this.interfaceMethod = interfaceMethod;
 	}
 }

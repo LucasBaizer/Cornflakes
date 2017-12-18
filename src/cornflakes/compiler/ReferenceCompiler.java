@@ -29,14 +29,14 @@ public class ReferenceCompiler implements GenericCompiler {
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		try {
-			compile(data.getClassName(), data, data, m, block, body, lines);
+			compile(null, data.getClassName(), data, data, m, block, body, lines);
 		} catch (ClassNotFoundException e) {
 			throw new CompileError(e);
 		}
 	}
 
-	private void compile(String containerClass, ClassData containerData, ClassData data, MethodVisitor m, Block block,
-			String body, String[] lines) throws ClassNotFoundException {
+	private void compile(ReferenceCompiler last, String containerClass, ClassData containerData, ClassData data,
+			MethodVisitor m, Block block, String body, String[] lines) throws ClassNotFoundException {
 		int end = body.length();
 		int opens = 0;
 		for (int i = 0; i < body.length(); i++) {
@@ -60,9 +60,16 @@ public class ReferenceCompiler implements GenericCompiler {
 			if (this.data.hasModifier(ACC_STATIC)) {
 				throw new CompileError("Cannot access this from a static context");
 			}
+			if (block instanceof ConstructorBlock) {
+				ConstructorBlock cblock = (ConstructorBlock) block;
+				if (!cblock.hasCalledSuper()) {
+					throw new CompileError("Cannot reference this until super has been called");
+				}
+			}
 			m.visitVarInsn(ALOAD, 0);
 			this.data.increaseStackSize();
 
+			thisType = true;
 			referenceName = "this";
 			referenceOwner = data;
 			referenceSignature = Types.getTypeSignature(data.getClassName());
@@ -74,20 +81,27 @@ public class ReferenceCompiler implements GenericCompiler {
 			boolean superCall = false;
 			if (this.data instanceof ConstructorData) {
 				if (name.equals("super")) {
+					if (((ConstructorBlock) block).hasCalledSuper()) {
+						throw new CompileError("Cannot call super more than once");
+					}
 					superCall = true;
+				}
+			} else {
+				if (name.equals("super")) {
+					throw new CompileError("Cannot call super outside of a constructor");
 				}
 			}
 
 			ClassData toUse = thisType ? data : containerData;
 
 			if (superCall || toUse.hasMethod(name)) {
-				compileMethodCall(toUse.getClassName(), toUse, data, m, block, part, superCall);
+				compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
 				next = true;
 			} else {
 				ClassData parent = toUse;
 				while ((parent = parent.getParentClass()) != null) {
 					if (parent.hasMethod(name)) {
-						compileMethodCall(toUse.getClassName(), toUse, data, m, block, part, superCall);
+						compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
 						next = true;
 						break;
 					}
@@ -111,15 +125,17 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 		} else {
 			if (this.data != null && this.data.hasLocal(part, block)) {
-				compileVariableReference(1, containerClass, containerData, data, m, block, part, end == body.length());
+				compileVariableReference(last, 1, containerClass, containerData, data, m, block, part,
+						end == body.length());
 				next = true;
 			} else {
 				if (data.hasField(part)) {
-					compileVariableReference(0, data.getClassName(), data, data, m, block, part, end == body.length());
+					compileVariableReference(last, 0, data.getClassName(), data, data, m, block, part,
+							end == body.length());
 					next = true;
 				} else if (!thisType) {
 					if (containerData.hasField(part)) {
-						compileVariableReference(0, containerClass, containerData, data, m, block, part,
+						compileVariableReference(last, 0, containerClass, containerData, data, m, block, part,
 								end == body.length());
 						next = true;
 					}
@@ -129,8 +145,6 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		if (next) {
 			if (end != body.length()) {
-				thisType = false;
-
 				String newBody = body.substring(end + 1, body.length()).trim();
 
 				if (referenceSignature != null) {
@@ -140,9 +154,9 @@ public class ReferenceCompiler implements GenericCompiler {
 					} catch (ClassNotFoundException e) {
 						throw new CompileError(e);
 					}
-					compile(newClass.getClassName(), newClass, data, m, block, newBody, new String[] { newBody });
+					compile(this, newClass.getClassName(), newClass, data, m, block, newBody, new String[] { newBody });
 				} else {
-					compile(data.getClassName(), data, data, m, block, newBody, new String[] { newBody });
+					compile(this, data.getClassName(), data, data, m, block, newBody, new String[] { newBody });
 				}
 			}
 			return;
@@ -165,17 +179,18 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		String newBody = body.substring(end + 1).trim();
 
-		compile(clazz, cls, data, m, block, newBody, new String[] { newBody });
+		compile(this, clazz, cls, data, m, block, newBody, new String[] { newBody });
 
 	}
 
-	private void compileVariableReference(int source, String containerClass, ClassData containerData, ClassData data,
-			MethodVisitor m, Block block, String body, boolean isLast) {
+	private void compileVariableReference(ReferenceCompiler last, int source, String containerClass,
+			ClassData containerData, ClassData data, MethodVisitor m, Block block, String body, boolean isLast) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
 			if (write) {
 				if (this.data != null) {
-					if (!this.data.hasModifier(ACC_STATIC) && !thisType && containerClass.equals(data.getClassName())) {
+					if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
+							&& containerClass.equals(data.getClassName())) {
 						m.visitVarInsn(ALOAD, 0);
 						this.data.increaseStackSize();
 					}
@@ -242,7 +257,7 @@ public class ReferenceCompiler implements GenericCompiler {
 						}
 					} else {
 						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
-						compiler.compile(data.getClassName(), data, data, m, block, par, new String[] { par });
+						compiler.compile(this, data.getClassName(), data, data, m, block, par, new String[] { par });
 
 						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
 							success = false;
@@ -302,8 +317,9 @@ public class ReferenceCompiler implements GenericCompiler {
 		referenceOwner = containerData;
 	}
 
-	private void compileMethodCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
-			Block block, String body, boolean superCall) throws ClassNotFoundException {
+	private void compileMethodCall(ReferenceCompiler last, String containerClass, ClassData containerData,
+			ClassData data, MethodVisitor m, Block block, String body, boolean superCall)
+			throws ClassNotFoundException {
 		String before = body.substring(0, body.indexOf('(')).trim();
 
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
@@ -329,7 +345,7 @@ public class ReferenceCompiler implements GenericCompiler {
 						}
 					} else {
 						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
-						compiler.compile(data.getClassName(), data, data, m, block, par, new String[] { par });
+						compiler.compile(this, data.getClassName(), data, data, m, block, par, new String[] { par });
 
 						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
 							success = false;
@@ -351,13 +367,14 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 
 		if (!superCall) {
-			if (!this.data.hasModifier(ACC_STATIC) && !thisType && containerClass.equals(data.getClassName())) {
+			if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
+					&& containerClass.equals(data.getClassName())) {
 				m.visitVarInsn(ALOAD, 0);
 
 				if (this.data != null)
 					this.data.increaseStackSize();
 			}
-		} else if (!thisType) {
+		} else if (!thisType && (last == null || !last.thisType)) {
 			m.visitVarInsn(ALOAD, 0);
 
 			if (this.data != null)
@@ -382,6 +399,7 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 
 		if (superCall) {
+			((ConstructorBlock) block).setCalledSuper(true);
 			m.visitMethodInsn(INVOKESPECIAL, containerData.getParentName(), "<init>", method.getSignature(), false);
 
 			referenceSignature = Types.getTypeSignature(containerData.getParentName());
@@ -391,7 +409,8 @@ public class ReferenceCompiler implements GenericCompiler {
 		} else {
 			if ((method.getModifiers() & ACC_STATIC) == ACC_STATIC) {
 				if (write) {
-					m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(), false);
+					m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(),
+							method.isInterfaceMethod());
 					if (!method.getReturnTypeSignature().equals("V")) {
 						if (this.data != null)
 							this.data.increaseStackSize();
@@ -405,7 +424,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 				if (write) {
 					m.visitMethodInsn(INVOKEVIRTUAL, containerData.getClassName(), before, method.getSignature(),
-							false);
+							method.isInterfaceMethod());
 					if (!method.getReturnTypeSignature().equals("V")) {
 						if (this.data != null)
 							this.data.increaseStackSize();
