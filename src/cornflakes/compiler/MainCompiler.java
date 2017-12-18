@@ -13,7 +13,7 @@ public class MainCompiler implements Opcodes {
 		long time = System.currentTimeMillis();
 
 		List<ClassData> list = new ArrayList<>();
-		for (File file : new File("src/cornflakes/compiler").listFiles()) {
+		for (File file : new File("src").listFiles()) {
 			if (file.isFile()) {
 				if (file.getName().endsWith(".cf")) {
 					list.add(Compiler.compile(file.getName(), new String(Files.readAllBytes(file.toPath()))

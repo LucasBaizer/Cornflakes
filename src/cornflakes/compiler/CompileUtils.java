@@ -1,6 +1,5 @@
 package cornflakes.compiler;
 
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class CompileUtils {
@@ -51,12 +50,12 @@ public class CompileUtils {
 	}
 
 	public static VariableDeclaration declareVariable(MethodData methodData, ClassData data, MethodVisitor m,
-			Label start, Label end, String body, String[] split) {
+			Block block, String body, String[] split) {
 		String variableType = null;
 		Object value = null;
 		String valueType = null;
 		boolean isRef = false;
-		boolean isMember = m == null || start == null || end == null;
+		boolean isMember = m == null || block == null;
 
 		if (split.length == 1) {
 			if (isMember) {
@@ -72,8 +71,8 @@ public class CompileUtils {
 			valueType = Types.getType(givenValue, "");
 			if (valueType == null) {
 				ReferenceCompiler ref = new ReferenceCompiler(true, methodData);
-				ref.compile(data, m, start, end, givenValue, new String[] { givenValue });
-				
+				ref.compile(data, m, block, givenValue, new String[] { givenValue });
+
 				if ((valueType = ref.getReferenceSignature()) == null) {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 				}
@@ -101,7 +100,7 @@ public class CompileUtils {
 				if (!isMember) {
 					if (valueType == null) {
 						ReferenceCompiler compiler = new ReferenceCompiler(true, methodData);
-						compiler.compile(data, m, start, end, givenValue, new String[] { givenValue });
+						compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 						valueType = compiler.getReferenceSignature();
 						isRef = true;
 					}

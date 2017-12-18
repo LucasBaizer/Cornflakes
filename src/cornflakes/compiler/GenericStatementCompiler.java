@@ -1,6 +1,5 @@
 package cornflakes.compiler;
 
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 import cornflakes.compiler.CompileUtils.VariableDeclaration;
@@ -17,7 +16,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Label start, Label end, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		if (body.startsWith("return")) {
 			type = RETURN;
 
@@ -72,7 +71,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 				} else {
 					ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
-					compiler.compile(data, m, start, end, par, new String[] { par });
+					compiler.compile(data, m, block, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceSignature()))
 							.getSimpleClassName();
@@ -107,17 +106,17 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			String variableName = look[1].trim();
 
-			if (this.data.hasLocal(variableName, start, end)) {
+			if (this.data.hasLocal(variableName, block)) {
 				throw new CompileError("Duplicate variable: " + variableName);
 			}
 
-			VariableDeclaration decl = CompileUtils.declareVariable(this.data, data, m, start, end, body, split);
+			VariableDeclaration decl = CompileUtils.declareVariable(this.data, data, m, block, body, split);
 			Object value = decl.getValue();
 			String valueType = decl.getValueType();
 			String variableType = decl.getVariableType();
 
 			int idx = this.data.getLocalVariables();
-			m.visitLocalVariable(variableName, variableType, null, start, end, idx);
+			m.visitLocalVariable(variableName, variableType, null, block.getStartLabel(), block.getEndLabel(), idx);
 			if (value != null) {
 				int push = Types.getOpcode(Types.PUSH, valueType);
 				int store = Types.getOpcode(Types.STORE, variableType);
@@ -138,7 +137,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			}
 
 			this.data.addLocal(
-					new LocalData(variableName, variableType, start, end, idx, body.startsWith("var") ? 0 : ACC_FINAL));
+					new LocalData(variableName, variableType, block, idx, body.startsWith("var") ? 0 : ACC_FINAL));
 			this.data.addLocalVariable();
 		} else {
 			boolean ref = true;
@@ -150,12 +149,12 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
 				compiler.setLoadVariableReference(false);
-				compiler.compile(data, m, start, end, name, new String[] { name });
+				compiler.compile(data, m, block, name, new String[] { name });
 
 				String refName = compiler.getReferenceName();
 				FieldData field = null;
-				if (this.data.hasLocal(refName, start, end)) {
-					field = this.data.getLocal(refName, start, end);
+				if (this.data.hasLocal(refName, block)) {
+					field = this.data.getLocal(refName, block);
 				} else if (compiler.getReferenceOwner().hasField(refName)) {
 					field = compiler.getReferenceOwner().getField(refName);
 				}
@@ -191,7 +190,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 					} else {
 						ReferenceCompiler compiler1 = new ReferenceCompiler(true, this.data);
-						compiler1.compile(data, m, start, end, value, new String[] { body });
+						compiler1.compile(data, m, block, value, new String[] { body });
 
 						if (!Types.isSuitable(field.getType(), compiler1.getReferenceSignature())) {
 							throw new CompileError(
@@ -211,7 +210,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			}
 
 			if (ref) {
-				new ReferenceCompiler(true, this.data).compile(data, m, start, end, body, lines);
+				new ReferenceCompiler(true, this.data).compile(data, m, block, body, lines);
 			}
 		}
 	}

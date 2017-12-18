@@ -5,5 +5,7 @@ import cornflakes.compiler.MainCompiler;
 public class Main {
 	public static void main(String[] args) throws Exception {
 		MainCompiler.main(args);
+		
+		new HelloWorld();
 	}
 }

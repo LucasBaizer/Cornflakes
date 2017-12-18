@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 
 public class MethodData {
@@ -81,15 +80,16 @@ public class MethodData {
 		this.stackSize++;
 	}
 
-	public boolean hasLocal(String name, Label start, Label end) {
-		return getLocal(name, start, end) != null;
+	public boolean hasLocal(String name, Block block) {
+		return getLocal(name, block) != null;
 	}
 
-	public LocalData getLocal(String name, Label start, Label end) {
+	public LocalData getLocal(String name, Block block) {
 		for (LocalData data : this.locals) {
-			if(data.getName().equals(name))
+			// TODO
+			if (data.getName().equals(name))
 				return data;
-			if (data.getName().equals(name) && start.getOffset() >= data.getStart().getOffset()) {
+			if (data.getName().equals(name) && block.getStart() >= data.getBlock().getStart()) {
 				return data;
 			}
 		}
@@ -105,14 +105,13 @@ public class MethodData {
 
 		int idx = hasModifier(Opcodes.ACC_STATIC) ? 0 : 1;
 		for (Entry<String, String> par : this.parameters.entrySet()) {
-			this.locals.add(new LocalData(par.getKey(), par.getValue(), null, null, idx++, 0));
+			this.locals.add(new LocalData(par.getKey(), par.getValue(), null, idx++, 0));
 		}
 	}
 
-	public void setLabels(Label start, Label end) {
+	public void setBlock(Block block) {
 		for (LocalData local : this.locals) {
-			local.setStart(start);
-			local.setEnd(end);
+			local.setBlock(block);
 		}
 	}
 

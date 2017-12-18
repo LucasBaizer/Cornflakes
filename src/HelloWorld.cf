@@ -6,7 +6,8 @@ public static function main(args: string[]) {
 }
 
 public constructor() {
+	super();
+
 	var x = this;
 	System.out.println(x);
-	
 }

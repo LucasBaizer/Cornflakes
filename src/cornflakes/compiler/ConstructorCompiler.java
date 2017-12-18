@@ -122,14 +122,13 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			MethodVisitor m = cw.visitMethod(accessor, "<init>", methodData.getSignature(), null, null);
 			m.visitCode();
 
-			int line = 0;
-
 			Label start = new Label();
 			Label post = new Label();
 			m.visitLabel(start);
-			m.visitLineNumber(line++, start);
+			m.visitLineNumber(0, start);
 
-			this.methodData.setLabels(start, post);
+			ConstructorBlock block = new ConstructorBlock(0, start, post);
+			this.methodData.setBlock(block);
 
 			this.methodData.addLocalVariable();
 			HashMap<String, Integer> paramMap = new HashMap<>();
@@ -159,7 +158,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 						String raw = (String) datum.getProposedData();
 
 						ReferenceCompiler compiler = new ReferenceCompiler(true, this.methodData);
-						compiler.compile(data, m, start, post, raw, new String[] { raw });
+						compiler.compile(data, m, block, raw, new String[] { raw });
 
 						if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
 							throw new CompileError(
