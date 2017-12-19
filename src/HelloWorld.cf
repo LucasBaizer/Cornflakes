@@ -1,8 +1,10 @@
 package cornflakes.lang;
 public class HelloWorld;
 
+use java.util.ArrayList;
+
 public static func main(args: string[]) {
-	if args is string[] {
-		System.out.println();
-	}
+	var x = ArrayList();
+	x.add(object());
+	System.out.println(x);
 }

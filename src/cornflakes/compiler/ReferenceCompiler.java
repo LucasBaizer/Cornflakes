@@ -164,7 +164,29 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		String clazz = null;
 		try {
-			clazz = data.resolveClass(part);
+			if (part.equals("int")) {
+				clazz = "java.lang.Integer";
+			} else if (part.equals("bool")) {
+				clazz = "java.lang.Boolean";
+			} else if (part.equals("object")) {
+				clazz = "java.lang.Object";
+			} else if (part.equals("string")) {
+				clazz = "java.lang.String";
+			} else if (part.equals("byte")) {
+				clazz = "java.lang.Byte";
+			} else if (part.equals("char")) {
+				clazz = "java.lang.Character";
+			} else if (part.equals("short")) {
+				clazz = "java.lang.Short";
+			} else if (part.equals("long")) {
+				clazz = "java.lang.Long";
+			} else if (part.equals("float")) {
+				clazz = "java.lang.Float";
+			} else if (part.equals("double")) {
+				clazz = "java.lang.Double";
+			} else {
+				clazz = data.resolveClass(part);
+			}
 		} catch (CompileError e) {
 			throw new CompileError(
 					"Could not find a class, variable, method, or keyword named '" + part.split(" ")[0] + "'");

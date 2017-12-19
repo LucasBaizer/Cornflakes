@@ -2,7 +2,6 @@ package cornflakes.compiler;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 
 public class BooleanExpressionCompiler implements GenericCompiler {
 	private static final int EQUAL = 0;
@@ -11,15 +10,18 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	private static final int LESS_THAN = 3;
 	private static final int GREATER_THAN_OR_EQUAL = 4;
 	private static final int LESS_THAN_OR_EQUAL = 5;
-	private static final int INSTANCEOF = 6;
+	private static final int IS = 6;
 
 	private int ifType = -1;
 	private MethodData data;
 	private Label end;
+	private boolean checkValidity;
+	private boolean valid;
 
-	public BooleanExpressionCompiler(MethodData data, Label end) {
+	public BooleanExpressionCompiler(MethodData data, Label end, boolean val) {
 		this.data = data;
 		this.end = end;
+		this.checkValidity = val;
 	}
 
 	@Override
@@ -45,7 +47,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			ifType = LESS_THAN_OR_EQUAL;
 		} else if (body.contains("is")) {
 			split = body.split("is");
-			ifType = INSTANCEOF;
+			ifType = IS;
 		}
 
 		String left = null;
@@ -60,7 +62,10 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					m.visitInsn(bool.equals("false") ? ICONST_0 : ICONST_1);
 					this.data.increaseStackSize();
 				} else {
-					throw new CompileError("Expecting type 'bool'");
+					if (this.checkValidity) {
+						throw new CompileError("Expecting type 'bool'");
+					}
+					valid = false;
 				}
 			} else {
 				ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
@@ -73,7 +78,10 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			right = split[1].trim();
 
 			String leftType = pushToStack(left, data, m, block);
-			String rightType = pushToStack(right, data, m, block);
+			String rightType = null;
+			if (ifType != IS) {
+				rightType = pushToStack(right, data, m, block);
+			}
 
 			if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
 				int op = 0;
@@ -97,7 +105,10 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				boolean aright = Types.isPrimitive(rightType);
 
 				if ((aleft && !aright) || (!aleft && aright)) {
-					throw new CompileError("Cannot compare " + leftType + " to " + rightType);
+					if (this.checkValidity) {
+						throw new CompileError("Cannot compare " + leftType + " to " + rightType);
+					}
+					valid = false;
 				}
 
 				int op = 0;
@@ -105,12 +116,18 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					op = IF_ACMPNE;
 				} else if (ifType == NOT_EQUAL) {
 					op = IF_ACMPEQ;
-				} else if (ifType == INSTANCEOF) {
-					op = INSTANCEOF;
-				} else {
-					throw new CompileError("References cannot be compared using the given comparator");
+				} else if (ifType != IS) {
+					if (this.checkValidity) {
+						throw new CompileError("References cannot be compared using the given comparator");
+					}
+					valid = false;
 				}
-				m.visitJumpInsn(op, end);
+				if (ifType == IS) {
+					m.visitTypeInsn(INSTANCEOF, data.resolveClass(right));
+					m.visitJumpInsn(IFEQ, end);
+				} else {
+					m.visitJumpInsn(op, end);
+				}
 			}
 		}
 
@@ -131,7 +148,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			} else {
 				m.visitVarInsn(oc, Integer.parseInt(lit.toString()));
 			}
-			
+
 			this.data.increaseStackSize();
 
 			return type;
@@ -139,16 +156,11 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
-			if (ref.getReferenceSignature() == null) {
-				if (ifType == INSTANCEOF) {
-					String resolve = data.resolveClass(term);
-					m.visitLdcInsn(Type.getObjectType(resolve));
-					this.data.increaseStackSize();
-					return resolve;
-				}
-			}
-
 			return ref.getReferenceSignature();
 		}
+	}
+
+	public boolean isValid() {
+		return valid;
 	}
 }

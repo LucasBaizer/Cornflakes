@@ -123,6 +123,8 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isNumeric(String type) {
+		if(type == null)
+			return false;
 		return isPrimitive(type);
 	}
 
@@ -254,6 +256,8 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isPrimitive(String name) {
+		if(name == null)
+			return false;
 		switch (name) {
 			case "I":
 			case "Z":
