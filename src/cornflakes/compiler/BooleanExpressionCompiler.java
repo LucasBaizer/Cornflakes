@@ -2,6 +2,7 @@ package cornflakes.compiler;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 public class BooleanExpressionCompiler implements GenericCompiler {
 	private static final int EQUAL = 0;
@@ -10,7 +11,9 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	private static final int LESS_THAN = 3;
 	private static final int GREATER_THAN_OR_EQUAL = 4;
 	private static final int LESS_THAN_OR_EQUAL = 5;
+	private static final int INSTANCEOF = 6;
 
+	private int ifType = -1;
 	private MethodData data;
 	private Label end;
 
@@ -22,7 +25,6 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		String[] split = null;
-		int ifType = -1;
 		if (body.contains("==")) {
 			split = body.split("==");
 			ifType = EQUAL;
@@ -41,6 +43,9 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		} else if (body.contains("<=")) {
 			split = body.split("<=");
 			ifType = LESS_THAN_OR_EQUAL;
+		} else if (body.contains("is")) {
+			split = body.split("is");
+			ifType = INSTANCEOF;
 		}
 
 		String left = null;
@@ -100,12 +105,15 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					op = IF_ACMPNE;
 				} else if (ifType == NOT_EQUAL) {
 					op = IF_ACMPEQ;
+				} else if (ifType == INSTANCEOF) {
+					op = INSTANCEOF;
 				} else {
-					throw new CompileError("References can only be compared with == or !=");
+					throw new CompileError("References cannot be compared using the given comparator");
 				}
 				m.visitJumpInsn(op, end);
 			}
 		}
+
 	}
 
 	private String pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
@@ -123,11 +131,22 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			} else {
 				m.visitVarInsn(oc, Integer.parseInt(lit.toString()));
 			}
+			
+			this.data.increaseStackSize();
 
 			return type;
 		} else {
 			ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
+
+			if (ref.getReferenceSignature() == null) {
+				if (ifType == INSTANCEOF) {
+					String resolve = data.resolveClass(term);
+					m.visitLdcInsn(Type.getObjectType(resolve));
+					this.data.increaseStackSize();
+					return resolve;
+				}
+			}
 
 			return ref.getReferenceSignature();
 		}

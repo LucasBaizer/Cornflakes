@@ -4,6 +4,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -29,7 +30,7 @@ public class ClassData {
 	private boolean isInterface;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
-		name = Strings.transformClassName(name);
+		name = Strings.transformClassName(Types.unpadSignature(name));
 
 		if (classes.containsKey(name)) {
 			return classes.get(name);
@@ -52,6 +53,12 @@ public class ClassData {
 		container.setSimpleClassName(cls.getSimpleName());
 		container.setParentName(
 				cls.getSuperclass() == null ? "java/lang/Object" : cls.getSuperclass().getName().replace('.', '/'));
+
+		List<String> ifs = new ArrayList<>();
+		for(Class<?> c : cls.getInterfaces()) {
+			ifs.add(Strings.transformClassName(c.getName()));
+		}
+		container.setInterfaces(ifs.toArray(new String[ifs.size()]));
 
 		for (Method method : cls.getDeclaredMethods()) {
 			container.addMethod(MethodData.fromJavaMethod(method));
@@ -361,5 +368,26 @@ public class ClassData {
 
 	public void setIsInterface(boolean isInterface) {
 		this.isInterface = isInterface;
+	}
+
+	public boolean is(String type) throws ClassNotFoundException {
+		if (className.equals(type)) {
+			return true;
+		}
+		if (Arrays.asList(interfaces).contains(type)) {
+			return true;
+		}
+
+		ClassData parent = this;
+		while ((parent = parent.getParentClass()) != null) {
+			if (parent.className.equals(type)) {
+				return true;
+			}
+			if (Arrays.asList(parent.interfaces).contains(type)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

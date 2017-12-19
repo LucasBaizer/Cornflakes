@@ -11,6 +11,7 @@ public class Block implements Comparable<Block> {
 	private Label startLabel;
 	private Label endLabel;
 	private List<Block> subBlocks = new ArrayList<>();
+	private boolean doesThrow;
 
 	public Block(int start, Label slabel, Label elabel) {
 		this.start = start;
@@ -55,5 +56,13 @@ public class Block implements Comparable<Block> {
 	@Override
 	public int compareTo(Block o2) {
 		return this.start - o2.start;
+	}
+
+	public boolean doesThrow() {
+		return doesThrow;
+	}
+
+	public void setDoesThrow(boolean doesThrow) {
+		this.doesThrow = doesThrow;
 	}
 }

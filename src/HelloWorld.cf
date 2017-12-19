@@ -2,9 +2,7 @@ package cornflakes.lang;
 public class HelloWorld;
 
 public static func main(args: string[]) {
-	var x = true;
-	
-	if x {
-		System.out.println(true);
+	if args is string[] {
+		System.out.println();
 	}
 }

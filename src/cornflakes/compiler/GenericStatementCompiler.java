@@ -7,6 +7,7 @@ import cornflakes.compiler.CompileUtils.VariableDeclaration;
 public class GenericStatementCompiler implements GenericCompiler {
 	public static final int RETURN = 1;
 	public static final int VAR = 2;
+	public static final int THROW = 3;
 
 	private MethodData data;
 	private int type;
@@ -92,6 +93,33 @@ public class GenericStatementCompiler implements GenericCompiler {
 				} else {
 					throw new CompileError("A return value of type " + this.data.getReturnType() + " is expected");
 				}
+			}
+		} else if (body.startsWith("throw")) {
+			type = THROW;
+			String[] split = body.split(" ");
+			if (split.length == 1) {
+				throw new CompileError("Expecting statement after token 'throw'");
+			} else if (split.length > 2) {
+				throw new CompileError("Unexpected symbol: " + split[2]);
+			}
+
+			ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
+			ref.compile(data, m, block, split[1], new String[] { split[1] });
+
+			String signature = ref.getReferenceSignature();
+			if (Types.isPrimitive(signature)) {
+				throw new CompileError("Only types which are subclasses of java.lang.Throwable can be thrown");
+			}
+
+			try {
+				ClassData classData = ClassData.forName(signature);
+				if (!classData.is("java/lang/Throwable")) {
+					throw new CompileError("Only types which are subclasses of java.lang.Throwable can be thrown");
+				}
+				m.visitInsn(ATHROW);
+				block.setDoesThrow(true);
+			} catch (ClassNotFoundException e) {
+				throw new CompileError(e);
 			}
 		} else if (body.startsWith("var") || body.startsWith("const")) {
 			type = VAR;

@@ -172,11 +172,14 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		ClassData cls = null;
 		try {
-			cls = ClassData.forName(clazz);
+			cls = ClassData.forName(Types.padSignature(clazz));
 		} catch (ClassNotFoundException e) {
 			throw new CompileError("Unresolved class: " + clazz.replace('/', '.'));
 		}
 
+		if (end == body.length()) {
+			return;
+		}
 		String newBody = body.substring(end + 1).trim();
 
 		compile(this, clazz, cls, data, m, block, newBody, new String[] { newBody });

@@ -204,10 +204,12 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			gbc.compile(data, m, block, innerBody, inner2);
 
 			if (!gbc.returns()) {
-				if (methodData.getReturnTypeSignature().equals("V")) {
-					m.visitInsn(RETURN);
-				} else {
-					throw new CompileError("A non-void method must return a value");
+				if (!block.doesThrow()) {
+					if (methodData.getReturnTypeSignature().equals("V")) {
+						m.visitInsn(RETURN);
+					} else {
+						throw new CompileError("A non-void method must return a value");
+					}
 				}
 			}
 

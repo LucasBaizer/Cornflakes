@@ -35,7 +35,9 @@ public class GenericBlockCompiler implements GenericCompiler {
 				Label end = new Label();
 				thisBlock.setEndLabel(end);
 
-				new BooleanExpressionCompiler(this.data, end).compile(data, m, thisBlock, body, newLines);
+				String parse = condition.substring(2).trim();
+				new BooleanExpressionCompiler(this.data, end).compile(data, m, thisBlock, parse,
+						new String[] { parse });
 				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
 
 				m.visitLabel(end);
