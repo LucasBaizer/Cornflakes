@@ -41,7 +41,6 @@ public class GenericBlockCompiler implements GenericCompiler {
 				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
 
 				m.visitLabel(end);
-				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getStackSize(), null);
 			} else if (body.startsWith("else")) {
 				String after = body.substring(4).trim();
 				new GenericBlockCompiler(this.data).compile(data, m, block, after, Strings.accumulate(after));

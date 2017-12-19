@@ -7,13 +7,15 @@ public class CompileUtils {
 		private String variableType;
 		private Object value;
 		private String valueType;
+		private String rawValue;
 		private boolean isReference;
 
-		public VariableDeclaration(String type, Object val, String valType, boolean ref) {
+		public VariableDeclaration(String type, Object val, String valType, String raw, boolean ref) {
 			this.variableType = type;
 			this.value = val;
 			this.valueType = valType;
 			this.isReference = ref;
+			this.rawValue = raw;
 		}
 
 		public String getVariableType() {
@@ -47,6 +49,14 @@ public class CompileUtils {
 		public void setReference(boolean isReference) {
 			this.isReference = isReference;
 		}
+
+		public String getRawValue() {
+			return rawValue;
+		}
+
+		public void setRawValue(String rawValue) {
+			this.rawValue = rawValue;
+		}
 	}
 
 	public static VariableDeclaration declareVariable(MethodData methodData, ClassData data, MethodVisitor m,
@@ -54,6 +64,7 @@ public class CompileUtils {
 		String variableType = null;
 		Object value = null;
 		String valueType = null;
+		String raw = null;
 		boolean isRef = false;
 		boolean isMember = m == null || block == null;
 
@@ -68,6 +79,7 @@ public class CompileUtils {
 			}
 
 			String givenValue = set[1].trim();
+			raw = givenValue;
 			valueType = Types.getType(givenValue, "");
 			if (valueType == null) {
 				ReferenceCompiler ref = new ReferenceCompiler(true, methodData);
@@ -77,7 +89,7 @@ public class CompileUtils {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 				}
 
-				isRef = true;
+				isRef = !ref.isPrimitiveReference();
 			} else {
 				value = Types.parseLiteral(valueType, givenValue);
 			}
@@ -95,6 +107,7 @@ public class CompileUtils {
 			if (set.length > 1) {
 				String givenValue = set[1].trim();
 
+				raw = givenValue;
 				valueType = Types.getType(givenValue, variableType);
 
 				if (!isMember) {
@@ -102,7 +115,7 @@ public class CompileUtils {
 						ReferenceCompiler compiler = new ReferenceCompiler(true, methodData);
 						compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 						valueType = compiler.getReferenceSignature();
-						isRef = true;
+						isRef = !compiler.isPrimitiveReference();
 					}
 				}
 
@@ -124,6 +137,6 @@ public class CompileUtils {
 			variableType = Types.getTypeSignature(variableType);
 		}
 
-		return new VariableDeclaration(variableType, value, valueType, isRef);
+		return new VariableDeclaration(variableType, value, valueType, raw, isRef);
 	}
 }

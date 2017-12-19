@@ -3,6 +3,7 @@ package cornflakes.compiler;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class ReferenceCompiler implements GenericCompiler {
@@ -11,6 +12,7 @@ public class ReferenceCompiler implements GenericCompiler {
 	public static final int METHOD = 2;
 	public static final int CONSTRUCTOR = 3;
 	public static final int THIS = 4;
+	public static final int BOOLEAN_EXPRESSION = 5;
 
 	private MethodData data;
 	private boolean write;
@@ -20,6 +22,7 @@ public class ReferenceCompiler implements GenericCompiler {
 	private ClassData referenceOwner;
 	private int referenceType;
 	private boolean thisType;
+	private boolean allowBoolean = true;
 
 	public ReferenceCompiler(boolean write, MethodData data) {
 		this.write = write;
@@ -133,10 +136,33 @@ public class ReferenceCompiler implements GenericCompiler {
 					compileVariableReference(last, 0, data.getClassName(), data, data, m, block, part,
 							end == body.length());
 					next = true;
-				} else if (!thisType) {
-					if (containerData.hasField(part)) {
-						compileVariableReference(last, 0, containerClass, containerData, data, m, block, part,
-								end == body.length());
+				} else if (!thisType && containerData.hasField(part)) {
+					compileVariableReference(last, 0, containerClass, containerData, data, m, block, part,
+							end == body.length());
+					next = true;
+				} else if (allowBoolean) {
+					BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, null, false);
+					compiler.compile(data, m, block, body, lines);
+
+					if (compiler.isValid()) {
+						Label iconst = new Label();
+						Label label = new Label();
+
+						compiler.setWrite(true);
+						compiler.setEnd(iconst);
+
+						compiler.compile(data, m, block, body, lines);
+						m.visitInsn(ICONST_1);
+						m.visitJumpInsn(GOTO, label);
+						m.visitLabel(iconst);
+						m.visitInsn(ICONST_0);
+
+						m.visitLabel(label);
+
+						referenceName = body;
+						referenceOwner = data;
+						referenceSignature = "Z";
+						referenceType = BOOLEAN_EXPRESSION;
 						next = true;
 					}
 				}
@@ -148,6 +174,10 @@ public class ReferenceCompiler implements GenericCompiler {
 				String newBody = body.substring(end + 1, body.length()).trim();
 
 				if (referenceSignature != null) {
+					if(referenceSignature.length() == 1){
+						return;
+					}
+					
 					ClassData newClass = null;
 					try {
 						newClass = ClassData.forName(Types.unpadSignature(referenceSignature));
@@ -164,7 +194,14 @@ public class ReferenceCompiler implements GenericCompiler {
 
 		String clazz = null;
 		try {
-			if (part.equals("int")) {
+			if (part.equals("true") || part.equals("false")) {
+				m.visitInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+
+				referenceName = body;
+				referenceOwner = data;
+				referenceSignature = "Z";
+				referenceType = BOOLEAN_EXPRESSION;
+			} else if (part.equals("int")) {
 				clazz = "java.lang.Integer";
 			} else if (part.equals("bool")) {
 				clazz = "java.lang.Boolean";
@@ -511,5 +548,17 @@ public class ReferenceCompiler implements GenericCompiler {
 
 	public ClassData getReferenceOwner() {
 		return referenceOwner;
+	}
+
+	public boolean isPrimitiveReference() {
+		return Types.isPrimitive(referenceSignature);
+	}
+
+	public boolean isAllowBoolean() {
+		return allowBoolean;
+	}
+
+	public void setAllowBoolean(boolean allowBoolean) {
+		this.allowBoolean = allowBoolean;
 	}
 }

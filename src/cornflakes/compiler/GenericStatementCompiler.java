@@ -145,14 +145,14 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			int idx = this.data.getLocalVariables();
 			m.visitLocalVariable(variableName, variableType, null, block.getStartLabel(), block.getEndLabel(), idx);
-			if (value != null) {
+			if (value != null || valueType.length() == 1) {
 				int push = Types.getOpcode(Types.PUSH, valueType);
 				int store = Types.getOpcode(Types.STORE, variableType);
 
 				if (push == LDC) {
 					m.visitLdcInsn(value);
 					this.data.increaseStackSize();
-				} else {
+				} else if (value != null) {
 					String toString = value.toString();
 					if (toString.equals("true") || toString.equals("false")) {
 						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);

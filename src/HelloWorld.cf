@@ -4,7 +4,8 @@ public class HelloWorld;
 use java.util.ArrayList;
 
 public static func main(args: string[]) {
-	var x = ArrayList();
-	x.add(object());
-	System.out.println(x);
+	var x = true;
+	var y = false;
+	var z = 1 and 3;
+	System.out.println(z);
 }

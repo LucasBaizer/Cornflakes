@@ -192,4 +192,8 @@ public class MethodData {
 	public void setInterfaceMethod(boolean interfaceMethod) {
 		this.interfaceMethod = interfaceMethod;
 	}
+
+	public void decreaseStackSize() {
+		this.stackSize--;
+	}
 }

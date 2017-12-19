@@ -11,17 +11,24 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	private static final int GREATER_THAN_OR_EQUAL = 4;
 	private static final int LESS_THAN_OR_EQUAL = 5;
 	private static final int IS = 6;
+	private static final int AND = 7;
+	private static final int OR = 8;
 
 	private int ifType = -1;
 	private MethodData data;
 	private Label end;
-	private boolean checkValidity;
-	private boolean valid;
+	private boolean write;
+	private boolean valid = true;
 
 	public BooleanExpressionCompiler(MethodData data, Label end, boolean val) {
 		this.data = data;
 		this.end = end;
-		this.checkValidity = val;
+		this.write = val;
+	}
+
+	private RuntimeException invalid(RuntimeException thr) {
+		this.valid = false;
+		return thr;
 	}
 
 	@Override
@@ -48,6 +55,12 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		} else if (body.contains("is")) {
 			split = body.split("is");
 			ifType = IS;
+		} else if (body.contains("and")) {
+			split = body.split("and");
+			ifType = AND;
+		} else if (body.contains("or")) {
+			split = body.split("or");
+			ifType = OR;
 		}
 
 		String left = null;
@@ -59,20 +72,25 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			String type = Types.getType(bool, "");
 			if (type != null) {
 				if (type.equals("bool")) {
-					m.visitInsn(bool.equals("false") ? ICONST_0 : ICONST_1);
-					this.data.increaseStackSize();
-				} else {
-					if (this.checkValidity) {
-						throw new CompileError("Expecting type 'bool'");
+					if (this.write) {
+						m.visitInsn(bool.equals("false") ? ICONST_0 : ICONST_1);
+						this.data.increaseStackSize();
 					}
-					valid = false;
+				} else {
+					if (this.write) {
+						throw invalid(new CompileError("Expecting type 'bool'"));
+					}
 				}
 			} else {
-				ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
+				ReferenceCompiler ref = new ReferenceCompiler(this.write, this.data);
+				ref.setAllowBoolean(false);
 				ref.compile(data, m, block, bool, new String[] { bool });
 			}
 
-			m.visitJumpInsn(IFEQ, end);
+			if (this.write) {
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getStackSize(), null);
+				m.visitJumpInsn(IFEQ, end);
+			}
 		} else {
 			left = split[0].trim();
 			right = split[1].trim();
@@ -85,6 +103,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 
 			if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
 				int op = 0;
+				int stack = this.data.getStackSize();
 				if (ifType == EQUAL) {
 					op = IF_ICMPNE;
 				} else if (ifType == NOT_EQUAL) {
@@ -97,18 +116,35 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					op = IF_ICMPGE;
 				} else if (ifType == GREATER_THAN_OR_EQUAL) {
 					op = IF_ICMPLE;
-				}
+				} else if (ifType == AND || ifType == OR) {
+					if (!leftType.equals("Z") || !rightType.equals("Z")) {
+						if (this.write) {
+							throw invalid(new CompileError("Only booleans can be compared with 'and' / 'or'"));
+						}
+					}
 
-				m.visitJumpInsn(op, end);
+					op = IFEQ;
+					if (this.write) {
+						m.visitInsn(ifType == AND ? IAND : IOR);
+						stack--;
+					}
+				} else {
+					if (this.write) {
+						throw invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
+					}
+				}
+				if (this.write) {
+					m.visitFrame(F_SAME, this.data.getLocalVariables(), null, stack, null);
+					m.visitJumpInsn(op, end);
+				}
 			} else {
 				boolean aleft = Types.isPrimitive(leftType);
 				boolean aright = Types.isPrimitive(rightType);
 
-				if ((aleft && !aright) || (!aleft && aright)) {
-					if (this.checkValidity) {
-						throw new CompileError("Cannot compare " + leftType + " to " + rightType);
+				if (aleft ^ aright) {
+					if (this.write) {
+						throw invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
 					}
-					valid = false;
 				}
 
 				int op = 0;
@@ -117,43 +153,60 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				} else if (ifType == NOT_EQUAL) {
 					op = IF_ACMPEQ;
 				} else if (ifType != IS) {
-					if (this.checkValidity) {
-						throw new CompileError("References cannot be compared using the given comparator");
+					if (this.write) {
+						throw invalid(new CompileError("References cannot be compared using the given comparator"));
 					}
-					valid = false;
 				}
 				if (ifType == IS) {
-					m.visitTypeInsn(INSTANCEOF, data.resolveClass(right));
-					m.visitJumpInsn(IFEQ, end);
+					if (write) {
+						m.visitTypeInsn(INSTANCEOF, data.resolveClass(right));
+						m.visitJumpInsn(IFEQ, end);
+					}
 				} else {
-					m.visitJumpInsn(op, end);
+					if (write) {
+						m.visitJumpInsn(op, end);
+					}
 				}
 			}
 		}
-
 	}
 
 	private String pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
 		String type = Types.getType(term, "");
 		if (type != null) {
 			if (type.equals("bool")) {
-				m.visitInsn(term.equals("false") ? ICONST_0 : ICONST_1);
-				this.data.increaseStackSize();
-			}
-
-			int oc = Types.getOpcode(Types.PUSH, type);
-			Object lit = Types.parseLiteral(type, term);
-			if (oc == LDC) {
-				m.visitLdcInsn(lit);
+				if (this.write) {
+					m.visitInsn(term.equals("false") ? ICONST_0 : ICONST_1);
+					this.data.increaseStackSize();
+				}
 			} else {
-				m.visitVarInsn(oc, Integer.parseInt(lit.toString()));
-			}
+				int oc = Types.getOpcode(Types.PUSH, type);
+				Object lit = Types.parseLiteral(type, term);
+				if (oc == LDC) {
+					if (this.write) {
+						m.visitLdcInsn(lit);
+					}
+				} else {
+					if (this.write) {
+						String toString = lit.toString();
+						if (toString.equals("true")) {
+							m.visitInsn(ICONST_1);
+						} else if (toString.equals("false")) {
+							m.visitInsn(ICONST_0);
+						} else {
+							m.visitVarInsn(oc, Integer.parseInt(toString));
+						}
+					}
+				}
 
-			this.data.increaseStackSize();
+				if (this.write) {
+					this.data.increaseStackSize();
+				}
+			}
 
 			return type;
 		} else {
-			ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
+			ReferenceCompiler ref = new ReferenceCompiler(this.write, this.data);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
 			return ref.getReferenceSignature();
@@ -162,5 +215,13 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 
 	public boolean isValid() {
 		return valid;
+	}
+
+	public void setWrite(boolean write) {
+		this.write = write;
+	}
+
+	public void setEnd(Label label) {
+		this.end = label;
 	}
 }
