@@ -177,8 +177,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			Label start = new Label();
 			Label post = new Label();
-			m.visitLabel(post);
-			m.visitLineNumber(127, post); // TODO 127
 
 			m.visitLabel(start);
 			m.visitLineNumber(line++, start);

@@ -145,7 +145,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			int idx = this.data.getLocalVariables();
 			m.visitLocalVariable(variableName, variableType, null, block.getStartLabel(), block.getEndLabel(), idx);
-			if (value != null || valueType.length() == 1) {
+			if (value != null) {
 				int push = Types.getOpcode(Types.PUSH, valueType);
 				int store = Types.getOpcode(Types.STORE, variableType);
 
@@ -164,9 +164,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				m.visitVarInsn(store, idx);
 			} else {
-				if (decl.isReference()) {
-					m.visitVarInsn(Types.getOpcode(Types.STORE, valueType), idx);
-				}
+				m.visitVarInsn(Types.getOpcode(Types.STORE, valueType), idx);
 			}
 
 			this.data.addLocal(

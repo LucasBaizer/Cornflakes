@@ -73,7 +73,7 @@ public class CompileUtils {
 				throw new CompileError("A type for member variables can not be assumed; one must be assigned");
 			}
 
-			String[] set = body.split("=");
+			String[] set = body.split("=", 2);
 			if (set.length == 1) {
 				throw new CompileError("A variable with an unspecified type must have an initial value");
 			}
@@ -103,20 +103,20 @@ public class CompileUtils {
 				variableType = data.resolveClass(variableType);
 			}
 
-			String[] set = body.split("=");
+			String[] set = body.split("=", 2);
 			if (set.length > 1) {
 				String givenValue = set[1].trim();
 
 				raw = givenValue;
 				valueType = Types.getType(givenValue, variableType);
+				boolean math = false;
 
-				if (!isMember) {
-					if (valueType == null) {
-						ReferenceCompiler compiler = new ReferenceCompiler(true, methodData);
-						compiler.compile(data, m, block, givenValue, new String[] { givenValue });
-						valueType = compiler.getReferenceSignature();
-						isRef = !compiler.isPrimitiveReference();
-					}
+				if (!isMember && valueType == null) {
+					ReferenceCompiler compiler = new ReferenceCompiler(true, methodData);
+					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
+					valueType = compiler.getReferenceSignature();
+					math = compiler.isMath();
+					isRef = !compiler.isPrimitiveReference();
 				}
 
 				if (valueType != null) {
@@ -125,7 +125,7 @@ public class CompileUtils {
 					}
 				}
 
-				if (!isRef && valueType != null) {
+				if (!isRef && !math && valueType != null) {
 					value = Types.parseLiteral(valueType, givenValue);
 				}
 

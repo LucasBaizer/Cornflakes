@@ -26,40 +26,42 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		this.write = val;
 	}
 
-	private RuntimeException invalid(RuntimeException thr) {
-		this.valid = false;
-		return thr;
+	private void invalid(RuntimeException thr) {
+		if (write) {
+			throw thr;
+		}
+		valid = false;
 	}
 
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		String[] split = null;
-		if (body.contains("==")) {
-			split = body.split("==");
+		if (Strings.contains(body, "==")) {
+			split = Strings.split(body, "==");
 			ifType = EQUAL;
-		} else if (body.contains("!=")) {
-			split = body.split("!=");
+		} else if (Strings.contains(body, "!=")) {
+			split = Strings.split(body, "!=");
 			ifType = NOT_EQUAL;
-		} else if (body.contains(">")) {
-			split = body.split(">");
+		} else if (Strings.contains(body, ">")) {
+			split = Strings.split(body, ">");
 			ifType = GREATER_THAN;
-		} else if (body.contains("<")) {
-			split = body.split("<");
+		} else if (Strings.contains(body, "<")) {
+			split = Strings.split(body, "<");
 			ifType = LESS_THAN;
-		} else if (body.contains(">=")) {
-			split = body.split(">=");
+		} else if (Strings.contains(body, ">=")) {
+			split = Strings.split(body, ">=");
 			ifType = GREATER_THAN_OR_EQUAL;
-		} else if (body.contains("<=")) {
-			split = body.split("<=");
+		} else if (Strings.contains(body, "<=")) {
+			split = Strings.split(body, "<=");
 			ifType = LESS_THAN_OR_EQUAL;
-		} else if (body.contains("is")) {
-			split = body.split("is");
+		} else if (Strings.contains(body, "is")) {
+			split = Strings.split(body, "is");
 			ifType = IS;
-		} else if (body.contains("and")) {
-			split = body.split("and");
+		} else if (Strings.contains(body, "and")) {
+			split = Strings.split(body, "and");
 			ifType = AND;
-		} else if (body.contains("or")) {
-			split = body.split("or");
+		} else if (Strings.contains(body, "or")) {
+			split = Strings.split(body, "or");
 			ifType = OR;
 		}
 
@@ -77,14 +79,18 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 						this.data.increaseStackSize();
 					}
 				} else {
-					if (this.write) {
-						throw invalid(new CompileError("Expecting type 'bool'"));
-					}
+					invalid(new CompileError("Expecting type 'bool'"));
 				}
 			} else {
 				ReferenceCompiler ref = new ReferenceCompiler(this.write, this.data);
 				ref.setAllowBoolean(false);
+				ref.setAllowMath(false);
+				ref.setSource(this);
 				ref.compile(data, m, block, bool, new String[] { bool });
+
+				if (ref.getReferenceSignature() == null || !ref.getReferenceSignature().equals("Z")) {
+					invalid(new CompileError("The given reference is not a boolean"));
+				}
 			}
 
 			if (this.write) {
@@ -118,9 +124,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					op = IF_ICMPLE;
 				} else if (ifType == AND || ifType == OR) {
 					if (!leftType.equals("Z") || !rightType.equals("Z")) {
-						if (this.write) {
-							throw invalid(new CompileError("Only booleans can be compared with 'and' / 'or'"));
-						}
+						invalid(new CompileError("Only booleans can be compared with 'and' / 'or'"));
 					}
 
 					op = IFEQ;
@@ -129,9 +133,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 						stack--;
 					}
 				} else {
-					if (this.write) {
-						throw invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
-					}
+					invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
 				}
 				if (this.write) {
 					m.visitFrame(F_SAME, this.data.getLocalVariables(), null, stack, null);
@@ -142,9 +144,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				boolean aright = Types.isPrimitive(rightType);
 
 				if (aleft ^ aright) {
-					if (this.write) {
-						throw invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
-					}
+					invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
 				}
 
 				int op = 0;
@@ -153,9 +153,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				} else if (ifType == NOT_EQUAL) {
 					op = IF_ACMPEQ;
 				} else if (ifType != IS) {
-					if (this.write) {
-						throw invalid(new CompileError("References cannot be compared using the given comparator"));
-					}
+					invalid(new CompileError("References cannot be compared using the given comparator"));
 				}
 				if (ifType == IS) {
 					if (write) {

@@ -13,6 +13,7 @@ public class ReferenceCompiler implements GenericCompiler {
 	public static final int CONSTRUCTOR = 3;
 	public static final int THIS = 4;
 	public static final int BOOLEAN_EXPRESSION = 5;
+	public static final int MATH_EXPRESSION = 6;
 
 	private MethodData data;
 	private boolean write;
@@ -23,6 +24,9 @@ public class ReferenceCompiler implements GenericCompiler {
 	private int referenceType;
 	private boolean thisType;
 	private boolean allowBoolean = true;
+	private boolean allowMath = true;
+	private boolean math;
+	private GenericCompiler source;
 
 	public ReferenceCompiler(boolean write, MethodData data) {
 		this.write = write;
@@ -51,8 +55,10 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 			if (opens == 0) {
 				if (c == '.') {
-					end = i;
-					break;
+					if (!(body.charAt(i + 1) >= '0' && body.charAt(i + 1) <= '9')) {
+						end = i;
+						break;
+					}
 				}
 			}
 		}
@@ -80,50 +86,52 @@ public class ReferenceCompiler implements GenericCompiler {
 			next = true;
 		} else if (Strings.hasMatching(part, '(', ')')) {
 			String name = part.substring(0, part.indexOf('(')).trim();
-
-			boolean superCall = false;
-			if (this.data instanceof ConstructorData) {
-				if (name.equals("super")) {
-					if (((ConstructorBlock) block).hasCalledSuper()) {
-						throw new CompileError("Cannot call super more than once");
+			if (!name.isEmpty()) {
+				boolean superCall = false;
+				if (this.data instanceof ConstructorData) {
+					if (name.equals("super")) {
+						if (((ConstructorBlock) block).hasCalledSuper()) {
+							throw new CompileError("Cannot call super more than once");
+						}
+						superCall = true;
 					}
-					superCall = true;
-				}
-			} else {
-				if (name.equals("super")) {
-					throw new CompileError("Cannot call super outside of a constructor");
-				}
-			}
-
-			ClassData toUse = thisType ? data : containerData;
-
-			if (superCall || toUse.hasMethod(name)) {
-				compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
-				next = true;
-			} else {
-				ClassData parent = toUse;
-				while ((parent = parent.getParentClass()) != null) {
-					if (parent.hasMethod(name)) {
-						compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
-						next = true;
-						break;
+				} else {
+					if (name.equals("super")) {
+						throw new CompileError("Cannot call super outside of a constructor");
 					}
 				}
 
-				if (!next && !thisType) {
-					String resolved = null;
-					try {
-						resolved = data.resolveClass(name);
-					} catch (CompileError e) {
-						throw new CompileError("Undefined function: " + name);
-					}
+				ClassData toUse = thisType ? data : containerData;
 
-					try {
-						compileConstructorCall(resolved, ClassData.forName(resolved), data, m, block, part, resolved);
-					} catch (ClassNotFoundException e) {
-						throw new CompileError(e);
-					}
+				if (superCall || toUse.hasMethod(name)) {
+					compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
 					next = true;
+				} else {
+					ClassData parent = toUse;
+					while ((parent = parent.getParentClass()) != null) {
+						if (parent.hasMethod(name)) {
+							compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
+							next = true;
+							break;
+						}
+					}
+
+					if (!next && !thisType) {
+						String resolved = null;
+						try {
+							resolved = data.resolveClass(name);
+						} catch (CompileError e) {
+							throw new CompileError("Undefined function: " + name);
+						}
+
+						try {
+							compileConstructorCall(resolved, ClassData.forName(resolved), data, m, block, part,
+									resolved);
+						} catch (ClassNotFoundException e) {
+							throw new CompileError(e);
+						}
+						next = true;
+					}
 				}
 			}
 		} else {
@@ -140,30 +148,55 @@ public class ReferenceCompiler implements GenericCompiler {
 					compileVariableReference(last, 0, containerClass, containerData, data, m, block, part,
 							end == body.length());
 					next = true;
-				} else if (allowBoolean) {
-					BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, null, false);
-					compiler.compile(data, m, block, body, lines);
+				} else {
+					boolean math = true;
+					if (allowBoolean) {
+						BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, null, false);
+						compiler.compile(data, m, block, part, new String[] { part });
 
-					if (compiler.isValid()) {
-						Label iconst = new Label();
-						Label label = new Label();
+						if (compiler.isValid()) {
+							Label iconst = new Label();
+							Label label = new Label();
 
-						compiler.setWrite(true);
-						compiler.setEnd(iconst);
+							compiler.setWrite(this.write);
+							compiler.setEnd(iconst);
 
-						compiler.compile(data, m, block, body, lines);
-						m.visitInsn(ICONST_1);
-						m.visitJumpInsn(GOTO, label);
-						m.visitLabel(iconst);
-						m.visitInsn(ICONST_0);
+							compiler.compile(data, m, block, part, new String[] { part });
+							m.visitInsn(ICONST_1);
+							m.visitJumpInsn(GOTO, label);
+							m.visitLabel(iconst);
+							m.visitInsn(ICONST_0);
 
-						m.visitLabel(label);
+							m.visitLabel(label);
 
-						referenceName = body;
-						referenceOwner = data;
-						referenceSignature = "Z";
-						referenceType = BOOLEAN_EXPRESSION;
-						next = true;
+							referenceName = body;
+							referenceOwner = data;
+							referenceSignature = "Z";
+							referenceType = BOOLEAN_EXPRESSION;
+							next = true;
+							math = false;
+						}
+					}
+					if (math) {
+						if (source instanceof BooleanExpressionCompiler) {
+							next = true;
+						} else {
+							MathExpressionCompiler compiler = new MathExpressionCompiler(this.data, this.allowBoolean,
+									false);
+							compiler.compile(data, m, block, part, new String[] { part });
+
+							if (compiler.isValid()) {
+								compiler.setWrite(this.write);
+								compiler.compile(data, m, block, part, new String[] { part });
+
+								referenceName = body;
+								referenceOwner = data;
+								referenceSignature = compiler.getResultType();
+								referenceType = MATH_EXPRESSION;
+								this.math = true;
+								next = true;
+							}
+						}
 					}
 				}
 			}
@@ -174,10 +207,10 @@ public class ReferenceCompiler implements GenericCompiler {
 				String newBody = body.substring(end + 1, body.length()).trim();
 
 				if (referenceSignature != null) {
-					if(referenceSignature.length() == 1){
+					if (referenceSignature.length() == 1) {
 						return;
 					}
-					
+
 					ClassData newClass = null;
 					try {
 						newClass = ClassData.forName(Types.unpadSignature(referenceSignature));
@@ -560,5 +593,29 @@ public class ReferenceCompiler implements GenericCompiler {
 
 	public void setAllowBoolean(boolean allowBoolean) {
 		this.allowBoolean = allowBoolean;
+	}
+
+	public boolean isAllowMath() {
+		return allowMath;
+	}
+
+	public void setAllowMath(boolean allowMath) {
+		this.allowMath = allowMath;
+	}
+
+	public GenericCompiler getSource() {
+		return source;
+	}
+
+	public void setSource(GenericCompiler source) {
+		this.source = source;
+	}
+
+	public boolean isMath() {
+		return math;
+	}
+
+	public void setMath(boolean math) {
+		this.math = math;
 	}
 }

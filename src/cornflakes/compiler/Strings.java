@@ -3,6 +3,7 @@ package cornflakes.compiler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class Strings {
 	private static final String[] KEYWORDS = { "package", "use", "public", "private", "protected", "func", "final",
@@ -17,8 +18,12 @@ public class Strings {
 	public static final char[] VARIABLE_TYPE = combineExceptions(NUMBERS, SQUARE_BRACKETS);
 	public static final char[] SLASH = new char[] { '/' };
 
-	public static String[] split(String x, String d) {
-		return x.split(d + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+	public static boolean contains(String x, String value) {
+		return Pattern.compile(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)").matcher(x).find();
+	}
+	
+	public static String[] split(String x, String value) {
+		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 	}
 
 	public static char[] combineExceptions(char[]... exceptions) {

@@ -123,7 +123,7 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isNumeric(String type) {
-		if(type == null)
+		if (type == null)
 			return false;
 		return isPrimitive(type);
 	}
@@ -137,7 +137,9 @@ public class Types implements Opcodes {
 		test = unpadSignature(test);
 
 		if (isPrimitive(target) || isPrimitive(test)) {
-			// TODO check more
+			if ((target.equals("double") || target.equals("D")) && (test.equals("float") || test.equals("F"))) {
+				return true;
+			}
 			return false;
 		}
 
@@ -232,9 +234,9 @@ public class Types implements Opcodes {
 							return "double";
 						} else if (!context.isEmpty()) {
 							throw new CompileError("A non-fractional type was expected, but one was given");
+						} else {
+							return "float";
 						}
-					} else {
-						throw new CompileError("Unexpected token: " + l);
 					}
 				} else {
 					return null;
@@ -256,7 +258,7 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isPrimitive(String name) {
-		if(name == null)
+		if (name == null)
 			return false;
 		switch (name) {
 			case "I":
@@ -335,8 +337,8 @@ public class Types implements Opcodes {
 
 	public static String getTypeSignature(String type) {
 		type = unpadSignature(type);
-		
-		if(type.length() == 1) {
+
+		if (type.length() == 1) {
 			return type;
 		}
 

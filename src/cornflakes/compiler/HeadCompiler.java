@@ -127,7 +127,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 					}
 					if (resolved.equals("java/io/Serializable")) {
 						throw new CompileError(
-								"If you wish to have a serializable class use the 'serial' keyword instead of implementing the java.io.Serializable interface");
+								"If you wish to have a serializable class, use the 'serial' keyword instead of implementing the java.io.Serializable interface");
 					}
 					interfaces.add(resolved);
 				}

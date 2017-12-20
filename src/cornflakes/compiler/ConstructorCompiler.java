@@ -210,11 +210,11 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitLabel(l0);
 		mv.visitLineNumber(0, l0);
 		mv.visitVarInsn(ALOAD, 0);
-		mv.visitMethodInsn(INVOKESPECIAL, Strings.transformClassName(data.getParentName()), "<init>", "()V", false);
+		mv.visitMethodInsn(INVOKESPECIAL, data.getParentName(), "<init>", "()V", false);
 		mv.visitInsn(RETURN);
 		Label l1 = new Label();
 		mv.visitLabel(l1);
-		mv.visitLocalVariable("this", "L" + Strings.transformClassName(data.getClassName()) + ";", null, l0, l1, 0);
+		mv.visitLocalVariable("this", "L" + data.getClassName() + ";", null, l0, l1, 0);
 		mv.visitMaxs(1, 1);
 		mv.visitEnd();
 
