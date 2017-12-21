@@ -78,7 +78,7 @@ public class Strings {
 	}
 
 	public static String normalizeSpaces(String str) {
-		return str.replaceAll("\\s+", " ").trim();
+		return str.replaceAll("\\s+(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", " ").trim();
 	}
 
 	public static String transformClassName(String cls) {

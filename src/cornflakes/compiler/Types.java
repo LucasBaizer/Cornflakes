@@ -258,51 +258,51 @@ public class Types implements Opcodes {
 		if (name == null)
 			return false;
 		switch (name) {
-			case "I":
-			case "Z":
-			case "B":
-			case "C":
-			case "S":
-			case "J":
-			case "F":
-			case "D":
-			case "void":
-			case "bool":
-			case "byte":
-			case "char":
-			case "short":
-			case "int":
-			case "long":
-			case "float":
-			case "double":
-				return true;
-			default:
-				return false;
+		case "I":
+		case "Z":
+		case "B":
+		case "C":
+		case "S":
+		case "J":
+		case "F":
+		case "D":
+		case "void":
+		case "bool":
+		case "byte":
+		case "char":
+		case "short":
+		case "int":
+		case "long":
+		case "float":
+		case "double":
+			return true;
+		default:
+			return false;
 		}
 	}
 
 	public static Class<?> getClassFromPrimitive(String primitive) {
 		switch (primitive) {
-			case "void":
-				return Void.class;
-			case "bool":
-				return boolean.class;
-			case "byte":
-				return byte.class;
-			case "char":
-				return char.class;
-			case "short":
-				return short.class;
-			case "int":
-				return int.class;
-			case "long":
-				return long.class;
-			case "float":
-				return float.class;
-			case "double":
-				return double.class;
-			default:
-				throw new CompileError("Unresolved type: " + primitive);
+		case "void":
+			return Void.class;
+		case "bool":
+			return boolean.class;
+		case "byte":
+			return byte.class;
+		case "char":
+			return char.class;
+		case "short":
+			return short.class;
+		case "int":
+			return int.class;
+		case "long":
+			return long.class;
+		case "float":
+			return float.class;
+		case "double":
+			return double.class;
+		default:
+			throw new CompileError("Unresolved type: " + primitive);
 		}
 	}
 
@@ -368,24 +368,24 @@ public class Types implements Opcodes {
 
 	public static ClassData getTypeFromSignature(String sig) {
 		switch (sig) {
-			case "V":
-				return ClassData.fromJavaClass(Void.class);
-			case "Z":
-				return ClassData.fromJavaClass(boolean.class);
-			case "B":
-				return ClassData.fromJavaClass(byte.class);
-			case "C":
-				return ClassData.fromJavaClass(char.class);
-			case "D":
-				return ClassData.fromJavaClass(double.class);
-			case "F":
-				return ClassData.fromJavaClass(float.class);
-			case "I":
-				return ClassData.fromJavaClass(int.class);
-			case "J":
-				return ClassData.fromJavaClass(long.class);
-			case "S":
-				return ClassData.fromJavaClass(short.class);
+		case "V":
+			return ClassData.fromJavaClass(Void.class);
+		case "Z":
+			return ClassData.fromJavaClass(boolean.class);
+		case "B":
+			return ClassData.fromJavaClass(byte.class);
+		case "C":
+			return ClassData.fromJavaClass(char.class);
+		case "D":
+			return ClassData.fromJavaClass(double.class);
+		case "F":
+			return ClassData.fromJavaClass(float.class);
+		case "I":
+			return ClassData.fromJavaClass(int.class);
+		case "J":
+			return ClassData.fromJavaClass(long.class);
+		case "S":
+			return ClassData.fromJavaClass(short.class);
 		}
 
 		if (sig.startsWith("[")) {

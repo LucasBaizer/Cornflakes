@@ -2,12 +2,5 @@ package cornflakes.compiler.cfs;
 public class CFSMain;
 
 public static func main(args: string[]) {
-	var x = true;
-	if x {
-		System.out.println("x is true");
-	} else {
-		System.out.println("x is false");
-	}
-	
-	System.out.println("done");
+	System.out.println(args[0]);
 }

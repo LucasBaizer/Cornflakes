@@ -1,5 +1,8 @@
 package cornflakes.compiler;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.objectweb.asm.MethodVisitor;
 
 public class GenericBodyCompiler implements GenericCompiler {
@@ -27,8 +30,23 @@ public class GenericBodyCompiler implements GenericCompiler {
 			if (line.endsWith("{")) {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
 				String newBlock = body.substring(cursor, close).trim();
+				String next = body.substring(close);
 				String[] blockLines = Strings.accumulate(newBlock);
-				new GenericBlockCompiler(this.data).compile(data, m, block, newBlock, blockLines);
+				List<String[]> list = new ArrayList<>();
+				list.add(blockLines);
+
+				while (next.trim().startsWith("else")) {
+					int spaces = next.trim().length() - next.length();
+					String[] acc = Strings.accumulate(next);
+					int old = close;
+					close = Strings.findClosing(body.toCharArray(), '{', '}', close + acc[0].length() + spaces) + 1;
+					String sub = body.substring(old, close);
+					list.add(Strings.accumulate(sub));
+					newBlock += sub;
+					next = body.substring(close);
+				}
+
+				new GenericBlockCompiler(this.data, list).compile(data, m, block, newBlock, blockLines);
 
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {

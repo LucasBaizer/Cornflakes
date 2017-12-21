@@ -1,19 +1,22 @@
 package cornflakes.compiler;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class GenericBlockCompiler implements GenericCompiler {
 	private MethodData data;
+	private List<String[]> lines = new ArrayList<>();
 
-	public GenericBlockCompiler(MethodData data) {
+	public GenericBlockCompiler(MethodData data, List<String[]> lines) {
 		this.data = data;
+		this.lines = lines;
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
-		String firstLine = Strings.normalizeSpaces(lines[0]);
-
+	public void compile(ClassData data, MethodVisitor m, Block block, String rawbody, String[] rawlines) {
 		Label start = new Label();
 
 		this.data.addBlock();
@@ -21,29 +24,59 @@ public class GenericBlockCompiler implements GenericCompiler {
 		m.visitLabel(start);
 		m.visitLineNumber(this.data.getBlocks(), start);
 
+		String firstLine = Strings.normalizeSpaces(lines.get(0)[0]);
 		String condition = firstLine.substring(0, firstLine.lastIndexOf('{')).trim();
-		String[] newLines = Strings.before(Strings.after(lines, 1), 1);
-		String newBlock = Strings.accumulate(newLines).trim();
 
-		Block thisBlock = new Block(block.getStart() + 1, start, null);
-		block.addBlock(thisBlock);
 		if (condition.isEmpty()) {
+			Block thisBlock = new Block(block.getStart() + 1, start, null);
+			block.addBlock(thisBlock);
+			String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
+			String newBlock = Strings.accumulate(newLines).trim();
+
 			thisBlock.setEndLabel(block.getEndLabel());
 			new GenericBodyCompiler(this.data).compile(data, m, thisBlock, newBlock, Strings.accumulate(newBlock));
 		} else {
 			if (condition.startsWith("if")) {
-				Label end = new Label();
-				thisBlock.setEndLabel(end);
+				boolean hasElse = false;
+				Label finalEnd = new Label();
 
-				String parse = condition.substring(2).trim();
-				new BooleanExpressionCompiler(this.data, end, true).compile(data, m, thisBlock, parse,
-						new String[] { parse });
-				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+				int last = block.getStart() + 1;
+				for (int i = 0; i < lines.size(); i++) {
+					Block currentBlock = new Block(last++, start, null);
+					block.addBlock(currentBlock);
+					Label theEnd = new Label();
+					currentBlock.setEndLabel(theEnd);
 
-				m.visitLabel(end);
-			} else if (body.startsWith("else")) {
-				String after = body.substring(4).trim();
-				new GenericBlockCompiler(this.data).compile(data, m, block, after, Strings.accumulate(after));
+					firstLine = Strings.normalizeSpaces(lines.get(i)[0]);
+					condition = firstLine.substring(0, firstLine.lastIndexOf('{')).trim();
+					String[] newLines = Strings.before(Strings.after(lines.get(i), 1), 1);
+					String newBlock = Strings.accumulate(newLines).trim();
+
+					int val = 2;
+					if (condition.startsWith("else")) {
+						val = 4;
+					}
+					String parse = condition.substring(val).trim();
+					if (!parse.isEmpty()) {
+						if (parse.startsWith("if")) {
+							parse = parse.substring(2).trim();
+						}
+						new BooleanExpressionCompiler(this.data, theEnd, true).compile(data, m, currentBlock, parse,
+								new String[] { parse });
+					} else {
+						if (hasElse) {
+							throw new CompileError("Cannot have multiple else blocks attached to one if chain");
+						}
+						hasElse = true;
+					}
+					new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+					m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+					m.visitJumpInsn(GOTO, finalEnd);
+
+					m.visitLabel(theEnd);
+				}
+
+				m.visitLabel(finalEnd);
 			} else {
 				throw new CompileError("Unresolved block condition: " + condition);
 			}

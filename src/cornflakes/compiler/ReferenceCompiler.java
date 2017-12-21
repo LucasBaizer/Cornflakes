@@ -135,18 +135,24 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 			}
 		} else {
-			if (this.data != null && this.data.hasLocal(part, block)) {
-				compileVariableReference(last, 1, containerClass, containerData, data, m, block, part,
+			boolean arr = part.contains("[");
+			String varPart = part.substring(0, !arr ? part.length() : part.indexOf('['));
+			String arrayIndex = null;
+			if (arr) {
+				arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
+			}
+			if (this.data != null && this.data.hasLocal(varPart, block)) {
+				compileVariableReference(last, 1, containerClass, containerData, data, m, block, varPart, arrayIndex,
 						end == body.length());
 				next = true;
 			} else {
-				if (data.hasField(part)) {
-					compileVariableReference(last, 0, data.getClassName(), data, data, m, block, part,
+				if (data.hasField(varPart)) {
+					compileVariableReference(last, 0, data.getClassName(), data, data, m, block, varPart, arrayIndex,
 							end == body.length());
 					next = true;
-				} else if (!thisType && containerData.hasField(part)) {
-					compileVariableReference(last, 0, containerClass, containerData, data, m, block, part,
-							end == body.length());
+				} else if (!thisType && containerData.hasField(varPart)) {
+					compileVariableReference(last, 0, containerClass, containerData, data, m, block, varPart,
+							arrayIndex, end == body.length());
 					next = true;
 				} else {
 					boolean math = true;
@@ -163,7 +169,8 @@ public class ReferenceCompiler implements GenericCompiler {
 
 							compiler.compile(data, m, block, part, new String[] { part });
 							m.visitInsn(ICONST_1);
-							m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+							m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(),
+									null);
 							m.visitJumpInsn(GOTO, label);
 							m.visitLabel(iconst);
 							m.visitInsn(ICONST_0);
@@ -280,7 +287,8 @@ public class ReferenceCompiler implements GenericCompiler {
 	}
 
 	private void compileVariableReference(ReferenceCompiler last, int source, String containerClass,
-			ClassData containerData, ClassData data, MethodVisitor m, Block block, String body, boolean isLast) {
+			ClassData containerData, ClassData data, MethodVisitor m, Block block, String body, String arrayIndex,
+			boolean isLast) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
 			if (write) {
@@ -317,8 +325,14 @@ public class ReferenceCompiler implements GenericCompiler {
 					int op = Types.getOpcode(Types.LOAD, type);
 					m.visitVarInsn(op, local.getIndex());
 
-					if (this.data != null)
+					if (arrayIndex != null) {
+						m.visitLdcInsn(Integer.parseInt(arrayIndex));
+						m.visitInsn(AALOAD);
+					}
+
+					if (this.data != null) {
 						this.data.ics();
+					}
 				}
 			}
 
