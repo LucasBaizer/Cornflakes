@@ -94,7 +94,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			}
 
 			if (this.write) {
-				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getStackSize(), null);
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(IFEQ, end);
 			}
 		} else {
