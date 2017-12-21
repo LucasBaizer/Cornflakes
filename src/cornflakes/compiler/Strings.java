@@ -21,9 +21,13 @@ public class Strings {
 	public static boolean contains(String x, String value) {
 		return Pattern.compile(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)").matcher(x).find();
 	}
-	
+
 	public static String[] split(String x, String value) {
 		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+	}
+
+	public static String[] split(String x, String value, int max) {
+		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", max);
 	}
 
 	public static char[] combineExceptions(char[]... exceptions) {

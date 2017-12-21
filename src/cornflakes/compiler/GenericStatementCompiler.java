@@ -44,7 +44,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						m.visitLdcInsn(val);
 						m.visitInsn(ARETURN);
 
-						this.data.increaseStackSize();
+						this.data.ics();
 					} else {
 						if (!Types.isSuitable(this.data.getReturnTypeSignature(), Types.getTypeSignature(type))) {
 							throw new CompileError(
@@ -65,7 +65,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 								m.visitVarInsn(push, Integer.parseInt(val.toString()));
 							}
 						}
-						this.data.increaseStackSize();
+						this.data.ics();
 
 						int op = Types.getOpcode(Types.RETURN, type);
 						m.visitInsn(op);
@@ -151,14 +151,14 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				if (push == LDC) {
 					m.visitLdcInsn(value);
-					this.data.increaseStackSize();
+					this.data.ics();
 				} else if (value != null) {
 					String toString = value.toString();
 					if (toString.equals("true") || toString.equals("false")) {
 						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
 					} else {
 						m.visitVarInsn(push, Integer.parseInt(toString));
-						this.data.increaseStackSize();
+						this.data.ics();
 					}
 				}
 
@@ -205,11 +205,11 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 						if (push == LDC) {
 							m.visitLdcInsn(obj);
-							this.data.increaseStackSize();
 						} else {
 							m.visitVarInsn(push, Integer.parseInt(obj.toString()));
-							this.data.increaseStackSize();
 						}
+
+						this.data.ics();
 
 						if (field instanceof LocalData) {
 							int store = Types.getOpcode(Types.STORE, field.getType());

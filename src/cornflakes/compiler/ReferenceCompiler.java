@@ -76,7 +76,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 			}
 			m.visitVarInsn(ALOAD, 0);
-			this.data.increaseStackSize();
+			this.data.ics();
 
 			thisType = true;
 			referenceName = "this";
@@ -163,6 +163,7 @@ public class ReferenceCompiler implements GenericCompiler {
 
 							compiler.compile(data, m, block, part, new String[] { part });
 							m.visitInsn(ICONST_1);
+							m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 							m.visitJumpInsn(GOTO, label);
 							m.visitLabel(iconst);
 							m.visitInsn(ICONST_0);
@@ -287,7 +288,7 @@ public class ReferenceCompiler implements GenericCompiler {
 					if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
 							&& containerClass.equals(data.getClassName())) {
 						m.visitVarInsn(ALOAD, 0);
-						this.data.increaseStackSize();
+						this.data.ics();
 					}
 				}
 
@@ -299,7 +300,7 @@ public class ReferenceCompiler implements GenericCompiler {
 					}
 
 					if (this.data != null)
-						this.data.increaseStackSize();
+						this.data.ics();
 				}
 			}
 
@@ -317,7 +318,7 @@ public class ReferenceCompiler implements GenericCompiler {
 					m.visitVarInsn(op, local.getIndex());
 
 					if (this.data != null)
-						this.data.increaseStackSize();
+						this.data.ics();
 				}
 			}
 
@@ -379,7 +380,7 @@ public class ReferenceCompiler implements GenericCompiler {
 			m.visitInsn(DUP);
 
 			if (this.data != null)
-				this.data.increaseStackSize();
+				this.data.ics();
 		}
 
 		for (String par : split) {
@@ -391,7 +392,7 @@ public class ReferenceCompiler implements GenericCompiler {
 					m.visitLdcInsn(Types.parseLiteral(type, par));
 
 					if (this.data != null)
-						this.data.increaseStackSize();
+						this.data.ics();
 				}
 			} else {
 				ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
@@ -403,7 +404,7 @@ public class ReferenceCompiler implements GenericCompiler {
 			m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
 
 			if (this.data != null)
-				this.data.increaseStackSize();
+				this.data.ics();
 		}
 
 		referenceSignature = Types.getTypeSignature(containerData.getClassName());
@@ -467,13 +468,13 @@ public class ReferenceCompiler implements GenericCompiler {
 				m.visitVarInsn(ALOAD, 0);
 
 				if (this.data != null)
-					this.data.increaseStackSize();
+					this.data.ics();
 			}
 		} else if (!thisType && (last == null || !last.thisType)) {
 			m.visitVarInsn(ALOAD, 0);
 
 			if (this.data != null)
-				this.data.increaseStackSize();
+				this.data.ics();
 		}
 
 		for (String par : split) {
@@ -485,7 +486,7 @@ public class ReferenceCompiler implements GenericCompiler {
 					m.visitLdcInsn(Types.parseLiteral(type, par));
 
 					if (this.data != null)
-						this.data.increaseStackSize();
+						this.data.ics();
 				}
 			} else {
 				ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
@@ -508,7 +509,7 @@ public class ReferenceCompiler implements GenericCompiler {
 							method.isInterfaceMethod());
 					if (!method.getReturnTypeSignature().equals("V")) {
 						if (this.data != null)
-							this.data.increaseStackSize();
+							this.data.ics();
 					}
 				}
 			} else {
@@ -522,7 +523,7 @@ public class ReferenceCompiler implements GenericCompiler {
 							method.isInterfaceMethod());
 					if (!method.getReturnTypeSignature().equals("V")) {
 						if (this.data != null)
-							this.data.increaseStackSize();
+							this.data.ics();
 					}
 				}
 			}

@@ -137,38 +137,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				this.methodData.addLocalVariable();
 			}
 
-			for (FieldData datum : data.getFields()) {
-				if (!datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
-					m.visitVarInsn(ALOAD, 0);
-
-					String type = datum.getType();
-
-					if (Types.isPrimitive(type) || type.equals("Ljava/lang/String;")) {
-						int push = Types.getOpcode(Types.PUSH, type);
-						if (push == LDC) {
-							m.visitLdcInsn(datum.getProposedData());
-							this.methodData.increaseStackSize();
-						} else {
-							m.visitVarInsn(push, Integer.parseInt(datum.getProposedData().toString()));
-							this.methodData.increaseStackSize();
-						}
-
-						m.visitFieldInsn(PUTFIELD, this.data.getClassName(), datum.getName(), datum.getType());
-					} else {
-						String raw = (String) datum.getProposedData();
-
-						ReferenceCompiler compiler = new ReferenceCompiler(true, this.methodData);
-						compiler.compile(data, m, block, raw, new String[] { raw });
-
-						if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
-							throw new CompileError(
-									compiler.getReferenceSignature() + " is not assignable to " + datum.getType());
-						}
-
-						m.visitFieldInsn(PUTFIELD, this.data.getClassName(), datum.getName(), datum.getType());
-					}
-				}
-			}
+			assignDefaults(m, data, this.methodData, block);
 
 			String[] inner = Strings.before(Strings.after(lines, 1), 1);
 			String innerBody = Strings.accumulate(inner).trim();
@@ -207,17 +176,53 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
 		mv.visitCode();
 		Label l0 = new Label();
+		Label l1 = new Label();
 		mv.visitLabel(l0);
 		mv.visitLineNumber(0, l0);
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitMethodInsn(INVOKESPECIAL, data.getParentName(), "<init>", "()V", false);
+		MethodData mData = new ConstructorData("<init>", 0);
+		assignDefaults(mv, data, mData, new ConstructorBlock(0, l0, l1));
 		mv.visitInsn(RETURN);
-		Label l1 = new Label();
 		mv.visitLabel(l1);
 		mv.visitLocalVariable("this", "L" + data.getClassName() + ";", null, l0, l1, 0);
-		mv.visitMaxs(1, 1);
+		mv.visitMaxs(1 + mData.getStackSize(), 1);
 		mv.visitEnd();
 
 		data.addConstructor(new ConstructorData("<init>", ACC_PUBLIC));
+	}
+
+	private void assignDefaults(MethodVisitor m, ClassData data, MethodData mData, Block block) {
+		for (FieldData datum : data.getFields()) {
+			if (!datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
+				m.visitVarInsn(ALOAD, 0);
+
+				String type = datum.getType();
+
+				if (Types.isPrimitive(type) || type.equals("Ljava/lang/String;")) {
+					int push = Types.getOpcode(Types.PUSH, type);
+					if (push == LDC) {
+						m.visitLdcInsn(datum.getProposedData());
+					} else {
+						m.visitVarInsn(push, Integer.parseInt(datum.getProposedData().toString()));
+					}
+					mData.ics();
+
+					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType());
+				} else {
+					String raw = (String) datum.getProposedData();
+
+					ReferenceCompiler compiler = new ReferenceCompiler(true, this.methodData);
+					compiler.compile(data, m, block, raw, new String[] { raw });
+
+					if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
+						throw new CompileError(
+								compiler.getReferenceSignature() + " is not assignable to " + datum.getType());
+					}
+
+					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType());
+				}
+			}
+		}
 	}
 }

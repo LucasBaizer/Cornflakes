@@ -35,25 +35,25 @@ public class MathExpressionCompiler implements GenericCompiler {
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		String[] split = null;
 		if (Strings.contains(body, "&")) {
-			split = Strings.split(body, "&");
+			split = Strings.split(body, "&", 2);
 			type = AND;
 		} else if (Strings.contains(body, "+")) {
-			split = Strings.split(body, "+");
+			split = Strings.split(body, "+", 2);
 			type = ADD;
 		} else if (Strings.contains(body, "-")) {
-			split = Strings.split(body, "-");
+			split = Strings.split(body, "-", 2);
 			type = SUBTRACT;
 		} else if (Strings.contains(body, "/")) {
-			split = Strings.split(body, "/");
+			split = Strings.split(body, "/", 2);
 			type = DIVIDE;
 		} else if (Strings.contains(body, "*")) {
-			split = Strings.split(body, "*");
+			split = Strings.split(body, "*", 2);
 			type = MULTIPLY;
 		} else if (Strings.contains(body, "^")) {
-			split = Strings.split(body, "^");
+			split = Strings.split(body, "^", 2);
 			type = XOR;
 		} else if (Strings.contains(body, "|")) {
-			split = Strings.split(body, "|");
+			split = Strings.split(body, "|", 2);
 			type = OR;
 		} else {
 			invalid(new CompileError("Expecting mathematical operator"));
@@ -81,9 +81,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 
 		if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
 			int op = 0;
-			if (type == AND) {
-				op = isLong ? LAND : IAND;
-			} else if (type == ADD) {
+			if (type == ADD) {
 				if (isDouble) {
 					op = DADD;
 				} else if (isFloat) {
@@ -93,6 +91,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 				} else if (isInt) {
 					op = IADD;
 				}
+				if (this.write)
+					this.data.dcs();
 			} else if (type == SUBTRACT) {
 				if (isDouble) {
 					op = DSUB;
@@ -103,6 +103,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 				} else if (isInt) {
 					op = ISUB;
 				}
+				if (this.write)
+					this.data.dcs();
 			} else if (type == MULTIPLY) {
 				if (isDouble) {
 					op = DMUL;
@@ -113,6 +115,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 				} else if (isInt) {
 					op = IMUL;
 				}
+				if (this.write)
+					this.data.dcs();
 			} else if (type == DIVIDE) {
 				if (isDouble) {
 					op = DDIV;
@@ -123,6 +127,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 				} else if (isInt) {
 					op = IDIV;
 				}
+				if (this.write)
+					this.data.dcs();
 			} else if (type == AND) {
 				op = isLong ? LAND : IAND;
 			} else if (type == OR) {
@@ -155,7 +161,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			}
 
 			if (this.write) {
-				this.data.increaseStackSize();
+				this.data.ics();
 			}
 
 			return Types.getTypeSignature(type);

@@ -40,10 +40,10 @@ public class StaticInitializerCompiler extends Compiler {
 					int push = Types.getOpcode(Types.PUSH, type);
 					if (push == LDC) {
 						m.visitLdcInsn(datum.getProposedData());
-						method.increaseStackSize();
+						method.ics();
 					} else {
 						m.visitVarInsn(push, Integer.parseInt(datum.getProposedData().toString()));
-						method.increaseStackSize();
+						method.ics();
 					}
 
 					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(), datum.getType());

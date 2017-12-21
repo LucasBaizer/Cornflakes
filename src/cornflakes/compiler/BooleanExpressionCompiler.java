@@ -76,7 +76,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				if (type.equals("bool")) {
 					if (this.write) {
 						m.visitInsn(bool.equals("false") ? ICONST_0 : ICONST_1);
-						this.data.increaseStackSize();
+						this.data.ics();
 					}
 				} else {
 					invalid(new CompileError("Expecting type 'bool'"));
@@ -109,7 +109,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 
 			if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
 				int op = 0;
-				int stack = this.data.getStackSize();
+				int stack = this.data.getCurrentStack();
 				if (ifType == EQUAL) {
 					op = IF_ICMPNE;
 				} else if (ifType == NOT_EQUAL) {
@@ -175,7 +175,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			if (type.equals("bool")) {
 				if (this.write) {
 					m.visitInsn(term.equals("false") ? ICONST_0 : ICONST_1);
-					this.data.increaseStackSize();
+					this.data.ics();
 				}
 			} else {
 				int oc = Types.getOpcode(Types.PUSH, type);
@@ -198,7 +198,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				}
 
 				if (this.write) {
-					this.data.increaseStackSize();
+					this.data.ics();
 				}
 			}
 

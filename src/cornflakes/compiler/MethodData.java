@@ -62,8 +62,8 @@ public class MethodData {
 		return stackSize;
 	}
 
-	public void setStackSize(int stackSize) {
-		this.stackSize = stackSize;
+	public int getCurrentStack() {
+		return currentStack;
 	}
 
 	public int getLocalVariables() {
@@ -76,10 +76,6 @@ public class MethodData {
 
 	public void addLocalVariable() {
 		this.localVariables++;
-	}
-
-	public void increaseStackSize() {
-		this.stackSize++;
 	}
 
 	public boolean hasLocal(String name, Block block) {
@@ -193,7 +189,16 @@ public class MethodData {
 		this.interfaceMethod = interfaceMethod;
 	}
 
-	public void decreaseStackSize() {
-		this.stackSize--;
+	private int currentStack = 0;
+
+	public void ics() {
+		this.currentStack++;
+		if (this.currentStack > stackSize) {
+			stackSize = this.currentStack;
+		}
+	}
+
+	public void dcs() {
+		this.currentStack--;
 	}
 }

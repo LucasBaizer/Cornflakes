@@ -137,9 +137,6 @@ public class Types implements Opcodes {
 		test = unpadSignature(test);
 
 		if (isPrimitive(target) || isPrimitive(test)) {
-			if ((target.equals("double") || target.equals("D")) && (test.equals("float") || test.equals("F"))) {
-				return true;
-			}
 			return false;
 		}
 
