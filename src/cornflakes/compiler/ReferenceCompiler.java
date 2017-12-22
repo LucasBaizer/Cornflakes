@@ -14,6 +14,7 @@ public class ReferenceCompiler implements GenericCompiler {
 	public static final int THIS = 4;
 	public static final int BOOLEAN_EXPRESSION = 5;
 	public static final int MATH_EXPRESSION = 6;
+	public static final int NEW_ARRAY = 7;
 
 	private MethodData data;
 	private boolean write;
@@ -122,92 +123,108 @@ public class ReferenceCompiler implements GenericCompiler {
 					}
 
 					if (!next && !thisType) {
-						String resolved = null;
-						try {
-							resolved = data.resolveClass(name);
-						} catch (CompileError e) {
-							throw new CompileError("Undefined function: " + name);
-						}
+						if (!name.equals("array")) {
+							String resolved = null;
+							try {
+								resolved = data.resolveClass(name);
+							} catch (CompileError e) {
+								throw new CompileError("Undefined function: " + name);
+							}
 
-						try {
-							compileConstructorCall(resolved, ClassData.forName(resolved), data, m, block, part,
-									resolved);
-						} catch (ClassNotFoundException e) {
-							throw new CompileError(e);
+							try {
+								compileConstructorCall(resolved, ClassData.forName(resolved), data, m, block, part,
+										resolved);
+							} catch (ClassNotFoundException e) {
+								throw new CompileError(e);
+							}
+							next = true;
+						} else {
+							compileConstructorCall(data.getClassName(), data, data, m, block, part, "__array__");
+							next = true;
 						}
-						next = true;
 					}
 				}
 			}
 		} else {
-			boolean arr = part.contains("[");
-			String varPart = part.substring(0, !arr ? part.length() : part.indexOf('['));
-			String arrayIndex = null;
-			if (arr) {
-				arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
-			}
-			if (this.data != null && this.data.hasLocal(varPart, block)) {
-				compileVariableReference(last, 1, containerClass, containerData, data, m, block, varPart, arrayIndex,
-						end == body.length());
+			if (part.equals("length") && referenceSignature.startsWith("[")) {
+				m.visitInsn(ARRAYLENGTH);
+				if (this.data != null) {
+					this.data.ics();
+				}
+				referenceName = "length";
+				referenceSignature = "I";
+				referenceType = LOCAL_VARIABLE;
 				next = true;
 			} else {
-				if (data.hasField(varPart)) {
-					compileVariableReference(last, 0, data.getClassName(), data, data, m, block, varPart, arrayIndex,
-							end == body.length());
-					next = true;
-				} else if (!thisType && containerData.hasField(varPart)) {
-					compileVariableReference(last, 0, containerClass, containerData, data, m, block, varPart,
+				boolean arr = part.contains("[");
+				String varPart = part.substring(0, !arr ? part.length() : part.indexOf('['));
+				String arrayIndex = null;
+				if (arr) {
+					arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
+				}
+				if (this.data != null && this.data.hasLocal(varPart, block)) {
+					compileVariableReference(last, 1, containerClass, containerData, data, m, block, varPart,
 							arrayIndex, end == body.length());
 					next = true;
 				} else {
-					boolean math = true;
-					if (allowBoolean) {
-						BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, null, false);
-						compiler.compile(data, m, block, part, new String[] { part });
-
-						if (compiler.isValid()) {
-							Label iconst = new Label();
-							Label label = new Label();
-
-							compiler.setWrite(this.write);
-							compiler.setEnd(iconst);
-
-							compiler.compile(data, m, block, part, new String[] { part });
-							m.visitInsn(ICONST_1);
-							m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(),
-									null);
-							m.visitJumpInsn(GOTO, label);
-							m.visitLabel(iconst);
-							m.visitInsn(ICONST_0);
-
-							m.visitLabel(label);
-
-							referenceName = body;
-							referenceOwner = data;
-							referenceSignature = "Z";
-							referenceType = BOOLEAN_EXPRESSION;
-							next = true;
-							math = false;
-						}
-					}
-					if (math) {
-						if (source instanceof BooleanExpressionCompiler) {
-							next = true;
-						} else {
-							MathExpressionCompiler compiler = new MathExpressionCompiler(this.data, this.allowBoolean,
-									false);
+					if (data.hasField(varPart)) {
+						compileVariableReference(last, 0, data.getClassName(), data, data, m, block, varPart,
+								arrayIndex, end == body.length());
+						next = true;
+					} else if (!thisType && containerData.hasField(varPart)) {
+						compileVariableReference(last, 0, containerClass, containerData, data, m, block, varPart,
+								arrayIndex, end == body.length());
+						next = true;
+					} else {
+						boolean math = true;
+						if (allowBoolean) {
+							BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, null, false);
 							compiler.compile(data, m, block, part, new String[] { part });
 
 							if (compiler.isValid()) {
+								Label iconst = new Label();
+								Label label = new Label();
+
 								compiler.setWrite(this.write);
+								compiler.setEnd(iconst);
+
 								compiler.compile(data, m, block, part, new String[] { part });
+								m.visitInsn(ICONST_1);
+								m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(),
+										null);
+								m.visitJumpInsn(GOTO, label);
+								m.visitLabel(iconst);
+								m.visitInsn(ICONST_0);
+
+								m.visitLabel(label);
 
 								referenceName = body;
 								referenceOwner = data;
-								referenceSignature = compiler.getResultType();
-								referenceType = MATH_EXPRESSION;
-								this.math = true;
+								referenceSignature = "Z";
+								referenceType = BOOLEAN_EXPRESSION;
 								next = true;
+								math = false;
+							}
+						}
+						if (math) {
+							if (source instanceof BooleanExpressionCompiler) {
+								next = true;
+							} else {
+								MathExpressionCompiler compiler = new MathExpressionCompiler(this.data,
+										this.allowBoolean, false);
+								compiler.compile(data, m, block, part, new String[] { part });
+
+								if (compiler.isValid()) {
+									compiler.setWrite(this.write);
+									compiler.compile(data, m, block, part, new String[] { part });
+
+									referenceName = body;
+									referenceOwner = data;
+									referenceSignature = compiler.getResultType();
+									referenceType = MATH_EXPRESSION;
+									this.math = true;
+									next = true;
+								}
 							}
 						}
 					}
@@ -353,7 +370,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 			}
 
-			referenceSignature = type;
+			referenceSignature = arrayIndex == null ? type : type.substring(1);
 			referenceType = LOCAL_VARIABLE;
 			referenceName = local.getName();
 			referenceOwner = containerData;
@@ -363,85 +380,121 @@ public class ReferenceCompiler implements GenericCompiler {
 	private void compileConstructorCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
 			Block block, String body, String clazz) throws ClassNotFoundException {
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
+		if (clazz.equals("__array__")) {
+			String[] split = pars.split(",");
+			if (split.length != 2) {
+				throw new CompileError("Array declarations should be in the form 'array(type, size)'");
+			}
 
-		MethodData[] methods = containerData.getConstructors();
-		MethodData method = null;
+			String type = split[0].trim();
+			String size = split[1].trim();
 
-		String[] split = getParameters(pars);
+			String resolved = data.resolveClass(type);
 
-		for (MethodData met : methods) {
-			if (met.getParameters().size() == split.length) {
-				int idx = 0;
-				boolean success = true;
-				for (String par : split) {
-					String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
-					String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+			try {
+				int x = Integer.parseInt(size);
+				if (x < 0) {
+					throw new CompileError("Array literal indexes must be greater than or equal to 0");
+				}
+				m.visitLdcInsn(x);
+			} catch (Exception e) {
+				ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+				compiler.compile(data, m, block, size, new String[] { size });
 
-					if (type != null) {
-						if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
-							success = false;
-							break;
+				if (!compiler.getReferenceSignature().equals("I")) {
+					throw new CompileError("Arrays can only be indexed by integers");
+				}
+			}
+
+			if (!Types.isPrimitive(resolved)) {
+				m.visitTypeInsn(ANEWARRAY, resolved);
+			}
+
+			referenceSignature = "[" + Types.getTypeSignature(resolved);
+			referenceType = NEW_ARRAY;
+			referenceName = "array";
+			referenceOwner = containerData;
+		} else {
+			MethodData[] methods = containerData.getConstructors();
+			MethodData method = null;
+
+			String[] split = getParameters(pars);
+
+			for (MethodData met : methods) {
+				if (met.getParameters().size() == split.length) {
+					int idx = 0;
+					boolean success = true;
+					for (String par : split) {
+						String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
+						String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+
+						if (type != null) {
+							if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
+								success = false;
+								break;
+							}
+						} else {
+							ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
+							compiler.compile(this, data.getClassName(), data, data, m, block, par,
+									new String[] { par });
+
+							if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
+								success = false;
+								break;
+							}
 						}
-					} else {
-						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
-						compiler.compile(this, data.getClassName(), data, data, m, block, par, new String[] { par });
-
-						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
-							success = false;
-							break;
-						}
+						idx++;
 					}
-					idx++;
-				}
 
-				if (success) {
-					method = met;
-					break;
+					if (success) {
+						method = met;
+						break;
+					}
 				}
 			}
-		}
 
-		if (method == null) {
-			throw new CompileError("No constructor overload takes the given parameters");
+			if (method == null) {
+				throw new CompileError("No constructor overload takes the given parameters");
 
-		}
-
-		if (write) {
-			m.visitTypeInsn(NEW, containerData.getClassName());
-			m.visitInsn(DUP);
-
-			if (this.data != null)
-				this.data.ics();
-		}
-
-		for (String par : split) {
-			String type = Types.getType(par,
-					this.data == null ? "" : this.data.getReturnType().getSimpleClassName().toLowerCase());
-
-			if (type != null) {
-				if (write) {
-					m.visitLdcInsn(Types.parseLiteral(type, par));
-
-					if (this.data != null)
-						this.data.ics();
-				}
-			} else {
-				ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
-				compiler.compile(data, m, block, par, new String[] { par });
 			}
+
+			if (write) {
+				m.visitTypeInsn(NEW, containerData.getClassName());
+				m.visitInsn(DUP);
+
+				if (this.data != null)
+					this.data.ics();
+			}
+
+			for (String par : split) {
+				String type = Types.getType(par,
+						this.data == null ? "" : this.data.getReturnType().getSimpleClassName().toLowerCase());
+
+				if (type != null) {
+					if (write) {
+						m.visitLdcInsn(Types.parseLiteral(type, par));
+
+						if (this.data != null)
+							this.data.ics();
+					}
+				} else {
+					ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
+					compiler.compile(data, m, block, par, new String[] { par });
+				}
+			}
+
+			if (write) {
+				m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
+
+				if (this.data != null)
+					this.data.ics();
+			}
+
+			referenceSignature = Types.getTypeSignature(containerData.getClassName());
+			referenceType = CONSTRUCTOR;
+			referenceName = containerData.getSimpleClassName();
+			referenceOwner = containerData;
 		}
-
-		if (write) {
-			m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
-
-			if (this.data != null)
-				this.data.ics();
-		}
-
-		referenceSignature = Types.getTypeSignature(containerData.getClassName());
-		referenceType = CONSTRUCTOR;
-		referenceName = containerData.getSimpleClassName();
-		referenceOwner = containerData;
 	}
 
 	private void compileMethodCall(ReferenceCompiler last, String containerClass, ClassData containerData,

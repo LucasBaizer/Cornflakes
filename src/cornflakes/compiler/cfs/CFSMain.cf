@@ -2,6 +2,5 @@ package cornflakes.compiler.cfs;
 public class CFSMain;
 
 public static func main(args: string[]) {
-	var x: string[] = array(0);
-	System.out.println(x[0]);
+	System.out.println(args[0]);
 }
