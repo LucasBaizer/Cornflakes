@@ -100,7 +100,9 @@ public class CompileUtils {
 			variableType = spaces[0];
 
 			if (!Types.isPrimitive(variableType)) {
-				variableType = data.resolveClass(variableType);
+				variableType = Types.padSignature(data.resolveClass(variableType));
+			} else {
+				variableType = Types.getTypeSignature(variableType);
 			}
 
 			String[] set = body.split("=", 2);
@@ -120,7 +122,7 @@ public class CompileUtils {
 				}
 
 				if (valueType != null) {
-					if (!Types.isSuitable(Types.getTypeSignature(variableType), Types.getTypeSignature(valueType))) {
+					if (!Types.isSuitable(variableType, valueType)) {
 						throw new CompileError(valueType + " is not assignable to " + variableType);
 					}
 				}
@@ -133,8 +135,6 @@ public class CompileUtils {
 					value = givenValue;
 				}
 			}
-
-			variableType = Types.getTypeSignature(variableType);
 		}
 
 		return new VariableDeclaration(variableType, value, valueType, raw, isRef);

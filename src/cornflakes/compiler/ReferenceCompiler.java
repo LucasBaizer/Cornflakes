@@ -44,6 +44,11 @@ public class ReferenceCompiler implements GenericCompiler {
 
 	private void compile(ReferenceCompiler last, String containerClass, ClassData containerData, ClassData data,
 			MethodVisitor m, Block block, String body, String[] lines) throws ClassNotFoundException {
+		if (body.equals("null")) {
+			m.visitInsn(ACONST_NULL);
+			return;
+		}
+
 		int end = body.length();
 		int opens = 0;
 		for (int i = 0; i < body.length(); i++) {
@@ -266,8 +271,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				clazz = data.resolveClass(part);
 			}
 		} catch (CompileError e) {
-			throw new CompileError(
-					"Could not find a class, variable, method, or keyword named '" + part.split(" ")[0] + "'");
+			throw new CompileError("Could not find a class, variable, method, or keyword derived from '" + part + "'");
 		}
 
 		ClassData cls = null;
@@ -326,8 +330,21 @@ public class ReferenceCompiler implements GenericCompiler {
 					m.visitVarInsn(op, local.getIndex());
 
 					if (arrayIndex != null) {
-						m.visitLdcInsn(Integer.parseInt(arrayIndex));
-						m.visitInsn(AALOAD);
+						try {
+							int x = Integer.parseInt(arrayIndex);
+							if (x < 0) {
+								throw new CompileError("Array literal indexes must be greater than or equal to 0");
+							}
+							m.visitLdcInsn(x);
+						} catch (Exception e) {
+							ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+							compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
+
+							if (!compiler.getReferenceSignature().equals("I")) {
+								throw new CompileError("Arrays can only be indexed by integers");
+							}
+						}
+						m.visitInsn(Types.getArrayOpcode(Types.LOAD, type));
 					}
 
 					if (this.data != null) {

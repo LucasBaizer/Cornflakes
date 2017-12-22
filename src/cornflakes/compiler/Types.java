@@ -10,6 +10,67 @@ public class Types implements Opcodes {
 
 	private static final String INTEGER = "-0123456789";
 
+	public static int getArrayOpcode(int op, String type) {
+		if (type == null) {
+			if (op == STORE) {
+				return AASTORE;
+			} else if (op == LOAD) {
+				return AALOAD;
+			}
+		}
+
+		if (type.equals("[B")) {
+			if (op == STORE) {
+				return BASTORE;
+			} else if (op == LOAD) {
+				return BALOAD;
+			}
+		}
+		if (type.equals("[J")) {
+			if (op == STORE) {
+				return LASTORE;
+			} else if (op == LOAD) {
+				return LALOAD;
+			}
+		}
+		if (type.equals("[I")) {
+			if (op == STORE) {
+				return IASTORE;
+			} else if (op == LOAD) {
+				return IALOAD;
+			}
+		}
+		if (type.equals("[S")) {
+			if (op == STORE) {
+				return SASTORE;
+			} else if (op == LOAD) {
+				return SALOAD;
+			}
+		}
+		if (type.equals("[F")) {
+			if (op == STORE) {
+				return FASTORE;
+			} else if (op == LOAD) {
+				return FALOAD;
+			}
+		}
+		if (type.equals("[D")) {
+			if (op == STORE) {
+				return DASTORE;
+			} else if (op == LOAD) {
+				return DALOAD;
+			}
+		}
+
+		if (op == STORE) {
+			return AASTORE;
+		} else if (op == LOAD) {
+			return AALOAD;
+		}
+
+		throw new CompileError("Could not get array opcode for type '" + type + "' with code " + op);
+	}
+
 	public static int getOpcode(int op, String type) {
 		if (type == null) {
 			if (op == STORE) {
