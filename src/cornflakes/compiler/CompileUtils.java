@@ -82,7 +82,7 @@ public class CompileUtils {
 			raw = givenValue;
 			valueType = Types.getType(givenValue, "");
 			if (valueType == null) {
-				ReferenceCompiler ref = new ReferenceCompiler(true, methodData);
+				ExpressionCompiler ref = new ExpressionCompiler(true, methodData);
 				ref.compile(data, m, block, givenValue, new String[] { givenValue });
 
 				if ((valueType = ref.getReferenceSignature()) == null) {
@@ -114,7 +114,7 @@ public class CompileUtils {
 				boolean math = false;
 
 				if (!isMember && valueType == null) {
-					ReferenceCompiler compiler = new ReferenceCompiler(true, methodData);
+					ExpressionCompiler compiler = new ExpressionCompiler(true, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getReferenceSignature();
 					math = compiler.isMath();
@@ -122,7 +122,7 @@ public class CompileUtils {
 				}
 
 				if (valueType != null) {
-					if (!Types.isSuitable(variableType, valueType)) {
+					if (!Types.isSuitable(variableType, Types.getTypeSignature(valueType))) {
 						throw new CompileError(valueType + " is not assignable to " + variableType);
 					}
 				}

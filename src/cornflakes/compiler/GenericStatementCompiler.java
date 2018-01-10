@@ -71,7 +71,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						m.visitInsn(op);
 					}
 				} else {
-					ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+					ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 					compiler.compile(data, m, block, par, new String[] { par });
 
 					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceSignature()))
@@ -103,7 +103,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 				throw new CompileError("Unexpected symbol: " + split[2]);
 			}
 
-			ReferenceCompiler ref = new ReferenceCompiler(true, this.data);
+			ExpressionCompiler ref = new ExpressionCompiler(true, this.data);
 			ref.compile(data, m, block, split[1], new String[] { split[1] });
 
 			String signature = ref.getReferenceSignature();
@@ -178,18 +178,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 				String name = split[0].trim();
 				String value = split[1].trim();
 
-				ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+				ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 				compiler.setLoadVariableReference(false);
 				compiler.compile(data, m, block, name, new String[] { name });
 
 				String refName = compiler.getReferenceName();
-				FieldData field = null;
-				if (this.data.hasLocal(refName, block)) {
-					field = this.data.getLocal(refName, block);
-				} else if (compiler.getReferenceOwner().hasField(refName)) {
-					field = compiler.getReferenceOwner().getField(refName);
-				}
-
+				FieldData field = compiler.getField();
+				
 				if (field != null) {
 					ref = false;
 
@@ -220,7 +215,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 									compiler.getReferenceSignature());
 						}
 					} else {
-						ReferenceCompiler compiler1 = new ReferenceCompiler(true, this.data);
+						ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
 						compiler1.compile(data, m, block, value, new String[] { body });
 
 						if (!Types.isSuitable(field.getType(), compiler1.getReferenceSignature())) {
@@ -241,7 +236,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			}
 
 			if (ref) {
-				new ReferenceCompiler(true, this.data).compile(data, m, block, body, lines);
+				new ExpressionCompiler(true, this.data).compile(data, m, block, body, lines);
 			}
 		}
 	}

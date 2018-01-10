@@ -150,14 +150,11 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			}
 
 			if (!gbc.returns()) {
-				if (methodData.getReturnTypeSignature().equals("V")) {
-					m.visitInsn(RETURN);
-				} else {
-					throw new CompileError("A non-void method must return a value");
-				}
+				m.visitInsn(RETURN);
 			}
 
 			m.visitLabel(post);
+			m.visitLocalVariable("this", Types.padSignature(data.getClassName()), null, start, post, 0);
 			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
 				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, paramMap.get(par.getKey()));
 			}
@@ -212,7 +209,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				} else {
 					String raw = (String) datum.getProposedData();
 
-					ReferenceCompiler compiler = new ReferenceCompiler(true, this.methodData);
+					ExpressionCompiler compiler = new ExpressionCompiler(true, this.methodData);
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
 					if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {

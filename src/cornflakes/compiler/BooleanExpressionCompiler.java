@@ -82,7 +82,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					invalid(new CompileError("Expecting type 'bool'"));
 				}
 			} else {
-				ReferenceCompiler ref = new ReferenceCompiler(this.write, this.data);
+				ExpressionCompiler ref = new ExpressionCompiler(this.write, this.data);
 				ref.setAllowBoolean(false);
 				ref.setAllowMath(false);
 				ref.setSource(this);
@@ -204,7 +204,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 
 			return type;
 		} else {
-			ReferenceCompiler ref = new ReferenceCompiler(this.write, this.data);
+			ExpressionCompiler ref = new ExpressionCompiler(this.write, this.data);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
 			return ref.getReferenceSignature();

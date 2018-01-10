@@ -6,7 +6,7 @@ import java.util.List;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
-public class ReferenceCompiler implements GenericCompiler {
+public class ExpressionCompiler implements GenericCompiler {
 	public static final int LOCAL_VARIABLE = 0;
 	public static final int MEMBER_VARIABLE = 1;
 	public static final int METHOD = 2;
@@ -28,8 +28,9 @@ public class ReferenceCompiler implements GenericCompiler {
 	private boolean allowMath = true;
 	private boolean math;
 	private GenericCompiler source;
+	private FieldData field;
 
-	public ReferenceCompiler(boolean write, MethodData data) {
+	public ExpressionCompiler(boolean write, MethodData data) {
 		this.write = write;
 		this.data = data;
 	}
@@ -43,7 +44,7 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 	}
 
-	private void compile(ReferenceCompiler last, String containerClass, ClassData containerData, ClassData data,
+	private void compile(ExpressionCompiler last, String containerClass, ClassData containerData, ClassData data,
 			MethodVisitor m, Block block, String body, String[] lines) throws ClassNotFoundException {
 		if (body.equals("null")) {
 			m.visitInsn(ACONST_NULL);
@@ -147,9 +148,11 @@ public class ReferenceCompiler implements GenericCompiler {
 			}
 		} else {
 			if (part.equals("length") && referenceSignature.startsWith("[")) {
-				m.visitInsn(ARRAYLENGTH);
-				if (this.data != null) {
-					this.data.ics();
+				if (this.write) {
+					m.visitInsn(ARRAYLENGTH);
+					if (this.data != null) {
+						this.data.ics();
+					}
 				}
 				referenceName = "length";
 				referenceSignature = "I";
@@ -162,7 +165,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				if (arr) {
 					arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
 				}
-				if (this.data != null && this.data.hasLocal(varPart, block)) {
+				if (!thisType && this.data != null && this.data.hasLocal(varPart, block)) {
 					compileVariableReference(last, 1, containerClass, containerData, data, m, block, varPart,
 							arrayIndex, end == body.length());
 					next = true;
@@ -247,6 +250,7 @@ public class ReferenceCompiler implements GenericCompiler {
 					} catch (ClassNotFoundException e) {
 						throw new CompileError(e);
 					}
+
 					compile(this, newClass.getClassName(), newClass, data, m, block, newBody, new String[] { newBody });
 				} else {
 					compile(this, data.getClassName(), data, data, m, block, newBody, new String[] { newBody });
@@ -264,7 +268,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				referenceOwner = data;
 				referenceSignature = "Z";
 				referenceType = BOOLEAN_EXPRESSION;
-			} else if (part.equals("int")) {
+			} else if (part.equals("i32")) {
 				clazz = "java.lang.Integer";
 			} else if (part.equals("bool")) {
 				clazz = "java.lang.Boolean";
@@ -276,13 +280,13 @@ public class ReferenceCompiler implements GenericCompiler {
 				clazz = "java.lang.Byte";
 			} else if (part.equals("char")) {
 				clazz = "java.lang.Character";
-			} else if (part.equals("short")) {
+			} else if (part.equals("i16")) {
 				clazz = "java.lang.Short";
-			} else if (part.equals("long")) {
+			} else if (part.equals("i64")) {
 				clazz = "java.lang.Long";
-			} else if (part.equals("float")) {
+			} else if (part.equals("f32")) {
 				clazz = "java.lang.Float";
-			} else if (part.equals("double")) {
+			} else if (part.equals("f64")) {
 				clazz = "java.lang.Double";
 			} else {
 				clazz = data.resolveClass(part);
@@ -307,7 +311,7 @@ public class ReferenceCompiler implements GenericCompiler {
 
 	}
 
-	private void compileVariableReference(ReferenceCompiler last, int source, String containerClass,
+	private void compileVariableReference(ExpressionCompiler last, int source, String containerClass,
 			ClassData containerData, ClassData data, MethodVisitor m, Block block, String body, String arrayIndex,
 			boolean isLast) {
 		if (source == 0) {
@@ -332,7 +336,8 @@ public class ReferenceCompiler implements GenericCompiler {
 						this.data.ics();
 				}
 			}
-
+			
+			this.field = field;
 			referenceSignature = field.getType();
 			referenceType = MEMBER_VARIABLE;
 			referenceName = field.getName();
@@ -354,7 +359,7 @@ public class ReferenceCompiler implements GenericCompiler {
 							}
 							m.visitLdcInsn(x);
 						} catch (Exception e) {
-							ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+							ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 							compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
 
 							if (!compiler.getReferenceSignature().equals("I")) {
@@ -370,6 +375,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 			}
 
+			this.field = local;
 			referenceSignature = arrayIndex == null ? type : type.substring(1);
 			referenceType = LOCAL_VARIABLE;
 			referenceName = local.getName();
@@ -398,7 +404,7 @@ public class ReferenceCompiler implements GenericCompiler {
 				}
 				m.visitLdcInsn(x);
 			} catch (Exception e) {
-				ReferenceCompiler compiler = new ReferenceCompiler(true, this.data);
+				ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 				compiler.compile(data, m, block, size, new String[] { size });
 
 				if (!compiler.getReferenceSignature().equals("I")) {
@@ -434,7 +440,7 @@ public class ReferenceCompiler implements GenericCompiler {
 								break;
 							}
 						} else {
-							ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
+							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
 							compiler.compile(this, data.getClassName(), data, data, m, block, par,
 									new String[] { par });
 
@@ -478,7 +484,7 @@ public class ReferenceCompiler implements GenericCompiler {
 							this.data.ics();
 					}
 				} else {
-					ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
+					ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
 					compiler.compile(data, m, block, par, new String[] { par });
 				}
 			}
@@ -497,7 +503,7 @@ public class ReferenceCompiler implements GenericCompiler {
 		}
 	}
 
-	private void compileMethodCall(ReferenceCompiler last, String containerClass, ClassData containerData,
+	private void compileMethodCall(ExpressionCompiler last, String containerClass, ClassData containerData,
 			ClassData data, MethodVisitor m, Block block, String body, boolean superCall)
 			throws ClassNotFoundException {
 		String before = body.substring(0, body.indexOf('(')).trim();
@@ -524,7 +530,7 @@ public class ReferenceCompiler implements GenericCompiler {
 							break;
 						}
 					} else {
-						ReferenceCompiler compiler = new ReferenceCompiler(false, this.data);
+						ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
 						compiler.compile(this, data.getClassName(), data, data, m, block, par, new String[] { par });
 
 						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
@@ -573,7 +579,7 @@ public class ReferenceCompiler implements GenericCompiler {
 						this.data.ics();
 				}
 			} else {
-				ReferenceCompiler compiler = new ReferenceCompiler(this.write, this.data);
+				ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
 				compiler.compile(data, m, block, par, new String[] { par });
 			}
 		}
@@ -603,8 +609,8 @@ public class ReferenceCompiler implements GenericCompiler {
 					}
 				}
 				if (write) {
-					m.visitMethodInsn(INVOKEVIRTUAL, containerData.getClassName(), before, method.getSignature(),
-							method.isInterfaceMethod());
+					m.visitMethodInsn(method.isInterfaceMethod() ? INVOKEINTERFACE : INVOKEVIRTUAL,
+							containerData.getClassName(), before, method.getSignature(), method.isInterfaceMethod());
 					if (!method.getReturnTypeSignature().equals("V")) {
 						if (this.data != null)
 							this.data.ics();
@@ -702,5 +708,9 @@ public class ReferenceCompiler implements GenericCompiler {
 
 	public void setMath(boolean math) {
 		this.math = math;
+	}
+
+	public FieldData getField() {
+		return field;
 	}
 }

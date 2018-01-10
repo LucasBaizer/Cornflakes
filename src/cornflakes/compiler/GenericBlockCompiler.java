@@ -36,7 +36,7 @@ public class GenericBlockCompiler implements GenericCompiler {
 			thisBlock.setEndLabel(block.getEndLabel());
 			new GenericBodyCompiler(this.data).compile(data, m, thisBlock, newBlock, Strings.accumulate(newBlock));
 		} else {
-			if (condition.startsWith("if")) {
+			if (condition.startsWith("if ")) {
 				boolean hasElse = false;
 				Label finalEnd = new Label();
 
@@ -58,7 +58,7 @@ public class GenericBlockCompiler implements GenericCompiler {
 					}
 					String parse = condition.substring(val).trim();
 					if (!parse.isEmpty()) {
-						if (parse.startsWith("if")) {
+						if (parse.startsWith("if ")) {
 							parse = parse.substring(2).trim();
 						}
 						new BooleanExpressionCompiler(this.data, theEnd, true).compile(data, m, currentBlock, parse,
@@ -77,6 +77,20 @@ public class GenericBlockCompiler implements GenericCompiler {
 				}
 
 				m.visitLabel(finalEnd);
+			} else if (condition.startsWith("while ")) {
+				Label outOfLoop = new Label();
+
+				String parse = condition.substring(5).trim();
+				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
+				String newBlock = Strings.accumulate(newLines).trim();
+
+				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, block, parse,
+						new String[] { parse });
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, start);
+				m.visitLabel(outOfLoop);
 			} else {
 				throw new CompileError("Unresolved block condition: " + condition);
 			}

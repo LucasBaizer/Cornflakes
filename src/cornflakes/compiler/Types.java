@@ -104,7 +104,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("short") || type.equals("S")) {
+		} else if (type.equals("i16") || type.equals("S")) {
 			if (op == STORE) {
 				return ISTORE;
 			} else if (op == LOAD) {
@@ -114,7 +114,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("int") || type.equals("I")) {
+		} else if (type.equals("i32") || type.equals("I")) {
 			if (op == STORE) {
 				return ISTORE;
 			} else if (op == LOAD) {
@@ -124,7 +124,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("long") || type.equals("J")) {
+		} else if (type.equals("i64") || type.equals("J")) {
 			if (op == STORE) {
 				return LSTORE;
 			} else if (op == LOAD) {
@@ -144,7 +144,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("float") || type.equals("F")) {
+		} else if (type.equals("f32") || type.equals("F")) {
 			if (op == STORE) {
 				return FSTORE;
 			} else if (op == LOAD) {
@@ -154,7 +154,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return FRETURN;
 			}
-		} else if (type.equals("double") || type.equals("D")) {
+		} else if (type.equals("f64") || type.equals("D")) {
 			if (op == STORE) {
 				return DSTORE;
 			} else if (op == LOAD) {
@@ -207,23 +207,23 @@ public class Types implements Opcodes {
 	}
 
 	public static Object parseLiteral(String type, String val) {
-		if (type.equals("string")) {
+		if (type.equals("string") || type.equals("Ljava/lang/String;")) {
 			return val.substring(1, val.length() - 1);
-		} else if (type.equals("bool")) {
+		} else if (type.equals("bool") || type.equals("Z")) {
 			return Boolean.parseBoolean(val);
-		} else if (type.equals("char")) {
+		} else if (type.equals("char") || type.equals("C")) {
 			return val.charAt(1);
-		} else if (type.equals("float")) {
+		} else if (type.equals("f32") || type.equals("F")) {
 			return Float.parseFloat(val);
-		} else if (type.equals("double")) {
+		} else if (type.equals("f64") || type.equals("D")) {
 			return Double.parseDouble(val);
-		} else if (type.equals("byte")) {
+		} else if (type.equals("byte") || type.equals("B")) {
 			return Byte.parseByte(val);
-		} else if (type.equals("short")) {
+		} else if (type.equals("i16") || type.equals("S")) {
 			return Short.parseShort(val);
-		} else if (type.equals("int")) {
+		} else if (type.equals("i32") || type.equals("I")) {
 			return Integer.parseInt(val);
-		} else if (type.equals("long")) {
+		} else if (type.equals("i64") || type.equals("L")) {
 			return Long.parseLong(val);
 		}
 		throw new CompileError("Invalid literal: " + val);
@@ -286,14 +286,14 @@ public class Types implements Opcodes {
 			if (!INTEGER.contains(Character.toString(l))) {
 				if (l == '.') {
 					if (Strings.countOccurrences(x, ".") == 1) {
-						if (context.equals("float") || context.equals("F")) {
-							return "float";
-						} else if (context.equals("double") || context.equals("D")) {
-							return "double";
+						if (context.equals("f32") || context.equals("F")) {
+							return "f32";
+						} else if (context.equals("f64") || context.equals("D")) {
+							return "f64";
 						} else if (!context.isEmpty()) {
 							throw new CompileError("A non-fractional type was expected, but one was given");
 						} else {
-							return "float";
+							return "f32";
 						}
 					}
 				} else {
@@ -304,66 +304,66 @@ public class Types implements Opcodes {
 
 		if (context.equals("byte") || context.equals("B")) {
 			return "byte";
-		} else if (context.equals("short") || context.equals("S")) {
-			return "short";
-		} else if (context.equals("int") || context.equals("I")) {
-			return "int";
-		} else if (context.equals("long") || context.equals("J")) {
-			return "long";
+		} else if (context.equals("i16") || context.equals("S")) {
+			return "i16";
+		} else if (context.equals("i32") || context.equals("I")) {
+			return "i32";
+		} else if (context.equals("i64") || context.equals("J")) {
+			return "i64";
 		}
 
-		return "int";
+		return "i32";
 	}
 
 	public static boolean isPrimitive(String name) {
 		if (name == null)
 			return false;
 		switch (name) {
-		case "I":
-		case "Z":
-		case "B":
-		case "C":
-		case "S":
-		case "J":
-		case "F":
-		case "D":
-		case "void":
-		case "bool":
-		case "byte":
-		case "char":
-		case "short":
-		case "int":
-		case "long":
-		case "float":
-		case "double":
-			return true;
-		default:
-			return false;
+			case "I":
+			case "Z":
+			case "B":
+			case "C":
+			case "S":
+			case "J":
+			case "F":
+			case "D":
+			case "void":
+			case "bool":
+			case "byte":
+			case "char":
+			case "i16":
+			case "i32":
+			case "i64":
+			case "f32":
+			case "f64":
+				return true;
+			default:
+				return false;
 		}
 	}
 
 	public static Class<?> getClassFromPrimitive(String primitive) {
 		switch (primitive) {
-		case "void":
-			return Void.class;
-		case "bool":
-			return boolean.class;
-		case "byte":
-			return byte.class;
-		case "char":
-			return char.class;
-		case "short":
-			return short.class;
-		case "int":
-			return int.class;
-		case "long":
-			return long.class;
-		case "float":
-			return float.class;
-		case "double":
-			return double.class;
-		default:
-			throw new CompileError("Unresolved type: " + primitive);
+			case "void":
+				return Void.class;
+			case "bool":
+				return boolean.class;
+			case "byte":
+				return byte.class;
+			case "char":
+				return char.class;
+			case "i16":
+				return short.class;
+			case "i32":
+				return int.class;
+			case "i64":
+				return long.class;
+			case "f32":
+				return float.class;
+			case "f64":
+				return double.class;
+			default:
+				throw new CompileError("Unresolved type: " + primitive);
 		}
 	}
 
@@ -408,15 +408,15 @@ public class Types implements Opcodes {
 			return "B";
 		} else if (type.equals("char")) {
 			return "C";
-		} else if (type.equals("double")) {
+		} else if (type.equals("f64")) {
 			return "D";
-		} else if (type.equals("float")) {
+		} else if (type.equals("f32")) {
 			return "F";
-		} else if (type.equals("int")) {
+		} else if (type.equals("i32")) {
 			return "I";
-		} else if (type.equals("long")) {
+		} else if (type.equals("i64")) {
 			return "J";
-		} else if (type.equals("short")) {
+		} else if (type.equals("i16")) {
 			return "S";
 		} else if (type.equals("string")) {
 			return "Ljava/lang/String;";
@@ -429,24 +429,24 @@ public class Types implements Opcodes {
 
 	public static ClassData getTypeFromSignature(String sig) {
 		switch (sig) {
-		case "V":
-			return ClassData.fromJavaClass(Void.class);
-		case "Z":
-			return ClassData.fromJavaClass(boolean.class);
-		case "B":
-			return ClassData.fromJavaClass(byte.class);
-		case "C":
-			return ClassData.fromJavaClass(char.class);
-		case "D":
-			return ClassData.fromJavaClass(double.class);
-		case "F":
-			return ClassData.fromJavaClass(float.class);
-		case "I":
-			return ClassData.fromJavaClass(int.class);
-		case "J":
-			return ClassData.fromJavaClass(long.class);
-		case "S":
-			return ClassData.fromJavaClass(short.class);
+			case "V":
+				return ClassData.fromJavaClass(Void.class);
+			case "Z":
+				return ClassData.fromJavaClass(boolean.class);
+			case "B":
+				return ClassData.fromJavaClass(byte.class);
+			case "C":
+				return ClassData.fromJavaClass(char.class);
+			case "D":
+				return ClassData.fromJavaClass(double.class);
+			case "F":
+				return ClassData.fromJavaClass(float.class);
+			case "I":
+				return ClassData.fromJavaClass(int.class);
+			case "J":
+				return ClassData.fromJavaClass(long.class);
+			case "S":
+				return ClassData.fromJavaClass(short.class);
 		}
 
 		if (sig.startsWith("[")) {

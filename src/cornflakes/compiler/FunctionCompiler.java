@@ -212,6 +212,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			m.visitLabel(post);
+			if (!methodData.hasModifier(ACC_STATIC)) {
+				m.visitLocalVariable("this", Types.padSignature(data.getClassName()), null, start, post, 0);
+			}
 			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
 				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, paramMap.get(par.getKey()));
 			}

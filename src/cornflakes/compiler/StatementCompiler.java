@@ -31,6 +31,9 @@ public class StatementCompiler extends Compiler {
 			String type = body.contains("var") ? "var" : "const";
 
 			int accessor = 0;
+			if(type.equals("const")) {
+				accessor |= ACC_FINAL;
+			}
 			String keywords = Strings.normalizeSpaces(body.substring(0, body.indexOf(type)));
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {

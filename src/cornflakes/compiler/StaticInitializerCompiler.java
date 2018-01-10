@@ -50,7 +50,7 @@ public class StaticInitializerCompiler extends Compiler {
 				} else {
 					String raw = (String) datum.getProposedData();
 
-					ReferenceCompiler compiler = new ReferenceCompiler(true, method);
+					ExpressionCompiler compiler = new ExpressionCompiler(true, method);
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
 					if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {

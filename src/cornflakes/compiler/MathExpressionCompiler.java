@@ -17,6 +17,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 	private boolean write;
 	private boolean valid = true;
 	private boolean bool;
+	private ExpressionCompiler ref;
 
 	public MathExpressionCompiler(MethodData data, boolean b, boolean val) {
 		this.data = data;
@@ -33,6 +34,93 @@ public class MathExpressionCompiler implements GenericCompiler {
 
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
+		if (body.length() >= 3) {
+			int start = -1;
+			for (int x = 0; x < body.length(); x++) {
+				if (!Character.isLetterOrDigit(body.charAt(x))) {
+					start = x;
+					break;
+				}
+			}
+			if (start != -1) {
+				char first = body.charAt(start);
+				if (first == '+' || first == '-') {
+					if (body.charAt(start + 1) == first) {
+						String type = pushToStack(body.substring(0, start), data, m, block);
+
+						boolean isLong = type.equals("J");
+						boolean isInt = type.equals("I");
+						boolean isFloat = type.equals("F");
+						boolean isDouble = type.equals("D");
+
+						if (isLong) {
+							resultType = "J";
+						} else if (isInt) {
+							resultType = "I";
+						} else if (isFloat) {
+							resultType = "F";
+						} else if (isDouble) {
+							resultType = "D";
+						} else {
+							invalid(new CompileError("Expecting numerical variable"));
+						}
+
+						if (this.write) {
+							int wop = Types.getOpcode(Types.PUSH, type);
+							if (wop == LDC) {
+								m.visitLdcInsn(Types.parseLiteral(type, "1"));
+							} else {
+								m.visitVarInsn(wop, 1);
+							}
+							if (this.write) {
+								this.data.ics();
+							}
+
+							int op = 0;
+							if (first == '+') {
+								if (isDouble) {
+									op = DADD;
+								} else if (isFloat) {
+									op = FADD;
+								} else if (isLong) {
+									op = LADD;
+								} else if (isInt) {
+									op = IADD;
+								}
+								if (this.write)
+									this.data.dcs();
+							} else {
+								if (isDouble) {
+									op = DSUB;
+								} else if (isFloat) {
+									op = FSUB;
+								} else if (isLong) {
+									op = LSUB;
+								} else if (isInt) {
+									op = ISUB;
+								}
+								if (this.write)
+									this.data.dcs();
+							}
+							m.visitInsn(op);
+
+							if (ref != null && ref.getField() != null) {
+								if (ref.getField() instanceof LocalData) {
+									LocalData local = (LocalData) ref.getField();
+									m.visitVarInsn(Types.getOpcode(Types.STORE, type), local.getIndex());
+								} else {
+									m.visitFieldInsn(ref.getField().hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
+											ref.getReferenceOwner().getClassName(), ref.getReferenceName(),
+											ref.getReferenceSignature());
+								}
+							}
+						}
+						return;
+					}
+				}
+			}
+		}
+
 		String[] split = null;
 		if (Strings.contains(body, "&")) {
 			split = Strings.split(body, "&", 2);
@@ -166,7 +254,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 
 			return Types.getTypeSignature(type);
 		} else {
-			ReferenceCompiler ref = new ReferenceCompiler(this.write, this.data);
+			ref = new ExpressionCompiler(this.write, this.data);
 			ref.setAllowMath(false);
 			ref.setAllowBoolean(this.bool);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
