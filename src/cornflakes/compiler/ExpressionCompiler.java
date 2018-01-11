@@ -114,13 +114,10 @@ public class ExpressionCompiler implements GenericCompiler {
 					compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
 					next = true;
 				} else {
-					ClassData parent = toUse;
-					while ((parent = parent.getParentClass()) != null) {
-						if (parent.hasMethod(name)) {
-							compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
-							next = true;
-							break;
-						}
+					MethodData[] methods = toUse.getAllMethods(name);
+					if (methods.length > 0) {
+						compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
+						next = true;
 					}
 
 					if (!next && !thisType) {
@@ -268,28 +265,8 @@ public class ExpressionCompiler implements GenericCompiler {
 				referenceOwner = data;
 				referenceSignature = "Z";
 				referenceType = BOOLEAN_EXPRESSION;
-			} /*else if (part.equals("i32")) {
-				clazz = "java.lang.Integer";
-			} else if (part.equals("bool")) {
-				clazz = "java.lang.Boolean";
-			} else if (part.equals("object")) {
-				clazz = "java.lang.Object";
-			} else if (part.equals("string")) {
-				clazz = "java.lang.String";
-			} else if (part.equals("byte")) {
-				clazz = "java.lang.Byte";
-			} else if (part.equals("char")) {
-				clazz = "java.lang.Character";
-			} else if (part.equals("i16")) {
-				clazz = "java.lang.Short";
-			} else if (part.equals("i64")) {
-				clazz = "java.lang.Long";
-			} else if (part.equals("f32")) {
-				clazz = "java.lang.Float";
-			} else if (part.equals("f64")) {
-				clazz = "java.lang.Double";
-			}*/ else {
-				clazz = data.resolveClass(part);
+			} else {
+				clazz = data.resolveClass(part, false);
 			}
 		} catch (CompileError e) {
 			throw new CompileError("Could not find a class, variable, method, or keyword derived from '" + part + "'");
@@ -336,7 +313,7 @@ public class ExpressionCompiler implements GenericCompiler {
 						this.data.ics();
 				}
 			}
-			
+
 			this.field = field;
 			referenceSignature = field.getType();
 			referenceType = MEMBER_VARIABLE;
@@ -345,6 +322,12 @@ public class ExpressionCompiler implements GenericCompiler {
 		} else if (source == 1) {
 			LocalData local = this.data.getLocal(body, block);
 			String type = local.getType();
+			ClassData typeClass = null;
+			try {
+				typeClass = ClassData.forName(type);
+			} catch (ClassNotFoundException e) {
+				throw new CompileError(e);
+			}
 
 			if (write) {
 				if (!(!loadVariableReference && isLast)) {
@@ -352,21 +335,38 @@ public class ExpressionCompiler implements GenericCompiler {
 					m.visitVarInsn(op, local.getIndex());
 
 					if (arrayIndex != null) {
-						try {
-							int x = Integer.parseInt(arrayIndex);
-							if (x < 0) {
-								throw new CompileError("Array literal indexes must be greater than or equal to 0");
-							}
-							m.visitLdcInsn(x);
-						} catch (Exception e) {
+						String idxType = Types.getType(arrayIndex, null);
+						if (idxType == null) {
 							ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 							compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
 
-							if (!compiler.getReferenceSignature().equals("I")) {
-								throw new CompileError("Arrays can only be indexed by integers");
+							if (!type.equals("Ljava/util/Map;")) {
+								if (!compiler.getReferenceSignature().equals("I")) {
+									throw new CompileError("Arrays can only be indexed by integers");
+								}
+							}
+						} else {
+							if (idxType.equals("string")) {
+								m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
+							} else {
+								int x = Integer.parseInt(arrayIndex);
+								if (x < 0) {
+									throw new CompileError("Array literal indexes must be greater than or equal to 0");
+								}
+								m.visitLdcInsn(x);
 							}
 						}
-						m.visitInsn(Types.getArrayOpcode(Types.LOAD, type));
+
+						if (type.equals("Ljava/lang/String;")) {
+							m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
+						} else if (type.equals("Ljava/util/List;")) {
+							m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get", "(I)Ljava/lang/Object;", true);
+						} else if (type.equals("Ljava/util/Map;")) {
+							m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "get",
+									"(Ljava/lang/Object;)Ljava/lang/Object;", true);
+						} else {
+							m.visitInsn(Types.getArrayOpcode(Types.LOAD, type));
+						}
 					}
 
 					if (this.data != null) {
@@ -376,7 +376,17 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 
 			this.field = local;
-			referenceSignature = arrayIndex == null ? type : type.substring(1);
+			if (arrayIndex == null) {
+				referenceSignature = type;
+			} else {
+				if (type.equals("Ljava/lang/String;")) {
+					referenceSignature = "C";
+				} else if (type.equals("Ljava/util/List;") || type.equals("Ljava/util/Map;")) {
+					referenceSignature = "Ljava/lang/Object;";
+				} else {
+					referenceSignature = type.substring(1);
+				}
+			}
 			referenceType = LOCAL_VARIABLE;
 			referenceName = local.getName();
 			referenceOwner = containerData;
@@ -460,7 +470,8 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 
 			if (method == null) {
-				throw new CompileError("No constructor overload for type " + containerClass + " takes the given parameters");
+				throw new CompileError(
+						"No constructor overload for type " + containerClass + " takes the given parameters");
 
 			}
 

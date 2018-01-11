@@ -302,14 +302,16 @@ public class Types implements Opcodes {
 			}
 		}
 
-		if (context.equals("byte") || context.equals("B")) {
-			return "byte";
-		} else if (context.equals("i16") || context.equals("S")) {
-			return "i16";
-		} else if (context.equals("i32") || context.equals("I")) {
-			return "i32";
-		} else if (context.equals("i64") || context.equals("J")) {
-			return "i64";
+		if (context != null) {
+			if (context.equals("byte") || context.equals("B")) {
+				return "byte";
+			} else if (context.equals("i16") || context.equals("S")) {
+				return "i16";
+			} else if (context.equals("i32") || context.equals("I")) {
+				return "i32";
+			} else if (context.equals("i64") || context.equals("J")) {
+				return "i64";
+			}
 		}
 
 		return "i32";
@@ -319,51 +321,51 @@ public class Types implements Opcodes {
 		if (name == null)
 			return false;
 		switch (name) {
-			case "I":
-			case "Z":
-			case "B":
-			case "C":
-			case "S":
-			case "J":
-			case "F":
-			case "D":
-			case "void":
-			case "bool":
-			case "byte":
-			case "char":
-			case "i16":
-			case "i32":
-			case "i64":
-			case "f32":
-			case "f64":
-				return true;
-			default:
-				return false;
+		case "I":
+		case "Z":
+		case "B":
+		case "C":
+		case "S":
+		case "J":
+		case "F":
+		case "D":
+		case "void":
+		case "bool":
+		case "byte":
+		case "char":
+		case "i16":
+		case "i32":
+		case "i64":
+		case "f32":
+		case "f64":
+			return true;
+		default:
+			return false;
 		}
 	}
 
 	public static Class<?> getClassFromPrimitive(String primitive) {
 		switch (primitive) {
-			case "void":
-				return Void.class;
-			case "bool":
-				return boolean.class;
-			case "byte":
-				return byte.class;
-			case "char":
-				return char.class;
-			case "i16":
-				return short.class;
-			case "i32":
-				return int.class;
-			case "i64":
-				return long.class;
-			case "f32":
-				return float.class;
-			case "f64":
-				return double.class;
-			default:
-				throw new CompileError("Unresolved type: " + primitive);
+		case "void":
+			return Void.class;
+		case "bool":
+			return boolean.class;
+		case "byte":
+			return byte.class;
+		case "char":
+			return char.class;
+		case "i16":
+			return short.class;
+		case "i32":
+			return int.class;
+		case "i64":
+			return long.class;
+		case "f32":
+			return float.class;
+		case "f64":
+			return double.class;
+		default:
+			throw new CompileError("Unresolved type: " + primitive);
 		}
 	}
 
@@ -420,7 +422,7 @@ public class Types implements Opcodes {
 			return "S";
 		} else if (type.equals("string")) {
 			return "Ljava/lang/String;";
-		} else if (!type.endsWith("[]")) {
+		} else if (!type.endsWith("[]") && !type.startsWith("[")) {
 			return "L" + Strings.transformClassName(type) + ";";
 		} else {
 			return "[" + getTypeSignature(type.replace("[", "").replace("]", ""));
@@ -429,24 +431,24 @@ public class Types implements Opcodes {
 
 	public static ClassData getTypeFromSignature(String sig) {
 		switch (sig) {
-			case "V":
-				return ClassData.fromJavaClass(Void.class);
-			case "Z":
-				return ClassData.fromJavaClass(boolean.class);
-			case "B":
-				return ClassData.fromJavaClass(byte.class);
-			case "C":
-				return ClassData.fromJavaClass(char.class);
-			case "D":
-				return ClassData.fromJavaClass(double.class);
-			case "F":
-				return ClassData.fromJavaClass(float.class);
-			case "I":
-				return ClassData.fromJavaClass(int.class);
-			case "J":
-				return ClassData.fromJavaClass(long.class);
-			case "S":
-				return ClassData.fromJavaClass(short.class);
+		case "V":
+			return ClassData.fromJavaClass(Void.class);
+		case "Z":
+			return ClassData.fromJavaClass(boolean.class);
+		case "B":
+			return ClassData.fromJavaClass(byte.class);
+		case "C":
+			return ClassData.fromJavaClass(char.class);
+		case "D":
+			return ClassData.fromJavaClass(double.class);
+		case "F":
+			return ClassData.fromJavaClass(float.class);
+		case "I":
+			return ClassData.fromJavaClass(int.class);
+		case "J":
+			return ClassData.fromJavaClass(long.class);
+		case "S":
+			return ClassData.fromJavaClass(short.class);
 		}
 
 		if (sig.startsWith("[")) {

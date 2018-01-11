@@ -97,15 +97,13 @@ public class ClassData {
 		if (use) {
 			use("java.lang.Object", "object");
 			use("java.lang.String", "string");
-			use("java.lang.Boolean", "string");
-			use("java.lang.Integer", "string");
-			use("java.lang.Double", "string");
-			use("java.lang.Float", "string");
-			use("java.lang.Byte", "string");
-			use("java.lang.Short", "string");
+			use("java.lang.Boolean", "bool");
+			use("java.lang.Integer", "i32");
+			use("java.lang.Double", "f64");
+			use("java.lang.Float", "f32");
+			use("java.lang.Byte", "byte");
+			use("java.lang.Short", "i16");
 			use("java.lang.Character", "char");
-			use("java.lang.String", "string");
-
 			use("java.lang.System");
 			use("cornflakes.lang.Console");
 		}
@@ -134,6 +132,10 @@ public class ClassData {
 	}
 
 	public String resolveClass(String name) {
+		return resolveClass(name, true);
+	}
+
+	public String resolveClass(String name, boolean prim) {
 		boolean arrayType = false;
 
 		if (name.endsWith("[]")) {
@@ -141,8 +143,10 @@ public class ClassData {
 			arrayType = true;
 		}
 
-		if (Types.isPrimitive(name)) {
-			return Types.getTypeSignature(Types.getClassFromPrimitive(name));
+		if (prim) {
+			if (Types.isPrimitive(name)) {
+				return Types.getTypeSignature(Types.getClassFromPrimitive(name));
+			}
 		}
 
 		Strings.handleLetterString(name, Strings.combineExceptions(Strings.NUMBERS, Strings.PERIOD));
@@ -150,12 +154,6 @@ public class ClassData {
 		try {
 			return ClassData.forName(name).getClassName();
 		} catch (ClassNotFoundException e) {
-			// if (name.equals("string")) {
-			// return arrayType ? "[Ljava/lang/String" : "java/lang/String";
-			// } else if (name.equals("object")) {
-			// return arrayType ? "[Ljava/lang/Object" : "java/lang/Object";
-			// }
-
 			for (Entry<String, String> use : this.use.entrySet()) {
 				if (use.getKey().equals(name) || use.equals(name.replace('.', '/'))
 						|| use.getValue().endsWith("/" + name)) {

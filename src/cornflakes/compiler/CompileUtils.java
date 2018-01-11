@@ -84,7 +84,7 @@ public class CompileUtils {
 			if (valueType == null) {
 				ExpressionCompiler ref = new ExpressionCompiler(true, methodData);
 				ref.compile(data, m, block, givenValue, new String[] { givenValue });
-
+				
 				if ((valueType = ref.getReferenceSignature()) == null) {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 				}

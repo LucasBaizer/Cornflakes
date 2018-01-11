@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 public class Strings {
 	private static final String[] KEYWORDS = { "package", "use", "public", "private", "protected", "func", "final",
 			"const", "sealed", "abstract", "if", "do", "while", "else", "for", "var", "sync", "serial", "throw",
-			"foreach", "in", "is", "extends", "implements" };
+			"foreach", "in", "is", "extends", "implements", "array" };
 	private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvywxyz";
 	public static final char[] NUMBERS = "1234567890".toCharArray();
 	public static final char[] PERIOD = new char[] { '.' };

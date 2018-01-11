@@ -2,11 +2,5 @@ package cornflakes.compiler.cfs
 public class CFSTestClass
 
 public static func main(args: string[]) {
-	var thread = thread(CFSRunnable());
-	//thread.start();
-	
-	var x = "Hello, World!";
-	for var i = 0; i < x.length(); i++ {
-		System.out.print(x.charAt(i));
-	}
+	var x = i32.parseInt("0");
 }
