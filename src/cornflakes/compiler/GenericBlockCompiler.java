@@ -84,12 +84,49 @@ public class GenericBlockCompiler implements GenericCompiler {
 				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
 				String newBlock = Strings.accumulate(newLines).trim();
 
+				Label afterGoto = new Label();
+				Label after = new Label();
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, after);
+
+				m.visitLabel(afterGoto);
 				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+				m.visitLabel(after);
 				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, block, parse,
 						new String[] { parse });
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
-				m.visitJumpInsn(GOTO, start);
+				m.visitJumpInsn(GOTO, afterGoto);
+				m.visitLabel(outOfLoop);
+			} else if (condition.startsWith("for ")) {
+				Label outOfLoop = new Label();
+
+				String parse = condition.substring(4).trim();
+				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
+				String newBlock = Strings.accumulate(newLines).trim();
+
+				Label afterGoto = new Label();
+				Label after = new Label();
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, after);
+
+				m.visitLabel(afterGoto);
+
+				String[] spl = parse.split(";");
+				if (spl.length != 3) {
+					throw new CompileError("For-loop format should be 'declaration; condition; modification;'");
+				}
+				String conditionBool = spl[1].trim();
+				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+
+				m.visitLabel(after);
+				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, block, conditionBool,
+						new String[] { conditionBool });
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, afterGoto);
 				m.visitLabel(outOfLoop);
 			} else {
 				throw new CompileError("Unresolved block condition: " + condition);

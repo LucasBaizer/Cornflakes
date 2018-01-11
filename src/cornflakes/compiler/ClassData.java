@@ -6,7 +6,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.objectweb.asm.ClassWriter;
 
@@ -21,10 +23,10 @@ public class ClassData {
 	private int modifiers;
 	private byte[] byteCode;
 	private String[] interfaces;
-	private ArrayList<String> use = new ArrayList<>();
-	private List<MethodData> methods = new ArrayList<>();
-	private List<ConstructorData> constructors = new ArrayList<>();
-	private List<FieldData> fields = new ArrayList<>();
+	private Set<String> use = new HashSet<>();
+	private Set<MethodData> methods = new HashSet<>();
+	private Set<ConstructorData> constructors = new HashSet<>();
+	private Set<FieldData> fields = new HashSet<>();
 	private ClassWriter classWriter;
 	private Class<?> javaClass;
 	private boolean isInterface;
@@ -55,7 +57,7 @@ public class ClassData {
 				cls.getSuperclass() == null ? "java/lang/Object" : cls.getSuperclass().getName().replace('.', '/'));
 
 		List<String> ifs = new ArrayList<>();
-		for(Class<?> c : cls.getInterfaces()) {
+		for (Class<?> c : cls.getInterfaces()) {
 			ifs.add(Strings.transformClassName(c.getName()));
 		}
 		container.setInterfaces(ifs.toArray(new String[ifs.size()]));
@@ -229,6 +231,12 @@ public class ClassData {
 			parent.getMethods(name, methods);
 		}
 
+		if (interfaces.length > 0) {
+			for (String itf : interfaces) {
+				ClassData.forName(itf).getMethods(name, methods);
+			}
+		}
+
 		return methods.toArray(new MethodData[methods.size()]);
 	}
 
@@ -239,6 +247,12 @@ public class ClassData {
 		ClassData parent = this;
 		while ((parent = parent.getParentClass()) != null) {
 			parent.getMethodsBySignature(name, signature, methods);
+		}
+
+		if (interfaces.length > 0) {
+			for (String itf : interfaces) {
+				ClassData.forName(itf).getMethodsBySignature(name, signature, methods);
+			}
 		}
 
 		return methods.toArray(new MethodData[methods.size()]);
@@ -303,6 +317,14 @@ public class ClassData {
 	}
 
 	public boolean isAssignableFrom(ClassData test) {
+		if (this.isInterface) {
+			for (String iface : test.interfaces) {
+				if (iface.equals(className)) {
+					return true;
+				}
+			}
+		}
+
 		if (test.className.equals(className)) {
 			return true;
 		}
@@ -350,7 +372,7 @@ public class ClassData {
 		this.packageName = packageName;
 	}
 
-	public List<FieldData> getFields() {
+	public Set<FieldData> getFields() {
 		return fields;
 	}
 

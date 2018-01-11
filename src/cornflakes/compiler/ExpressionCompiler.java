@@ -460,7 +460,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 
 			if (method == null) {
-				throw new CompileError("No constructor overload takes the given parameters");
+				throw new CompileError("No constructor overload for type " + containerClass + " takes the given parameters");
 
 			}
 

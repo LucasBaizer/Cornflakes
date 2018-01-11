@@ -1,0 +1,6 @@
+package cornflakes.compiler.cfs
+public class CFSRunnable implements java.lang.Runnable
+
+public override func run() {
+	System.out.println("Hello from a thread!");
+}
