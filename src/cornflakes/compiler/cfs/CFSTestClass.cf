@@ -1,14 +1,12 @@
 package cornflakes.compiler.cfs
 public class CFSTestClass
 
-//use java.lang.Thread;
-
 public static func main(args: string[]) {
-	//var thread = Thread(CFSRunnable());
+	var thread = thread(CFSRunnable());
 	//thread.start();
 	
-	var i = 0;
-	for i = 0; i < 5; i++ {
-		System.out.println(i);
+	var x = "Hello, World!";
+	for var i = 0; i < x.length(); i++ {
+		System.out.print(x.charAt(i));
 	}
 }

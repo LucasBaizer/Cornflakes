@@ -268,7 +268,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				referenceOwner = data;
 				referenceSignature = "Z";
 				referenceType = BOOLEAN_EXPRESSION;
-			} else if (part.equals("i32")) {
+			} /*else if (part.equals("i32")) {
 				clazz = "java.lang.Integer";
 			} else if (part.equals("bool")) {
 				clazz = "java.lang.Boolean";
@@ -288,7 +288,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				clazz = "java.lang.Float";
 			} else if (part.equals("f64")) {
 				clazz = "java.lang.Double";
-			} else {
+			}*/ else {
 				clazz = data.resolveClass(part);
 			}
 		} catch (CompileError e) {

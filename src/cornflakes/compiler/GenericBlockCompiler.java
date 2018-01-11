@@ -78,9 +78,11 @@ public class GenericBlockCompiler implements GenericCompiler {
 
 				m.visitLabel(finalEnd);
 			} else if (condition.startsWith("while ")) {
-				// TODO create a new Block object here
+				Block currentBlock = new Block(block.getStart() + 1, start, null);
+				block.addBlock(currentBlock);
 
 				Label outOfLoop = new Label();
+				currentBlock.setEndLabel(outOfLoop);
 
 				String parse = condition.substring(5).trim();
 				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
@@ -93,18 +95,21 @@ public class GenericBlockCompiler implements GenericCompiler {
 				m.visitJumpInsn(GOTO, after);
 
 				m.visitLabel(afterGoto);
-				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
+						Strings.accumulate(newBlock));
 				m.visitLabel(after);
-				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, block, parse,
+				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, currentBlock, parse,
 						new String[] { parse });
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, afterGoto);
 				m.visitLabel(outOfLoop);
 			} else if (condition.startsWith("for ")) {
-				// TODO create a new Block object here
+				Block currentBlock = new Block(block.getStart() + 1, start, null);
+				block.addBlock(currentBlock);
 
 				Label outOfLoop = new Label();
+				currentBlock.setEndLabel(outOfLoop);
 
 				String parse = condition.substring(4).trim();
 				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
@@ -113,24 +118,29 @@ public class GenericBlockCompiler implements GenericCompiler {
 				Label afterGoto = new Label();
 				Label after = new Label();
 
+				String[] spl = parse.split(";");
+				if (spl.length != 3) {
+					throw new CompileError("For-loop format should be 'declaration; condition; modification;'");
+				}
+				String declaration = spl[0].trim();
+				String conditionBool = spl[1].trim();
+				String increment = spl[2].trim();
+
+				new GenericStatementCompiler(this.data).compile(data, m, currentBlock, declaration,
+						new String[] { declaration });
+
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, after);
 
 				m.visitLabel(afterGoto);
 
-				String[] spl = parse.split(";");
-				if (spl.length != 3) {
-					throw new CompileError("For-loop format should be 'declaration; condition; modification;'");
-				}
-				String conditionBool = spl[1].trim();
-				String increment = spl[2].trim();
-
-				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
-				new MathExpressionCompiler(this.data, false, true).compile(data, m, block, increment,
+				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
+						Strings.accumulate(newBlock));
+				new MathExpressionCompiler(this.data, false, true).compile(data, m, currentBlock, increment,
 						new String[] { increment });
 
 				m.visitLabel(after);
-				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, block, conditionBool,
+				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, currentBlock, conditionBool,
 						new String[] { conditionBool });
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);

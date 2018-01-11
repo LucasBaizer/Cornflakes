@@ -8,6 +8,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.objectweb.asm.ClassWriter;
@@ -23,7 +25,7 @@ public class ClassData {
 	private int modifiers;
 	private byte[] byteCode;
 	private String[] interfaces;
-	private Set<String> use = new HashSet<>();
+	private Map<String, String> use = new HashMap<>();
 	private Set<MethodData> methods = new HashSet<>();
 	private Set<ConstructorData> constructors = new HashSet<>();
 	private Set<FieldData> fields = new HashSet<>();
@@ -93,25 +95,38 @@ public class ClassData {
 
 	private ClassData(boolean use) {
 		if (use) {
-			use("java.lang.Object");
-			use("java.lang.String");
+			use("java.lang.Object", "object");
+			use("java.lang.String", "string");
+			use("java.lang.Boolean", "string");
+			use("java.lang.Integer", "string");
+			use("java.lang.Double", "string");
+			use("java.lang.Float", "string");
+			use("java.lang.Byte", "string");
+			use("java.lang.Short", "string");
+			use("java.lang.Character", "char");
+			use("java.lang.String", "string");
+
 			use("java.lang.System");
 			use("cornflakes.lang.Console");
 		}
 	}
 
 	public void use(String use) {
+		use(use, use.substring(use.lastIndexOf('/') + 1));
+	}
+
+	public void use(String use, String as) {
 		try {
 			ClassData.forName(use);
-			this.use.add(Strings.transformClassName(use));
+			this.use.put(as, Strings.transformClassName(use));
 		} catch (ClassNotFoundException e) {
 			throw new CompileError("Unresolved class: " + use);
 		}
 	}
 
 	public boolean isUsing(String name) {
-		for (String use : this.use) {
-			if (use.endsWith("/" + name)) {
+		for (Entry<String, String> use : this.use.entrySet()) {
+			if (use.getKey().equals(use) || use.getValue().endsWith("/" + name)) {
 				return true;
 			}
 		}
@@ -135,15 +150,16 @@ public class ClassData {
 		try {
 			return ClassData.forName(name).getClassName();
 		} catch (ClassNotFoundException e) {
-			if (name.equals("string")) {
-				return arrayType ? "[Ljava/lang/String" : "java/lang/String";
-			} else if (name.equals("object")) {
-				return arrayType ? "[Ljava/lang/Object" : "java/lang/Object";
-			}
+			// if (name.equals("string")) {
+			// return arrayType ? "[Ljava/lang/String" : "java/lang/String";
+			// } else if (name.equals("object")) {
+			// return arrayType ? "[Ljava/lang/Object" : "java/lang/Object";
+			// }
 
-			for (String use : this.use) {
-				if (use.equals(name.replace('.', '/')) || use.endsWith("/" + name)) {
-					return arrayType ? "[L" + use.replace('.', '/') : use.replace('.', '/');
+			for (Entry<String, String> use : this.use.entrySet()) {
+				if (use.getKey().equals(name) || use.equals(name.replace('.', '/'))
+						|| use.getValue().endsWith("/" + name)) {
+					return arrayType ? "[L" + use.getValue().replace('.', '/') : use.getValue().replace('.', '/');
 				}
 			}
 			throw new CompileError("Unresolved type: " + name);

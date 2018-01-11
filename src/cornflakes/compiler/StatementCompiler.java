@@ -24,14 +24,21 @@ public class StatementCompiler extends Compiler {
 			String[] spl = val.substring(val.lastIndexOf('.') + 1).split(",");
 			for (String s : spl) {
 				String trim = s.trim();
-				Strings.handleLetterString(trim);
-				data.use(prefix + trim);
+				String[] split = trim.split(" as ");
+				if (split.length == 1) {
+					Strings.handleLetterString(trim);
+					data.use(prefix + trim);
+				} else {
+					String trim0 = split[0].trim();
+					Strings.handleLetterString(trim0);
+					data.use(prefix + trim0, split[1].trim());
+				}
 			}
 		} else if (body.contains("var") || body.contains("const")) {
 			String type = body.contains("var") ? "var" : "const";
 
 			int accessor = 0;
-			if(type.equals("const")) {
+			if (type.equals("const")) {
 				accessor |= ACC_FINAL;
 			}
 			String keywords = Strings.normalizeSpaces(body.substring(0, body.indexOf(type)));
