@@ -115,13 +115,13 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				} else if (ifType == NOT_EQUAL) {
 					op = IF_ICMPEQ;
 				} else if (ifType == LESS_THAN) {
-					op = IF_ICMPGT;
-				} else if (ifType == GREATER_THAN) {
-					op = IF_ICMPLT;
-				} else if (ifType == LESS_THAN_OR_EQUAL) {
 					op = IF_ICMPGE;
-				} else if (ifType == GREATER_THAN_OR_EQUAL) {
+				} else if (ifType == GREATER_THAN) {
 					op = IF_ICMPLE;
+				} else if (ifType == LESS_THAN_OR_EQUAL) {
+					op = IF_ICMPGT;
+				} else if (ifType == GREATER_THAN_OR_EQUAL) {
+					op = IF_ICMPLT;
 				} else if (ifType == AND || ifType == OR) {
 					if (!leftType.equals("Z") || !rightType.equals("Z")) {
 						invalid(new CompileError("Only booleans can be compared with 'and' / 'or'"));

@@ -78,6 +78,8 @@ public class GenericBlockCompiler implements GenericCompiler {
 
 				m.visitLabel(finalEnd);
 			} else if (condition.startsWith("while ")) {
+				// TODO create a new Block object here
+
 				Label outOfLoop = new Label();
 
 				String parse = condition.substring(5).trim();
@@ -100,6 +102,8 @@ public class GenericBlockCompiler implements GenericCompiler {
 				m.visitJumpInsn(GOTO, afterGoto);
 				m.visitLabel(outOfLoop);
 			} else if (condition.startsWith("for ")) {
+				// TODO create a new Block object here
+
 				Label outOfLoop = new Label();
 
 				String parse = condition.substring(4).trim();
@@ -119,7 +123,11 @@ public class GenericBlockCompiler implements GenericCompiler {
 					throw new CompileError("For-loop format should be 'declaration; condition; modification;'");
 				}
 				String conditionBool = spl[1].trim();
+				String increment = spl[2].trim();
+
 				new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+				new MathExpressionCompiler(this.data, false, true).compile(data, m, block, increment,
+						new String[] { increment });
 
 				m.visitLabel(after);
 				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, block, conditionBool,
