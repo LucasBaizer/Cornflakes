@@ -168,9 +168,31 @@ public class GenericBlockCompiler implements GenericCompiler {
 				ExpressionCompiler exp = new ExpressionCompiler(false, this.data);
 				exp.compile(data, m, currentBlock, itr, new String[] { itr });
 
-				if (exp.getReferenceSignature().equals("Ljava/util/Iterator;")) {
-					// TODO
+				int idx = this.data.getLocalVariables();
+				this.data.addLocal(new LocalData(var, "Ljava/lang/Object;", currentBlock, idx, 0));
+				this.data.addLocalVariable();
+
+				int itrIdx = this.data.getLocalVariables();
+				this.data.addLocal(new LocalData("temp_itr", "Ljava/lang/Iterator;", currentBlock, itrIdx, ACC_FINAL));
+				this.data.addLocalVariable();
+
+				try {
+					if (exp.getReferenceSignature().equals("Ljava/util/Iterator;")) {
+						exp.setWrite(true);
+						exp.compile(data, m, currentBlock, itr, new String[] { itr });
+					} else if (ClassData.forName(exp.getReferenceSignature()).isSubclassOf("java.lang.Iterable")) {
+						exp.setWrite(true);
+						exp.compile(data, m, currentBlock, itr, new String[] { itr });
+
+						m.visitMethodInsn(INVOKEINTERFACE, "java/lang/Iterable", "iterator", "()Ljava/util/Iterator;", true);
+					} else {
+						throw new CompileError(
+								"Cannot for-each over the given object; should be an instance of java.util.Iterator or java.util.Iterable");
+					}
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
 				}
+				m.visitVarInsn(ASTORE, itrIdx);
 
 				Label afterGoto = new Label();
 				Label after = new Label();
@@ -179,14 +201,20 @@ public class GenericBlockCompiler implements GenericCompiler {
 				m.visitJumpInsn(GOTO, after);
 
 				m.visitLabel(afterGoto);
+				m.visitVarInsn(ALOAD, itrIdx);
+				m.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "next", "()Ljava/lang/Object;", true);
+				this.data.ics();
+				m.visitVarInsn(Types.getOpcode(Types.STORE, "Ljava/lang/Object;"), idx);
+
 				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
 						Strings.accumulate(newBlock));
 				m.visitLabel(after);
-				/*
-				 * new BooleanExpressionCompiler(this.data, outOfLoop,
-				 * true).compile(data, m, currentBlock, parse, new String[] {
-				 * parse });
-				 */
+				m.visitVarInsn(ALOAD, itrIdx);
+				m.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true);
+				this.data.ics();
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(IFEQ, outOfLoop);
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, afterGoto);

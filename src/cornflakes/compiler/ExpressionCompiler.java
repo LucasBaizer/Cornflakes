@@ -325,12 +325,14 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			ClassData typeClass = null;
 			try {
-				typeClass = ClassData.forName(type);
+				if (!Types.isPrimitive(type)) {
+					typeClass = ClassData.forName(type);
+				}
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}
 
-			MethodData indexer = typeClass.isIndexedClass() ? typeClass.getMethods("_index_")[0] : null;
+			MethodData indexer = typeClass != null && typeClass.isIndexedClass() ? typeClass.getMethods("_index_")[0] : null;
 			if (write) {
 				if (!(!loadVariableReference && isLast)) {
 					int op = Types.getOpcode(Types.LOAD, type);
@@ -743,5 +745,9 @@ public class ExpressionCompiler implements GenericCompiler {
 
 	public FieldData getField() {
 		return field;
+	}
+	
+	public void setWrite(boolean val) {
+		this.write = val;
 	}
 }
