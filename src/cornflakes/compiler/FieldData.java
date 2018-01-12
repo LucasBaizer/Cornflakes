@@ -1,9 +1,14 @@
 package cornflakes.compiler;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class FieldData {
+	private List<GenericType> genericTypes = new ArrayList<>();
 	private String name;
 	private String type;
 	private Object proposedData;
+	private boolean isGeneric;
 	private int modifiers;
 
 	public FieldData(String name, String type, int mods) {
@@ -51,5 +56,21 @@ public class FieldData {
 	@Override
 	public String toString() {
 		return name + ": " + type;
+	}
+
+	public List<GenericType> getGenericTypes() {
+		return genericTypes;
+	}
+
+	public void setGenericTypes(List<GenericType> genericTypes) {
+		this.genericTypes = genericTypes;
+	}
+
+	public boolean isGeneric() {
+		return isGeneric;
+	}
+
+	public void setGeneric(boolean isGeneric) {
+		this.isGeneric = isGeneric;
 	}
 }

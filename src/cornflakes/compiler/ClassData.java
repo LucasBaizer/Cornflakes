@@ -3,6 +3,8 @@ package cornflakes.compiler;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ public class ClassData {
 	private Set<MethodData> methods = new HashSet<>();
 	private Set<ConstructorData> constructors = new HashSet<>();
 	private Set<FieldData> fields = new HashSet<>();
+	private Set<GenericParameter> genericParameters = new HashSet<>();
 	private ClassWriter classWriter;
 	private Class<?> javaClass;
 	private boolean isIndexed;
@@ -58,6 +61,18 @@ public class ClassData {
 		container.setSimpleClassName(cls.getSimpleName());
 		container.setParentName(true,
 				cls.getSuperclass() == null ? "java/lang/Object" : cls.getSuperclass().getName().replace('.', '/'));
+
+		if (cls.getGenericSuperclass() != null) {
+			if (cls.getGenericSuperclass() instanceof ParameterizedType) {
+				Set<GenericParameter> par = new HashSet<>();
+
+				for (Type type : ((ParameterizedType) cls.getGenericSuperclass()).getActualTypeArguments()) {
+					par.add(new GenericParameter(type.getTypeName()));
+				}
+
+				container.genericParameters = par;
+			}
+		}
 
 		List<String> ifs = new ArrayList<>();
 		for (Class<?> c : cls.getInterfaces()) {
@@ -451,5 +466,26 @@ public class ClassData {
 
 	public void setIsIndexedClass(boolean isIndexed) {
 		this.isIndexed = isIndexed;
+	}
+
+	public boolean hasGenericParameters() {
+		return this.genericParameters.size() > 0;
+	}
+
+	public boolean hasGeneric(String name) {
+		return getGeneric(name) != null;
+	}
+
+	public GenericParameter getGeneric(String name) {
+		for (GenericParameter par : genericParameters) {
+			if (par.getName().equals(name)) {
+				return par;
+			}
+		}
+		return null;
+	}
+
+	public GenericParameter[] getGenerics() {
+		return this.genericParameters.toArray(new GenericParameter[this.genericParameters.size()]);
 	}
 }

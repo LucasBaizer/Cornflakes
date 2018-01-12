@@ -1,0 +1,8 @@
+package cornflakes.lang;
+public class Test;
+
+use java.util.ArrayList;
+
+public static func test() {
+	var list = ArrayList<string>();
+}

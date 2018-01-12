@@ -4,7 +4,7 @@ import cornflakes.compiler.MainCompiler;
 
 public class Main {
 	public static void main(String[] args) throws Exception {
-		MainCompiler.main(args);
-		// CFSTestClass.main(args);
+		MainCompiler.main(new String[] { "src" });
+		Test.test();
 	}
 }
