@@ -146,6 +146,51 @@ public class GenericBlockCompiler implements GenericCompiler {
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, afterGoto);
 				m.visitLabel(outOfLoop);
+			} else if (condition.startsWith("foreach ")) {
+				Block currentBlock = new Block(block.getStart() + 1, start, null);
+				block.addBlock(currentBlock);
+
+				Label outOfLoop = new Label();
+				currentBlock.setEndLabel(outOfLoop);
+
+				String parse = condition.substring(8).trim();
+				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
+				String newBlock = Strings.accumulate(newLines).trim();
+
+				String[] parseSplit = Strings.split(parse, " in ");
+				if (parseSplit.length != 2) {
+					throw new CompileError("Foreach-loop format should be 'variable in iterator/iterable'");
+				}
+
+				String var = parseSplit[0].trim();
+				String itr = parseSplit[1].trim();
+
+				ExpressionCompiler exp = new ExpressionCompiler(false, this.data);
+				exp.compile(data, m, currentBlock, itr, new String[] { itr });
+
+				if (exp.getReferenceSignature().equals("Ljava/util/Iterator;")) {
+					// TODO
+				}
+
+				Label afterGoto = new Label();
+				Label after = new Label();
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, after);
+
+				m.visitLabel(afterGoto);
+				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
+						Strings.accumulate(newBlock));
+				m.visitLabel(after);
+				/*
+				 * new BooleanExpressionCompiler(this.data, outOfLoop,
+				 * true).compile(data, m, currentBlock, parse, new String[] {
+				 * parse });
+				 */
+
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, afterGoto);
+				m.visitLabel(outOfLoop);
 			} else {
 				throw new CompileError("Unresolved block condition: " + condition);
 			}

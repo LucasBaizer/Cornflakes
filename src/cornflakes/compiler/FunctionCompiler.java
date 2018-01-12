@@ -35,6 +35,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.lines = lines;
 
 			boolean override = false;
+			boolean index = false;
 			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
@@ -86,10 +87,20 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						if (usedKeywords.contains("abstract")) {
 							throw new CompileError("Abstract methods cannot be static");
 						}
+						if (usedKeywords.contains("this")) {
+							throw new CompileError("Indexer methods cannot be static");
+						}
 
 						accessor |= ACC_STATIC;
 					} else if (key.equals("sync")) {
 						accessor |= ACC_SYNCHRONIZED;
+					} else if (key.equals("this")) {
+						if (data.isIndexedClass()) {
+							throw new CompileError("Cannot have multiple indexer functions");
+						}
+						data.setIsIndexedClass(true);
+
+						index = true;
 					} else if (key.equals("override")) {
 						override = true;
 					} else {
@@ -101,9 +112,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			String after = lines[0].substring(lines[0].indexOf("func") + "func".length()).trim();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
-			Strings.handleMatching(withoutBracket, '(', ')');
+			if (index) {
+				Strings.handleMatching(withoutBracket, '[', ']');
+			} else {
+				Strings.handleMatching(withoutBracket, '(', ')');
+			}
 
-			String methodName = withoutBracket.substring(0, withoutBracket.indexOf('(')).trim();
+			String methodName = withoutBracket.substring(0, withoutBracket.indexOf(index ? '[' : '(')).trim();
 			Strings.handleLetterString(methodName, Strings.NUMBERS);
 
 			if (data.hasMethod(methodName)) {
@@ -118,15 +133,19 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				returnType = Types.padSignature(data.resolveClass(afterParams));
 			}
 
-			String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')'))
-					.trim();
 			Map<String, String> parameters = new LinkedHashMap<>();
-			if (!params.isEmpty()) {
-				String[] split = params.split(",");
-				for (String par : split) {
-					par = Strings.normalizeSpaces(par);
+			if (index) {
+				methodName = "_index_";
 
-					String[] spl = par.split(":");
+				String params = withoutBracket.substring(withoutBracket.indexOf('[') + 1, withoutBracket.indexOf(']'))
+						.trim();
+				if (!params.isEmpty()) {
+					String[] split = params.split(",");
+					if (split.length != 1) {
+						throw new CompileError("Indexer methods have 1 parameter");
+					}
+
+					String[] spl = split[0].trim().split(":");
 					if (spl.length == 1) {
 						throw new CompileError("Parameters must have a specified type, in the format 'name': 'type'");
 					} else if (spl.length > 2) {
@@ -139,13 +158,42 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
 					Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
 
-					if (parameters.containsKey(name)) {
-						throw new CompileError("Duplicate parameter name: " + par);
-					}
-
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 							: data.resolveClass(type);
 					parameters.put(name, Types.padSignature(resolvedType));
+				} else {
+					throw new CompileError("Indexer methods have 1 parameter");
+				}
+			} else {
+				String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')'))
+						.trim();
+				if (!params.isEmpty()) {
+					String[] split = params.split(",");
+					for (String par : split) {
+						par = Strings.normalizeSpaces(par);
+
+						String[] spl = par.split(":");
+						if (spl.length == 1) {
+							throw new CompileError(
+									"Parameters must have a specified type, in the format 'name': 'type'");
+						} else if (spl.length > 2) {
+							throw new CompileError("Unexpected symbol: " + spl[2]);
+						}
+
+						String name = spl[0].trim();
+						String type = spl[1].trim();
+
+						Strings.handleLetterString(name, Strings.VARIABLE_NAME);
+						Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
+
+						if (parameters.containsKey(name)) {
+							throw new CompileError("Duplicate parameter name: " + par);
+						}
+
+						String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
+								: data.resolveClass(type);
+						parameters.put(name, Types.padSignature(resolvedType));
+					}
 				}
 			}
 

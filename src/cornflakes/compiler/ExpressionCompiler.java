@@ -322,6 +322,7 @@ public class ExpressionCompiler implements GenericCompiler {
 		} else if (source == 1) {
 			LocalData local = this.data.getLocal(body, block);
 			String type = local.getType();
+
 			ClassData typeClass = null;
 			try {
 				typeClass = ClassData.forName(type);
@@ -329,6 +330,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				throw new CompileError(e);
 			}
 
+			MethodData indexer = typeClass.isIndexedClass() ? typeClass.getMethods("_index_")[0] : null;
 			if (write) {
 				if (!(!loadVariableReference && isLast)) {
 					int op = Types.getOpcode(Types.LOAD, type);
@@ -340,10 +342,14 @@ public class ExpressionCompiler implements GenericCompiler {
 							ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 							compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
 
-							if (!type.equals("Ljava/util/Map;")) {
-								if (!compiler.getReferenceSignature().equals("I")) {
-									throw new CompileError("Arrays can only be indexed by integers");
+							try {
+								if (typeClass.isSubclassOf("java.util.List") || type.startsWith("[")) {
+									if (!compiler.getReferenceSignature().equals("I")) {
+										throw new CompileError("Arrays can only be indexed by integers");
+									}
 								}
+							} catch (ClassNotFoundException e) {
+								throw new CompileError(e);
 							}
 						} else {
 							if (idxType.equals("string")) {
@@ -357,15 +363,23 @@ public class ExpressionCompiler implements GenericCompiler {
 							}
 						}
 
-						if (type.equals("Ljava/lang/String;")) {
-							m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
-						} else if (type.equals("Ljava/util/List;")) {
-							m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get", "(I)Ljava/lang/Object;", true);
-						} else if (type.equals("Ljava/util/Map;")) {
-							m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "get",
-									"(Ljava/lang/Object;)Ljava/lang/Object;", true);
-						} else {
-							m.visitInsn(Types.getArrayOpcode(Types.LOAD, type));
+						try {
+							if (typeClass.isIndexedClass()) {
+								m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_index_",
+										indexer.getSignature(), false);
+							} else if (type.equals("Ljava/lang/String;")) {
+								m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
+							} else if (typeClass.isSubclassOf("java.util.List")) {
+								m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get", "(I)Ljava/lang/Object;",
+										true);
+							} else if (typeClass.isSubclassOf("java.util.Map")) {
+								m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "get",
+										"(Ljava/lang/Object;)Ljava/lang/Object;", true);
+							} else {
+								m.visitInsn(Types.getArrayOpcode(Types.LOAD, type));
+							}
+						} catch (ClassNotFoundException e) {
+							throw new CompileError(e);
 						}
 					}
 
@@ -379,12 +393,18 @@ public class ExpressionCompiler implements GenericCompiler {
 			if (arrayIndex == null) {
 				referenceSignature = type;
 			} else {
-				if (type.equals("Ljava/lang/String;")) {
-					referenceSignature = "C";
-				} else if (type.equals("Ljava/util/List;") || type.equals("Ljava/util/Map;")) {
-					referenceSignature = "Ljava/lang/Object;";
-				} else {
-					referenceSignature = type.substring(1);
+				try {
+					if (indexer != null) {
+						referenceSignature = indexer.getReturnTypeSignature();
+					} else if (type.equals("Ljava/lang/String;")) {
+						referenceSignature = "C";
+					} else if (typeClass.isSubclassOf("java.util.List") || typeClass.isSubclassOf("java.util.Map")) {
+						referenceSignature = "Ljava/lang/Object;";
+					} else {
+						referenceSignature = type.substring(1);
+					}
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
 				}
 			}
 			referenceType = LOCAL_VARIABLE;

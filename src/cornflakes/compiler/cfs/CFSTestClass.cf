@@ -1,6 +1,13 @@
 package cornflakes.compiler.cfs
 public class CFSTestClass
 
+use java.util.ArrayList;
+
 public static func main(args: string[]) {
-	var x = i32.parseInt("0");
+	var list = ArrayList();
+	
+	list.add("kek");
+	
+	foreach val in list.iterator() {
+	}
 }

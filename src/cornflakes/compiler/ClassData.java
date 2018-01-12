@@ -31,6 +31,7 @@ public class ClassData {
 	private Set<FieldData> fields = new HashSet<>();
 	private ClassWriter classWriter;
 	private Class<?> javaClass;
+	private boolean isIndexed;
 	private boolean isInterface;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
@@ -55,7 +56,7 @@ public class ClassData {
 		container.setIsInterface(cls.isInterface());
 		container.setClassName(t);
 		container.setSimpleClassName(cls.getSimpleName());
-		container.setParentName(
+		container.setParentName(true,
 				cls.getSuperclass() == null ? "java/lang/Object" : cls.getSuperclass().getName().replace('.', '/'));
 
 		List<String> ifs = new ArrayList<>();
@@ -213,7 +214,20 @@ public class ClassData {
 	}
 
 	public void setParentName(String parentName) {
+		setParentName(false, parentName);
+	}
+
+	public void setParentName(boolean isJavaClass, String parentName) {
 		this.parentName = parentName;
+
+		try {
+			if (!isJavaClass) {
+				ClassData parent = ClassData.forName(parentName);
+				this.isIndexed = parent.isIndexed;
+			}
+		} catch (ClassNotFoundException e) {
+			throw new CompileError(e);
+		}
 	}
 
 	public boolean hasMethod(String name) {
@@ -330,6 +344,10 @@ public class ClassData {
 		return (this.modifiers & mod) == mod;
 	}
 
+	public boolean isSubclassOf(String test) throws ClassNotFoundException {
+		return ClassData.forName(test).isAssignableFrom(this);
+	}
+
 	public boolean isAssignableFrom(ClassData test) {
 		if (this.isInterface) {
 			for (String iface : test.interfaces) {
@@ -425,5 +443,13 @@ public class ClassData {
 		}
 
 		return false;
+	}
+
+	public boolean isIndexedClass() {
+		return isIndexed;
+	}
+
+	public void setIsIndexedClass(boolean isIndexed) {
+		this.isIndexed = isIndexed;
 	}
 }
