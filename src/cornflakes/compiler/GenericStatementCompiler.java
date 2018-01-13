@@ -144,7 +144,17 @@ public class GenericStatementCompiler implements GenericCompiler {
 			String variableType = decl.getVariableType();
 
 			int idx = this.data.getLocalVariables();
-			m.visitLocalVariable(variableName, variableType, null, block.getStartLabel(), block.getEndLabel(), idx);
+			String signature = Types.padSignature(variableType);
+			if (decl.isGenericTyped()) {
+				signature = signature.substring(0, signature.length() - 1);
+				signature += "<";
+				for (GenericType type : decl.getGenericTypes()) {
+					signature += Types.getTypeSignature(type.getType());
+				}
+				signature += ">;";
+			}
+			m.visitLocalVariable(variableName, variableType, signature, block.getStartLabel(), block.getEndLabel(),
+					idx);
 			if (value != null) {
 				int push = Types.getOpcode(Types.PUSH, valueType);
 				int store = Types.getOpcode(Types.STORE, variableType);
@@ -167,8 +177,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 				m.visitVarInsn(Types.getOpcode(Types.STORE, valueType), idx);
 			}
 
-			this.data.addLocal(
-					new LocalData(variableName, variableType, block, idx, body.startsWith("var") ? 0 : ACC_FINAL));
+			LocalData local = new LocalData(variableName, variableType, block, idx,
+					body.startsWith("var") ? 0 : ACC_FINAL);
+			if (decl.isGenericTyped()) {
+				local.setGeneric(true);
+				local.setGenericTypes(decl.getGenericTypes());
+			}
+			this.data.addLocal(local);
 			this.data.addLocalVariable();
 		} else {
 			boolean ref = true;
@@ -184,7 +199,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				String refName = compiler.getReferenceName();
 				FieldData field = compiler.getField();
-				
+
 				if (field != null) {
 					ref = false;
 

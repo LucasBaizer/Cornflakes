@@ -1,8 +1,13 @@
 package cornflakes.lang;
 public class Test;
 
-use java.util.ArrayList;
+use javax.swing.JComponent;
+use javax.swing.JPanel;
 
 public static func test() {
-	var list = ArrayList<string>();
+	var comp: JComponent = JPanel();
+	
+	System.out.println(typeof(JComponent));
+	
+	// var panel: JPanel = comp as JPanel;
 }

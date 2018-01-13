@@ -2,11 +2,16 @@ package cornflakes.compiler;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.objectweb.asm.Opcodes;
 
@@ -14,6 +19,7 @@ public class MethodData {
 	private String name;
 	private String returnType;
 	private Map<String, String> parameters = new LinkedHashMap<>();
+	private Set<GenericParameter> genericParameters = new HashSet<>();
 	private List<LocalData> locals = new ArrayList<>();
 	private int stackSize;
 	private int localVariables;
@@ -25,9 +31,23 @@ public class MethodData {
 		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
 				method.getDeclaringClass().isInterface(), method.getModifiers());
 		Parameter[] params = method.getParameters();
+		Type[] genericTypes = method.getGenericParameterTypes();
 		for (int i = 0; i < params.length; i++) {
-			mData.addParameter(params[i].getName(), Types.getTypeSignature(params[i].getType()));
+			Parameter param = params[i];
+			Type type = genericTypes[i];
+			if (type instanceof ParameterizedType) {
+				ParameterizedType parized = (ParameterizedType) type;
+				Type par = parized.getActualTypeArguments()[0];
+				if (par instanceof WildcardType) {
+					WildcardType wildcard = (WildcardType) par;
+					mData.addGenericParameter(new GenericParameter(param.getName(), null, Types
+							.getTypeSignature(Strings.transformClassName(wildcard.getUpperBounds()[0].getTypeName()))));
+				}
+			} else {
+				mData.addParameter(param.getName(), Types.getTypeSignature(param.getType()));
+			}
 		}
+
 		return mData;
 	}
 
@@ -200,5 +220,31 @@ public class MethodData {
 
 	public void dcs() {
 		this.currentStack--;
+	}
+
+	public Set<GenericParameter> getGenericParameters() {
+		return genericParameters;
+	}
+
+	public void setGenericParameters(Set<GenericParameter> genericParameters) {
+		this.genericParameters = genericParameters;
+	}
+
+	public boolean isGenericParameter(String name) {
+		return getGenericParameter(name) != null;
+	}
+
+	public void addGenericParameter(GenericParameter type) {
+		genericParameters.add(type);
+	}
+
+	public GenericParameter getGenericParameter(String name) {
+		for (GenericParameter type : genericParameters) {
+			if (type.getName().equals(name)) {
+				return type;
+			}
+		}
+
+		return null;
 	}
 }

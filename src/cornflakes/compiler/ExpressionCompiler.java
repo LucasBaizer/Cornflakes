@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 public class ExpressionCompiler implements GenericCompiler {
 	public static final int LOCAL_VARIABLE = 0;
@@ -15,6 +16,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	public static final int BOOLEAN_EXPRESSION = 5;
 	public static final int MATH_EXPRESSION = 6;
 	public static final int NEW_ARRAY = 7;
+	public static final int TYPEOF = 0;
 
 	private MethodData data;
 	private boolean write;
@@ -29,6 +31,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	private boolean math;
 	private GenericCompiler source;
 	private FieldData field;
+	private List<GenericType> genericTypes = new ArrayList<>();
 
 	public ExpressionCompiler(boolean write, MethodData data) {
 		this.write = write;
@@ -113,6 +116,9 @@ public class ExpressionCompiler implements GenericCompiler {
 				if (superCall || toUse.hasMethod(name)) {
 					compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
 					next = true;
+				} else if (name.equals("typeof")) {
+					compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
+					next = true;
 				} else {
 					MethodData[] methods = toUse.getAllMethods(name);
 					if (methods.length > 0) {
@@ -124,6 +130,9 @@ public class ExpressionCompiler implements GenericCompiler {
 						if (!name.equals("array")) {
 							String resolved = null;
 							try {
+								if (Strings.contains(name, "<")) {
+									name = name.substring(0, name.indexOf('<'));
+								}
 								resolved = data.resolveClass(name);
 							} catch (CompileError e) {
 								throw new CompileError("Undefined function: " + name);
@@ -332,7 +341,8 @@ public class ExpressionCompiler implements GenericCompiler {
 				throw new CompileError(e);
 			}
 
-			MethodData indexer = typeClass != null && typeClass.isIndexedClass() ? typeClass.getMethods("_index_")[0] : null;
+			MethodData indexer = typeClass != null && typeClass.isIndexedClass() ? typeClass.getMethods("_index_")[0]
+					: null;
 			if (write) {
 				if (!(!loadVariableReference && isLast)) {
 					int op = Types.getOpcode(Types.LOAD, type);
@@ -413,11 +423,53 @@ public class ExpressionCompiler implements GenericCompiler {
 			referenceName = local.getName();
 			referenceOwner = containerData;
 		}
+
+		if (field.isGeneric()) {
+			this.genericTypes = field.getGenericTypes();
+		}
 	}
 
 	private void compileConstructorCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
 			Block block, String body, String clazz) throws ClassNotFoundException {
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
+		if (Strings.hasMatching(body, '<', '>')) {
+			String generic = body.substring(body.indexOf('<') + 1, body.lastIndexOf('>')).trim();
+			String[] params = generic.split(",");
+			if (params.length != containerData.getGenerics().length) {
+				throw new CompileError(containerData.getClassName() + " expects " + containerData.getGenerics().length
+						+ " generic parameter" + (containerData.getGenerics().length != 1 ? "s" : "") + " ("
+						+ params.length + " were given)");
+			}
+
+			for (String param : params) {
+				String type = param.trim();
+				boolean ext = false;
+
+				if (type.contains(" is ")) {
+					String[] split = type.split(" is ");
+					String p1 = split[0].trim();
+					if (!p1.equals("?")) {
+						throw new CompileError("Expecting generic type '?'");
+					}
+
+					type = split[1].trim();
+					ext = true;
+				}
+
+				if (Types.isPrimitive(type)) {
+					type = Types.getWrapperType(type);
+				} else {
+					type = Types.getTypeSignature(data.resolveClass(type));
+				}
+
+				genericTypes.add(new GenericType(type, ext));
+			}
+		} else {
+			if (containerData.hasGenericParameters()) {
+				throw new CompileError(containerData.getClassName() + " expects " + containerData.getGenerics().length
+						+ " generic parameter" + (containerData.getGenerics().length != 1 ? "s" : ""));
+			}
+		}
 		if (clazz.equals("__array__")) {
 			String[] split = pars.split(",");
 			if (split.length != 2) {
@@ -540,121 +592,136 @@ public class ExpressionCompiler implements GenericCompiler {
 			ClassData data, MethodVisitor m, Block block, String body, boolean superCall)
 			throws ClassNotFoundException {
 		String before = body.substring(0, body.indexOf('(')).trim();
-
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
-
 		String[] split = getParameters(pars);
 
-		MethodData[] methods = superCall ? ClassData.forName(containerData.getParentName()).getConstructors()
-				: containerData.getAllMethods(before);
-		MethodData method = null;
+		if (before.equals("typeof")) {
+			if (split.length != 1) {
+				throw new CompileError("typeof function takes 1 parameter, but " + split.length + " were given");
+			}
+			String type = split[0].trim();
+			String resolve = data.resolveClass(type);
+			if (write)
+				m.visitLdcInsn(Type.getType(Types.getTypeSignature(resolve)));
 
-		for (MethodData met : methods) {
-			if (met.getParameters().size() == split.length) {
-				int idx = 0;
-				boolean success = true;
-				for (String par : split) {
-					String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
-					String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+			referenceSignature = "Ljava/lang/Class;";
+			referenceType = TYPEOF;
+			referenceName = "typeof";
+			referenceOwner = containerData;
+		} else {
+			MethodData[] methods = superCall ? ClassData.forName(containerData.getParentName()).getConstructors()
+					: containerData.getAllMethods(before);
+			MethodData method = null;
 
-					if (type != null) {
-						if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
-							success = false;
-							break;
+			for (MethodData met : methods) {
+				if (met.getParameters().size() == split.length) {
+					int idx = 0;
+					boolean success = true;
+					for (String par : split) {
+						String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
+						String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+
+						if (type != null) {
+							if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
+								success = false;
+								break;
+							}
+						} else {
+							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
+							compiler.compile(this, data.getClassName(), data, data, m, block, par,
+									new String[] { par });
+
+							if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
+								success = false;
+								break;
+							}
 						}
-					} else {
-						ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
-						compiler.compile(this, data.getClassName(), data, data, m, block, par, new String[] { par });
-
-						if (!Types.isSuitable(paramType, compiler.getReferenceSignature())) {
-							success = false;
-							break;
-						}
+						idx++;
 					}
-					idx++;
-				}
 
-				if (success) {
-					method = met;
-					break;
+					if (success) {
+						method = met;
+						break;
+					}
 				}
 			}
-		}
 
-		if (method == null) {
-			throw new CompileError("No overload for method " + before + " takes the given parameters");
-		}
+			if (method == null) {
+				throw new CompileError("No overload for method " + before + " takes the given parameters");
+			}
 
-		if (!superCall) {
-			if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
-					&& containerClass.equals(data.getClassName())) {
+			if (!superCall) {
+				if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
+						&& containerClass.equals(data.getClassName())) {
+					m.visitVarInsn(ALOAD, 0);
+
+					if (this.data != null)
+						this.data.ics();
+				}
+			} else if (!thisType && (last == null || !last.thisType)) {
 				m.visitVarInsn(ALOAD, 0);
 
 				if (this.data != null)
 					this.data.ics();
 			}
-		} else if (!thisType && (last == null || !last.thisType)) {
-			m.visitVarInsn(ALOAD, 0);
 
-			if (this.data != null)
-				this.data.ics();
-		}
+			for (String par : split) {
+				String type = Types.getType(par,
+						this.data == null ? "" : this.data.getReturnType().getSimpleClassName().toLowerCase());
 
-		for (String par : split) {
-			String type = Types.getType(par,
-					this.data == null ? "" : this.data.getReturnType().getSimpleClassName().toLowerCase());
+				if (type != null) {
+					if (write) {
+						m.visitLdcInsn(Types.parseLiteral(type, par));
 
-			if (type != null) {
-				if (write) {
-					m.visitLdcInsn(Types.parseLiteral(type, par));
-
-					if (this.data != null)
-						this.data.ics();
-				}
-			} else {
-				ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
-				compiler.compile(data, m, block, par, new String[] { par });
-			}
-		}
-
-		if (superCall) {
-			((ConstructorBlock) block).setCalledSuper(true);
-			m.visitMethodInsn(INVOKESPECIAL, containerData.getParentName(), "<init>", method.getSignature(), false);
-
-			referenceSignature = Types.getTypeSignature(containerData.getParentName());
-			referenceType = CONSTRUCTOR;
-			referenceName = "<init>";
-			referenceOwner = containerData;
-		} else {
-			if ((method.getModifiers() & ACC_STATIC) == ACC_STATIC) {
-				if (write) {
-					m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(),
-							method.isInterfaceMethod());
-					if (!method.getReturnTypeSignature().equals("V")) {
 						if (this.data != null)
 							this.data.ics();
 					}
-				}
-			} else {
-				if (containerData.getClassName().equals(data.getClassName()) && referenceSignature == null) {
-					if ((this.data.getModifiers() & ACC_STATIC) == ACC_STATIC) {
-						throw new CompileError("Cannot access instance method from a static context");
-					}
-				}
-				if (write) {
-					m.visitMethodInsn(method.isInterfaceMethod() ? INVOKEINTERFACE : INVOKEVIRTUAL,
-							containerData.getClassName(), before, method.getSignature(), method.isInterfaceMethod());
-					if (!method.getReturnTypeSignature().equals("V")) {
-						if (this.data != null)
-							this.data.ics();
-					}
+				} else {
+					ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
+					compiler.compile(data, m, block, par, new String[] { par });
 				}
 			}
 
-			referenceSignature = method.getReturnTypeSignature();
-			referenceType = METHOD;
-			referenceName = method.getName();
-			referenceOwner = containerData;
+			if (superCall) {
+				((ConstructorBlock) block).setCalledSuper(true);
+				m.visitMethodInsn(INVOKESPECIAL, containerData.getParentName(), "<init>", method.getSignature(), false);
+
+				referenceSignature = Types.getTypeSignature(containerData.getParentName());
+				referenceType = CONSTRUCTOR;
+				referenceName = "<init>";
+				referenceOwner = containerData;
+			} else {
+				if ((method.getModifiers() & ACC_STATIC) == ACC_STATIC) {
+					if (write) {
+						m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(),
+								method.isInterfaceMethod());
+						if (!method.getReturnTypeSignature().equals("V")) {
+							if (this.data != null)
+								this.data.ics();
+						}
+					}
+				} else {
+					if (containerData.getClassName().equals(data.getClassName()) && referenceSignature == null) {
+						if ((this.data.getModifiers() & ACC_STATIC) == ACC_STATIC) {
+							throw new CompileError("Cannot access instance method from a static context");
+						}
+					}
+					if (write) {
+						m.visitMethodInsn(method.isInterfaceMethod() ? INVOKEINTERFACE : INVOKEVIRTUAL,
+								containerData.getClassName(), before, method.getSignature(),
+								method.isInterfaceMethod());
+						if (!method.getReturnTypeSignature().equals("V")) {
+							if (this.data != null)
+								this.data.ics();
+						}
+					}
+				}
+
+				referenceSignature = method.getReturnTypeSignature();
+				referenceType = METHOD;
+				referenceName = method.getName();
+				referenceOwner = containerData;
+			}
 		}
 	}
 
@@ -746,8 +813,16 @@ public class ExpressionCompiler implements GenericCompiler {
 	public FieldData getField() {
 		return field;
 	}
-	
+
 	public void setWrite(boolean val) {
 		this.write = val;
+	}
+
+	public List<GenericType> getGenericTypes() {
+		return genericTypes;
+	}
+
+	public void setGenericTypes(List<GenericType> genericTypes) {
+		this.genericTypes = genericTypes;
 	}
 }

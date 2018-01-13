@@ -1,5 +1,8 @@
 package cornflakes.compiler;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.objectweb.asm.MethodVisitor;
 
 public class CompileUtils {
@@ -9,10 +12,13 @@ public class CompileUtils {
 		private String valueType;
 		private String rawValue;
 		private boolean isReference;
+		private List<GenericType> genericTypes;
 
-		public VariableDeclaration(String type, Object val, String valType, String raw, boolean ref) {
+		public VariableDeclaration(String type, Object val, String valType, String raw, List<GenericType> generics,
+				boolean ref) {
 			this.variableType = type;
 			this.value = val;
+			this.genericTypes = generics;
 			this.valueType = valType;
 			this.isReference = ref;
 			this.rawValue = raw;
@@ -57,6 +63,18 @@ public class CompileUtils {
 		public void setRawValue(String rawValue) {
 			this.rawValue = rawValue;
 		}
+
+		public List<GenericType> getGenericTypes() {
+			return genericTypes;
+		}
+
+		public void setGenericTypes(List<GenericType> genericTypes) {
+			this.genericTypes = genericTypes;
+		}
+
+		public boolean isGenericTyped() {
+			return this.genericTypes.size() > 0;
+		}
 	}
 
 	public static VariableDeclaration declareVariable(MethodData methodData, ClassData data, MethodVisitor m,
@@ -65,6 +83,7 @@ public class CompileUtils {
 		Object value = null;
 		String valueType = null;
 		String raw = null;
+		List<GenericType> generics = new ArrayList<>();
 		boolean isRef = false;
 		boolean isMember = m == null || block == null;
 
@@ -84,11 +103,12 @@ public class CompileUtils {
 			if (valueType == null) {
 				ExpressionCompiler ref = new ExpressionCompiler(true, methodData);
 				ref.compile(data, m, block, givenValue, new String[] { givenValue });
-				
+
 				if ((valueType = ref.getReferenceSignature()) == null) {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 				}
 
+				generics = ref.getGenericTypes();
 				isRef = !ref.isPrimitiveReference();
 			} else {
 				value = Types.parseLiteral(valueType, givenValue);
@@ -118,6 +138,7 @@ public class CompileUtils {
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getReferenceSignature();
 					math = compiler.isMath();
+					generics = compiler.getGenericTypes();
 					isRef = !compiler.isPrimitiveReference();
 				}
 
@@ -137,6 +158,6 @@ public class CompileUtils {
 			}
 		}
 
-		return new VariableDeclaration(variableType, value, valueType, raw, isRef);
+		return new VariableDeclaration(variableType, value, valueType, raw, generics, isRef);
 	}
 }
