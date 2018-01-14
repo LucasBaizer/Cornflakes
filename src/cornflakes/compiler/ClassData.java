@@ -360,10 +360,14 @@ public class ClassData {
 	}
 
 	public boolean isSubclassOf(String test) throws ClassNotFoundException {
-		return ClassData.forName(test).isAssignableFrom(this);
+		return ClassData.forName(test).isSuperclassOf(this);
+	}
+	
+	public boolean isSuperclassOf(String test) throws ClassNotFoundException {
+		return isSuperclassOf(ClassData.forName(test));
 	}
 
-	public boolean isAssignableFrom(ClassData test) {
+	public boolean isSuperclassOf(ClassData test) {
 		if (this.isInterface) {
 			for (String iface : test.interfaces) {
 				if (iface.equals(className)) {

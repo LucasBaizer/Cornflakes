@@ -16,7 +16,8 @@ public class ExpressionCompiler implements GenericCompiler {
 	public static final int BOOLEAN_EXPRESSION = 5;
 	public static final int MATH_EXPRESSION = 6;
 	public static final int NEW_ARRAY = 7;
-	public static final int TYPEOF = 0;
+	public static final int TYPEOF = 8;
+	public static final int CAST = 9;
 
 	private MethodData data;
 	private boolean write;
@@ -93,6 +94,22 @@ public class ExpressionCompiler implements GenericCompiler {
 			referenceOwner = data;
 			referenceSignature = Types.getTypeSignature(data.getClassName());
 			referenceType = THIS;
+			next = true;
+		} else if (Strings.contains(part, " as ")) {
+			String[] split = Strings.split(part, " as ");
+			String val = split[0].trim();
+			String cls = data.resolveClass(split[1].trim());
+
+			ExpressionCompiler sub = new ExpressionCompiler(this.write, this.data);
+			sub.compile(data, m, block, val, new String[] { val });
+
+			m.visitTypeInsn(CHECKCAST, cls);
+
+			referenceName = val;
+			referenceOwner = data;
+			referenceSignature = Types.padSignature(cls);
+			referenceType = CAST;
+
 			next = true;
 		} else if (Strings.hasMatching(part, '(', ')')) {
 			String name = part.substring(0, part.indexOf('(')).trim();
@@ -266,19 +283,23 @@ public class ExpressionCompiler implements GenericCompiler {
 		}
 
 		String clazz = null;
-		try {
-			if (part.equals("true") || part.equals("false")) {
-				m.visitInsn(part.equals("true") ? ICONST_1 : ICONST_0);
 
-				referenceName = body;
-				referenceOwner = data;
-				referenceSignature = "Z";
-				referenceType = BOOLEAN_EXPRESSION;
-			} else {
+		if (part.equals("true") || part.equals("false")) {
+			m.visitInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+
+			referenceName = body;
+			referenceOwner = data;
+			referenceSignature = "Z";
+			referenceType = BOOLEAN_EXPRESSION;
+
+			return;
+		} else {
+			try {
 				clazz = data.resolveClass(part, false);
+			} catch (CompileError e) {
+				throw new CompileError(
+						"Could not find a class, variable, method, or keyword derived from '" + part + "'");
 			}
-		} catch (CompileError e) {
-			throw new CompileError("Could not find a class, variable, method, or keyword derived from '" + part + "'");
 		}
 
 		ClassData cls = null;

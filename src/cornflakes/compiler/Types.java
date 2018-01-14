@@ -104,7 +104,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("i16") || type.equals("S")) {
+		} else if (type.equals("i16") || type.equals("short") || type.equals("S")) {
 			if (op == STORE) {
 				return ISTORE;
 			} else if (op == LOAD) {
@@ -114,7 +114,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("i32") || type.equals("I")) {
+		} else if (type.equals("i32") || type.equals("int") || type.equals("I")) {
 			if (op == STORE) {
 				return ISTORE;
 			} else if (op == LOAD) {
@@ -124,7 +124,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("i64") || type.equals("J")) {
+		} else if (type.equals("i64") || type.equals("long") || type.equals("J")) {
 			if (op == STORE) {
 				return LSTORE;
 			} else if (op == LOAD) {
@@ -144,7 +144,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return IRETURN;
 			}
-		} else if (type.equals("f32") || type.equals("F")) {
+		} else if (type.equals("f32") || type.equals("float") || type.equals("F")) {
 			if (op == STORE) {
 				return FSTORE;
 			} else if (op == LOAD) {
@@ -154,7 +154,7 @@ public class Types implements Opcodes {
 			} else if (op == RETURN) {
 				return FRETURN;
 			}
-		} else if (type.equals("f64") || type.equals("D")) {
+		} else if (type.equals("f64") || type.equals("double") || type.equals("D")) {
 			if (op == STORE) {
 				return DSTORE;
 			} else if (op == LOAD) {
@@ -237,7 +237,7 @@ public class Types implements Opcodes {
 
 		ClassData targetClass = getTypeFromSignature(target);
 		ClassData testClass = getTypeFromSignature(test);
-		return targetClass.isAssignableFrom(testClass);
+		return targetClass.isSuperclassOf(testClass);
 	}
 
 	public static Object parseLiteral(String type, String val) {
