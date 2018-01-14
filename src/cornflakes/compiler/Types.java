@@ -224,6 +224,9 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isSuitable(String target, String test) {
+		if(test == null) {
+			return true;
+		}
 		if (target.equals(test)) {
 			return true;
 		}
