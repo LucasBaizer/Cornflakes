@@ -2,4 +2,9 @@ package cornflakes.lang;
 public class Test;
 
 public static func test() {
+	var test = Test();
+	test.value = 1;
+}
+
+public func setValue(x: i32) {
 }

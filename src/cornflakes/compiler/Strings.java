@@ -176,4 +176,8 @@ public class Strings {
 			throw new CompileError("Expecting '" + close + "'");
 		}
 	}
+
+	public static String capitalize(String str) {
+		return str.substring(0, 1).toUpperCase() + str.substring(1);
+	}
 }

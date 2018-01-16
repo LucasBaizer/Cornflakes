@@ -132,9 +132,10 @@ public class CompileUtils {
 				raw = givenValue;
 				valueType = Types.getType(givenValue, variableType);
 				boolean math = false;
+				ExpressionCompiler compiler = null;
 
 				if (!isMember && valueType == null) {
-					ExpressionCompiler compiler = new ExpressionCompiler(true, methodData);
+					compiler = new ExpressionCompiler(true, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getReferenceSignature();
 					math = compiler.isMath();
@@ -148,7 +149,8 @@ public class CompileUtils {
 					}
 				}
 
-				if (!isRef && !math && valueType != null) {
+				if (!isRef && !math && valueType != null
+						&& (compiler == null || compiler.getExpressionType() != ExpressionCompiler.CAST)) {
 					value = Types.parseLiteral(valueType, givenValue);
 				}
 

@@ -2,6 +2,7 @@ package cornflakes.compiler;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,7 +81,9 @@ public class MainCompiler implements Opcodes {
 		System.out.println();
 
 		for (ClassData datum : list) {
-			Files.write(Paths.get("bin/" + datum.getClassName() + ".class"), datum.getByteCode());
+			Path path = Paths.get("bin/" + datum.getClassName() + ".class");
+			path.toFile().delete();
+			Files.write(path, datum.getByteCode());
 		}
 	}
 }

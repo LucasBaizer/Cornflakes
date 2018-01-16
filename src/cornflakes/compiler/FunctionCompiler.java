@@ -135,7 +135,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			Map<String, String> parameters = new LinkedHashMap<>();
 			if (index) {
-				methodName = "_index_";
+				methodName = "_get_index_";
 
 				String params = withoutBracket.substring(withoutBracket.indexOf('[') + 1, withoutBracket.indexOf(']'))
 						.trim();

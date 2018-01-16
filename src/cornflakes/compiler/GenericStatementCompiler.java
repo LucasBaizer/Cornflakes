@@ -144,8 +144,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 			String variableType = decl.getVariableType();
 
 			int idx = this.data.getLocalVariables();
-			String signature = Types.padSignature(variableType);
+			String signature = null;
 			if (decl.isGenericTyped()) {
+				signature = Types.padSignature(variableType);
 				signature = signature.substring(0, signature.length() - 1);
 				signature += "<";
 				for (GenericType type : decl.getGenericTypes()) {
@@ -193,9 +194,32 @@ public class GenericStatementCompiler implements GenericCompiler {
 				String name = split[0].trim();
 				String value = split[1].trim();
 
-				ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
-				compiler.setLoadVariableReference(false);
-				compiler.compile(data, m, block, name, new String[] { name });
+				ExpressionCompiler compiler = null;
+				try {
+					compiler = new ExpressionCompiler(true, this.data);
+					compiler.setLoadVariableReference(false);
+					compiler.compile(data, m, block, name, new String[] { name });
+				} catch (CompileError e) {
+					compiler = new ExpressionCompiler(true, this.data);
+					compiler.setLoadVariableReference(false);
+
+					String total = null;
+					if (Strings.contains(name, ".")) {
+						String old = name;
+						name = name.substring(name.lastIndexOf('.') + 1);
+						total = old.substring(0, old.lastIndexOf('.'));
+					}
+					String to = "set" + Strings.capitalize(name) + "(" + value + ")";
+					String end = total == null ? to : total + "." + to;
+
+					try {
+						compiler.compile(data, m, block, end, new String[] { end });
+					} catch (CompileError e2) {
+						throw e;
+					}
+
+					return;
+				}
 
 				String refName = compiler.getReferenceName();
 				FieldData field = compiler.getField();
@@ -231,7 +255,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 					} else {
 						ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
-						compiler1.compile(data, m, block, value, new String[] { body });
+						compiler1.compile(data, m, block, value, new String[] { value });
 
 						if (!Types.isSuitable(field.getType(), compiler1.getReferenceSignature())) {
 							throw new CompileError(
