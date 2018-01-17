@@ -212,10 +212,14 @@ public class ExpressionCompiler implements GenericCompiler {
 			next = true;
 		} else {
 			boolean match = Strings.hasMatching(part, '(', ')');
-			if (containerData != data) {
-				String name = "get" + Strings.capitalize(part);
-				if (containerData.getAllMethods(name).length > 0) {
-					compileMethodCall(last, containerData.getClassName(), containerData, data, m, block, name + "()", false);
+			String test = "get" + Strings.capitalize(part);
+			if (containerData.getAllMethods(test).length > 0) {
+				if (containerData != data || !data.hasField(test)) {
+					compileMethodCall(last, containerData.getClassName(), containerData, data, m, block, test + "()",
+							false);
+					if (referenceSignature.equals("V")) {
+						throw new CompileError("Cannot reference void-returning getters");
+					}
 					next = true;
 				}
 			}
@@ -476,7 +480,8 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 
 			MethodData indexer = typeClass != null && typeClass.isIndexedClass()
-					? typeClass.getMethods("_get_index_")[0] : null;
+					? typeClass.getMethods("_get_index_")[0]
+					: null;
 			if (write) {
 				if (!(!loadVariableReference && isLast)) {
 					int op = Types.getOpcode(Types.LOAD, type);
