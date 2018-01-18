@@ -198,6 +198,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 				try {
 					compiler = new ExpressionCompiler(true, this.data);
 					compiler.setLoadVariableReference(false);
+					compiler.setAllowImplicitGetters(false);
 					compiler.compile(data, m, block, name, new String[] { name });
 				} catch (CompileError e) {
 					compiler = new ExpressionCompiler(true, this.data);
@@ -211,7 +212,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 					String to = "set" + Strings.capitalize(name) + "(" + value + ")";
 					String end = total == null ? to : total + "." + to;
-
+					
 					try {
 						compiler.compile(data, m, block, end, new String[] { end });
 					} catch (CompileError e2) {

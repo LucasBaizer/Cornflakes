@@ -5,7 +5,7 @@ public class LocalData extends FieldData {
 	private int index;
 
 	public LocalData(String name, String type, Block block, int index, int mods) {
-		super(name, type, mods);
+		super(null, name, type, mods);
 
 		this.setBlock(block);
 		this.index = index;
@@ -25,5 +25,10 @@ public class LocalData extends FieldData {
 
 	public void setBlock(Block block) {
 		this.block = block;
+	}
+	
+	@Override
+	public boolean isAccessible(ClassData context) {
+		return true;
 	}
 }

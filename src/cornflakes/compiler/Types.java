@@ -325,7 +325,7 @@ public class Types implements Opcodes {
 			return "char";
 		}
 
-		if (x.startsWith("\"") && x.endsWith("\"")) {
+		if (x.startsWith("\"") && x.endsWith("\"") && !Strings.contains(x, "+")) {
 			return "string";
 		}
 

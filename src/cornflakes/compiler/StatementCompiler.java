@@ -2,6 +2,7 @@ package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.objectweb.asm.ClassWriter;
 
@@ -34,8 +35,67 @@ public class StatementCompiler extends Compiler {
 					data.use(prefix + trim0, split[1].trim());
 				}
 			}
-		} else if (body.contains("var") || body.contains("const")) {
-			String type = body.contains("var") ? "var" : "const";
+		} else if (cmd.equals("macro")) {
+			String[] macroCmd = Strings.split(body, " ");
+			if (macroCmd.length < 3) {
+				throw new CompileError("Invalid macro statement");
+			}
+			String subcmd = macroCmd[1];
+			if (subcmd.equals("use")) {
+				if (macroCmd.length < 4) {
+					throw new CompileError("Expecting 'macro use <name> from <class>'");
+				}
+
+				String after = body.split(" ", 3)[2];
+				String[] within = Strings.split(after, " from ");
+				if (within.length != 2) {
+					throw new CompileError("Expecting 'macro use <name> as <class>'");
+				}
+
+				String name = within[0];
+				String clazz = within[1];
+
+				String resolved = data.resolveClass(clazz);
+				try {
+					ClassData classData = ClassData.forName(resolved);
+					if (classData.isJavaClass() || classData.getMacros().size() == 0) {
+						throw new CompileError("No macros are defined in class " + resolved);
+					}
+
+					if (name.equals("*")) {
+						for(Entry<String, String> entry : classData.getMacros().entrySet()) {
+							data.useMacro(entry.getKey(), entry.getValue());
+						}
+					} else {
+						if (!classData.hasMacro(name)) {
+							throw new CompileError("Undefined macro '" + name + "' in class " + resolved);
+						}
+
+						data.useMacro(name, classData.resolveMacro(name));
+					}
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
+				}
+			} else if (subcmd.equals("define")) {
+				if (macroCmd.length < 4) {
+					throw new CompileError("Expecting 'macro define <name> as <replacement>'");
+				}
+
+				String after = body.split(" ", 3)[2];
+				String[] within = Strings.split(after, " as ");
+				if (within.length != 2) {
+					throw new CompileError("Expecting 'macro define <name> as <replacement>'");
+				}
+
+				String name = within[0];
+				String replacement = within[1];
+
+				data.useMacro(name, replacement);
+			} else {
+				throw new CompileError("Expecting either 'macro use' or 'macro define'");
+			}
+		} else if (Strings.contains(body, "var") || Strings.contains(body, "const")) {
+			String type = Strings.contains(body, "var") ? "var" : "const";
 
 			int accessor = 0;
 			if (type.equals("const")) {
@@ -98,7 +158,7 @@ public class StatementCompiler extends Compiler {
 			String variableType = decl.getVariableType();
 			boolean useValue = false;
 
-			FieldData fdata = new FieldData(variableName, variableType, accessor);
+			FieldData fdata = new FieldData(data, variableName, variableType, accessor);
 			if ((accessor & ACC_STATIC) == ACC_STATIC) {
 				if (valueType != null && (valueType.equals("I") || valueType.equals("J") || valueType.equals("F")
 						|| valueType.equals("string"))) {

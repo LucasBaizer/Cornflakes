@@ -3,15 +3,17 @@ package cornflakes.compiler;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FieldData {
+public class FieldData implements Accessible {
 	private List<GenericType> genericTypes = new ArrayList<>();
 	private String name;
+	private ClassData context;
 	private String type;
 	private Object proposedData;
 	private boolean isGeneric;
 	private int modifiers;
 
-	public FieldData(String name, String type, int mods) {
+	public FieldData(ClassData context, String name, String type, int mods) {
+		this.context = context;
 		this.name = name;
 		this.type = type;
 		this.modifiers = mods;
@@ -33,16 +35,13 @@ public class FieldData {
 		this.type = type;
 	}
 
+	@Override
 	public int getModifiers() {
 		return modifiers;
 	}
 
 	public void setModifiers(int modifiers) {
 		this.modifiers = modifiers;
-	}
-
-	public boolean hasModifier(int mod) {
-		return (this.modifiers & mod) == mod;
 	}
 
 	public Object getProposedData() {
@@ -72,5 +71,10 @@ public class FieldData {
 
 	public void setGeneric(boolean isGeneric) {
 		this.isGeneric = isGeneric;
+	}
+
+	@Override
+	public ClassData getContext() {
+		return context;
 	}
 }

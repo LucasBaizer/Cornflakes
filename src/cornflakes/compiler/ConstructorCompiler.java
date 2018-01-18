@@ -114,7 +114,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			methodData = new ConstructorData(methodName, accessor);
+			methodData = new ConstructorData(data, methodName, accessor);
 			methodData.setParameters(parameters);
 
 			data.addConstructor(methodData);
@@ -178,7 +178,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitLineNumber(0, l0);
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitMethodInsn(INVOKESPECIAL, data.getParentName(), "<init>", "()V", false);
-		MethodData mData = new ConstructorData("<init>", 0);
+		ConstructorData mData = new ConstructorData(data, "<init>", ACC_PUBLIC);
 		assignDefaults(mv, data, mData, new ConstructorBlock(0, l0, l1));
 		mv.visitInsn(RETURN);
 		mv.visitLabel(l1);
@@ -186,7 +186,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitMaxs(1 + mData.getStackSize(), 1);
 		mv.visitEnd();
 
-		data.addConstructor(new ConstructorData("<init>", ACC_PUBLIC));
+		data.addConstructor(mData);
 	}
 
 	private void assignDefaults(MethodVisitor m, ClassData data, MethodData mData, Block block) {

@@ -31,6 +31,7 @@ public class ClassData {
 	private Set<MethodData> methods = new HashSet<>();
 	private Set<ConstructorData> constructors = new HashSet<>();
 	private Set<FieldData> fields = new HashSet<>();
+	private Map<String, String> macros = new HashMap<>();
 	private Set<GenericParameter> genericParameters = new HashSet<>();
 	private ClassWriter classWriter;
 	private Class<?> javaClass;
@@ -81,11 +82,12 @@ public class ClassData {
 		container.setInterfaces(ifs.toArray(new String[ifs.size()]));
 
 		for (Method method : cls.getDeclaredMethods()) {
-			container.addMethod(MethodData.fromJavaMethod(method));
+			container.addMethod(MethodData.fromJavaMethod(container, method));
 		}
 
 		for (Method method : cls.getMethods()) {
-			MethodData data = MethodData.fromJavaMethod(method);
+			MethodData data = MethodData.fromJavaMethod(cls == Object.class || method.getDeclaringClass() == cls
+					? container : ClassData.fromJavaClass(method.getDeclaringClass()), method);
 			if (!container.methods.contains(data)) {
 				container.addMethod(data);
 			}
@@ -93,11 +95,11 @@ public class ClassData {
 
 		if (!cls.isInterface()) {
 			for (Constructor<?> constructor : cls.getConstructors()) {
-				container.addConstructor(ConstructorData.fromJavaConstructor(constructor));
+				container.addConstructor(ConstructorData.fromJavaConstructor(container, constructor));
 			}
 			for (Field field : cls.getDeclaredFields()) {
-				container.fields.add(
-						new FieldData(field.getName(), Types.getTypeSignature(field.getType()), field.getModifiers()));
+				container.fields.add(new FieldData(container, field.getName(), Types.getTypeSignature(field.getType()),
+						field.getModifiers()));
 			}
 		}
 
@@ -121,7 +123,7 @@ public class ClassData {
 			use("java.lang.Short", "i16");
 			use("java.lang.Character", "char");
 			use("java.lang.System");
-			use("cornflakes.lang.Console");
+			useMacro("println", "System.out.println");
 		}
 	}
 
@@ -136,6 +138,18 @@ public class ClassData {
 		} catch (ClassNotFoundException e) {
 			throw new CompileError("Unresolved class: " + use);
 		}
+	}
+
+	public void useMacro(String macro, String result) {
+		macros.put(macro, result);
+	}
+	
+	public String resolveMacro(String macro) {
+		return macros.get(macro);
+	}
+
+	public boolean hasMacro(String name) {
+		return macros.containsKey(name);
 	}
 
 	public boolean isUsing(String name) {
@@ -362,7 +376,11 @@ public class ClassData {
 	public boolean isSubclassOf(String test) throws ClassNotFoundException {
 		return ClassData.forName(test).isSuperclassOf(this);
 	}
-	
+
+	public boolean isSubclassOf(ClassData test) {
+		return test.isSuperclassOf(this);
+	}
+
 	public boolean isSuperclassOf(String test) throws ClassNotFoundException {
 		return isSuperclassOf(ClassData.forName(test));
 	}
@@ -491,5 +509,13 @@ public class ClassData {
 
 	public GenericParameter[] getGenerics() {
 		return this.genericParameters.toArray(new GenericParameter[this.genericParameters.size()]);
+	}
+	
+	public boolean isJavaClass() {
+		return javaClass != null;
+	}
+
+	public Map<String, String> getMacros() {
+		return macros;
 	}
 }

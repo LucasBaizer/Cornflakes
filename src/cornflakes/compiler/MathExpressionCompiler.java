@@ -167,6 +167,16 @@ public class MathExpressionCompiler implements GenericCompiler {
 			resultType = "D";
 		}
 
+		if (leftType.equals("Ljava/lang/String;") && rightType.equals("Ljava/lang/String;")) {
+			if (write) {
+				this.data.ics();
+				m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "combine",
+						"(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);
+			}
+			resultType = "Ljava/lang/String;";
+			return;
+		}
+
 		if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
 			int op = 0;
 			if (type == ADD) {

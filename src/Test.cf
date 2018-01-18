@@ -1,17 +1,5 @@
 package cornflakes.lang;
 public class Test;
 
-//private var value: i32;
-    
 public static func test() {
-	var test = Test();
-	System.out.println(test.value.bytes);
-}
-
-public func setValue(x: string) {    
-    System.out.println("setting value");
-}
-
-public func getValue() -> string {
-    return "thing"
 }

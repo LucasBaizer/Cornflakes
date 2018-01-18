@@ -23,7 +23,7 @@ public class StaticInitializerCompiler extends Compiler {
 		MethodVisitor m = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
 		m.visitCode();
 
-		MethodData method = new MethodData("<clinit>", "()V", false, ACC_STATIC);
+		MethodData method = new MethodData(data, "<clinit>", "()V", false, ACC_STATIC);
 
 		Label start = new Label();
 		Label post = new Label();

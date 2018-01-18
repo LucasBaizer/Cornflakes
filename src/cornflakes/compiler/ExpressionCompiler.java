@@ -33,6 +33,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	private GenericCompiler source;
 	private FieldData field;
 	private List<GenericType> genericTypes = new ArrayList<>();
+	private boolean allowImplicitGetters = true;
 
 	public ExpressionCompiler(boolean write, MethodData data) {
 		this.write = write;
@@ -212,76 +213,96 @@ public class ExpressionCompiler implements GenericCompiler {
 			next = true;
 		} else {
 			boolean match = Strings.hasMatching(part, '(', ')');
-			String test = "get" + Strings.capitalize(part);
-			if (containerData.getAllMethods(test).length > 0) {
-				if (containerData != data || !data.hasField(test)) {
-					compileMethodCall(last, containerData.getClassName(), containerData, data, m, block, test + "()",
-							false);
-					if (referenceSignature.equals("V")) {
-						throw new CompileError("Cannot reference void-returning getters");
+			if (allowImplicitGetters) {
+				String test = "get" + Strings.capitalize(part);
+				if (containerData.getAllMethods(test).length > 0) {
+					if (containerData != data || !data.hasField(test)) {
+						compileMethodCall(last, containerData.getClassName(), containerData, data, m, block,
+								test + "()", false);
+						if (referenceSignature.equals("V")) {
+							throw new CompileError("Cannot reference void-returning getters");
+						}
+						next = true;
 					}
-					next = true;
 				}
 			}
 			if (!next) {
 				if (match) {
 					String name = part.substring(0, part.indexOf('(')).trim();
 					if (!name.isEmpty()) {
-						boolean superCall = false;
-						if (this.data instanceof ConstructorData) {
-							if (name.equals("super")) {
-								if (((ConstructorBlock) block).hasCalledSuper()) {
-									throw new CompileError("Cannot call super more than once");
-								}
-								superCall = true;
+						if (name.endsWith("!")) {
+							String macro = name.substring(0, name.length() - 1);
+							if (!data.hasMacro(macro)) {
+								throw new CompileError("Undefined macro: " + macro);
 							}
-						} else {
-							if (name.equals("super")) {
-								throw new CompileError("Cannot call super outside of a constructor");
-							}
+							name = data.resolveMacro(macro);
+
+							String theNew = name + part.substring(part.indexOf('(')).trim();
+							ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
+							compiler.compile(data, m, block, theNew, new String[] { theNew });
+							next = true;
 						}
 
-						ClassData toUse = thisType ? data : containerData;
+						if (!next) {
+							boolean superCall = false;
+							if (this.data instanceof ConstructorData) {
+								if (name.equals("super")) {
+									if (((ConstructorBlock) block).hasCalledSuper()) {
+										throw new CompileError("Cannot call super more than once");
+									}
+									superCall = true;
+								}
+							} else {
+								if (name.equals("super")) {
+									throw new CompileError("Cannot call super outside of a constructor");
+								}
+							}
 
-						if (superCall || toUse.hasMethod(name)) {
-							compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
-							next = true;
-						} else if (name.equals("typeof")) {
-							compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
-							next = true;
-						} else {
-							MethodData[] methods = toUse.getAllMethods(name);
-							if (methods.length > 0) {
+							ClassData toUse = thisType ? data : containerData;
+
+							if (superCall || toUse.hasMethod(name)) {
 								compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
 								next = true;
-							}
+							} else if (name.equals("typeof")) {
+								compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
+								next = true;
+							} else {
+								MethodData[] methods = toUse.getAllMethods(name);
+								if (methods.length > 0) {
+									compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part,
+											superCall);
+									next = true;
+								}
 
-							if (!next && !thisType) {
-								if (!name.equals("array")) {
-									String resolved = null;
-									try {
-										if (Strings.contains(name, "<")) {
-											name = name.substring(0, name.indexOf('<'));
+								if (!next && !thisType) {
+									if (!name.equals("array")) {
+										String resolved = null;
+										try {
+											if (Strings.contains(name, "<")) {
+												name = name.substring(0, name.indexOf('<'));
+											}
+											resolved = data.resolveClass(name);
+										} catch (CompileError e) {
+											throw new CompileError("Undefined function: " + name);
 										}
-										resolved = data.resolveClass(name);
-									} catch (CompileError e) {
-										throw new CompileError("Undefined function: " + name);
-									}
 
-									try {
-										compileConstructorCall(resolved, ClassData.forName(resolved), data, m, block,
-												part, resolved);
-									} catch (ClassNotFoundException e) {
-										throw new CompileError(e);
+										try {
+											compileConstructorCall(resolved, ClassData.forName(resolved), data, m,
+													block, part, resolved);
+										} catch (ClassNotFoundException e) {
+											throw new CompileError(e);
+										}
+										next = true;
+									} else {
+										compileConstructorCall(data.getClassName(), data, data, m, block, part,
+												"__array__");
+										next = true;
 									}
-									next = true;
-								} else {
-									compileConstructorCall(data.getClassName(), data, data, m, block, part,
-											"__array__");
-									next = true;
 								}
 							}
 						}
+					} else {
+						throw new CompileError("Method name cannot be empty");
 					}
 				} else {
 					if (part.equals("length") && referenceSignature.startsWith("[")) {
@@ -440,6 +461,9 @@ public class ExpressionCompiler implements GenericCompiler {
 			boolean isLast) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
+			if (!field.isAccessible(data)) {
+				throw new CompileError("Field is not accessible from this context");
+			}
 			if (write) {
 				if (this.data != null) {
 					if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
@@ -480,8 +504,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 
 			MethodData indexer = typeClass != null && typeClass.isIndexedClass()
-					? typeClass.getMethods("_get_index_")[0]
-					: null;
+					? typeClass.getMethods("_get_index_")[0] : null;
 			if (write) {
 				if (!(!loadVariableReference && isLast)) {
 					int op = Types.getOpcode(Types.LOAD, type);
@@ -685,7 +708,10 @@ public class ExpressionCompiler implements GenericCompiler {
 			if (method == null) {
 				throw new CompileError(
 						"No constructor overload for type " + containerClass + " takes the given parameters");
+			}
 
+			if (!method.isAccessible(data)) {
+				throw new CompileError("Constructor is not accessible from this context");
 			}
 
 			if (write) {
@@ -788,6 +814,10 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			if (method == null) {
 				throw new CompileError("No overload for method " + before + " takes the given parameters");
+			}
+
+			if (!method.isAccessible(data)) {
+				throw new CompileError("Method is not accessible from this context");
 			}
 
 			if (!superCall) {
@@ -964,5 +994,13 @@ public class ExpressionCompiler implements GenericCompiler {
 
 	public void setGenericTypes(List<GenericType> genericTypes) {
 		this.genericTypes = genericTypes;
+	}
+
+	public boolean isAllowImplicitGetters() {
+		return allowImplicitGetters;
+	}
+
+	public void setAllowImplicitGetters(boolean allowImplicitGetters) {
+		this.allowImplicitGetters = allowImplicitGetters;
 	}
 }

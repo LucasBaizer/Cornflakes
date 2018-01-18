@@ -15,7 +15,8 @@ import java.util.Set;
 
 import org.objectweb.asm.Opcodes;
 
-public class MethodData {
+public class MethodData implements Accessible {
+	private ClassData context;
 	private String name;
 	private String returnType;
 	private Map<String, String> parameters = new LinkedHashMap<>();
@@ -27,8 +28,8 @@ public class MethodData {
 	private int blocks;
 	private boolean interfaceMethod;
 
-	public static MethodData fromJavaMethod(Method method) {
-		MethodData mData = new MethodData(method.getName(), Types.getTypeSignature(method.getReturnType()),
+	public static MethodData fromJavaMethod(ClassData context, Method method) {
+		MethodData mData = new MethodData(context, method.getName(), Types.getTypeSignature(method.getReturnType()),
 				method.getDeclaringClass().isInterface(), method.getModifiers());
 		Parameter[] params = method.getParameters();
 		Type[] genericTypes = method.getGenericParameterTypes();
@@ -51,8 +52,9 @@ public class MethodData {
 		return mData;
 	}
 
-	public MethodData(String name, String ret, boolean ifm, int mods) {
+	public MethodData(ClassData data, String name, String ret, boolean ifm, int mods) {
 		this.name = name;
+		this.context = data;
 		this.returnType = ret;
 		this.setInterfaceMethod(ifm);
 		this.modifiers = mods;
@@ -149,16 +151,13 @@ public class MethodData {
 		return parameters.containsKey(name);
 	}
 
+	@Override
 	public int getModifiers() {
 		return modifiers;
 	}
 
 	public void setModifiers(int modifiers) {
 		this.modifiers = modifiers;
-	}
-
-	public boolean hasModifier(int mod) {
-		return (this.modifiers & mod) == mod;
 	}
 
 	public String getSignature() {
@@ -246,5 +245,10 @@ public class MethodData {
 		}
 
 		return null;
+	}
+
+	@Override
+	public ClassData getContext() {
+		return context;
 	}
 }

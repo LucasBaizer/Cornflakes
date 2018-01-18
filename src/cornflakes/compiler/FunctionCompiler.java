@@ -197,7 +197,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			methodData = new MethodData(methodName, returnType, false, accessor);
+			methodData = new MethodData(data, methodName, returnType, false, accessor);
 			methodData.setParameters(parameters);
 
 			try {
@@ -252,6 +252,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			if (!gbc.returns()) {
 				if (!block.doesThrow()) {
 					if (methodData.getReturnTypeSignature().equals("V")) {
+						if (methodData.getName().equals("_get_index_")) {
+							throw new CompileError("Indexer methods must return a value");
+						}
+
 						m.visitInsn(RETURN);
 					} else {
 						throw new CompileError("A non-void method must return a value");
