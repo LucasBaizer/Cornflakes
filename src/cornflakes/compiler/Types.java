@@ -68,7 +68,7 @@ public class Types implements Opcodes {
 			return AALOAD;
 		}
 
-		throw new CompileError("Could not get array opcode for type '" + type + "' with code " + op);
+		throw new CompileError("Could not get array opcode for type " + Types.beautify(type) + " with code " + op);
 	}
 
 	public static int getOpcode(int op, String type) {
@@ -84,7 +84,7 @@ public class Types implements Opcodes {
 			throw new CompileError("APUSH is not a valid opcode");
 		}
 
-		if (type.equals("byte") || type.equals("B")) {
+		if (type.equals("i8") || type.equals("B")) {
 			if (op == STORE) {
 				return ISTORE;
 			} else if (op == LOAD) {
@@ -180,7 +180,38 @@ public class Types implements Opcodes {
 			}
 		}
 
-		throw new CompileError("Could not get opcode for type '" + type + "' with code " + op);
+		throw new CompileError("Could not get opcode for type " + Types.beautify(type) + " with code " + op);
+	}
+
+	public static String beautify(String txt1) {
+		String txt2 = Types.unpadSignature(txt1);
+		if (Types.isPrimitive(txt2)) {
+			if (txt2.equals("I")) {
+				return "i32";
+			} else if (txt2.equals("S")) {
+				return "i16";
+			} else if (txt2.equals("B")) {
+				return "i8";
+			} else if (txt2.equals("J")) {
+				return "i64";
+			} else if (txt2.equals("F")) {
+				return "f32";
+			} else if (txt2.equals("D")) {
+				return "f64";
+			} else if (txt2.equals("Z")) {
+				return "bool";
+			} else if (txt2.equals("C")) {
+				return "char";
+			}
+
+			return txt2;
+		}
+
+		try {
+			return ClassData.forName(txt2).getClassName().replace('/', '.');
+		} catch (ClassNotFoundException e) {
+			throw new CompileError(e);
+		}
 	}
 
 	/**
@@ -198,7 +229,7 @@ public class Types implements Opcodes {
 		case "i64":
 			return "Ljava/lang/Long";
 		case "B":
-		case "byte":
+		case "i8":
 			return "Ljava/lang/Byte";
 		case "Z":
 		case "bool":
@@ -233,7 +264,7 @@ public class Types implements Opcodes {
 
 		boolean isInt = target.equals("i32") || target.equals("I") || target.equals("int");
 		boolean isShort = target.equals("i16") || target.equals("S") || target.equals("short");
-		boolean isByte = target.equals("byte") || target.equals("B");
+		boolean isByte = target.equals("i8") || target.equals("B");
 		boolean isChar = target.equals("char") || target.equals("C");
 		if (isInt) {
 			return isShort || isByte || isChar;
@@ -264,7 +295,7 @@ public class Types implements Opcodes {
 			return Float.parseFloat(val);
 		} else if (type.equals("f64") || type.equals("D")) {
 			return Double.parseDouble(val);
-		} else if (type.equals("byte") || type.equals("B")) {
+		} else if (type.equals("i8") || type.equals("B")) {
 			return Byte.parseByte(val);
 		} else if (type.equals("i16") || type.equals("S")) {
 			return Short.parseShort(val);
@@ -350,8 +381,8 @@ public class Types implements Opcodes {
 		}
 
 		if (context != null) {
-			if (context.equals("byte") || context.equals("B")) {
-				return "byte";
+			if (context.equals("i8") || context.equals("B")) {
+				return "i8";
 			} else if (context.equals("i16") || context.equals("S")) {
 				return "i16";
 			} else if (context.equals("i32") || context.equals("I")) {
@@ -378,7 +409,7 @@ public class Types implements Opcodes {
 		case "D":
 		case "void":
 		case "bool":
-		case "byte":
+		case "i8":
 		case "char":
 		case "i16":
 		case "i32":
@@ -397,7 +428,7 @@ public class Types implements Opcodes {
 			return Void.class;
 		case "bool":
 			return boolean.class;
-		case "byte":
+		case "i8":
 			return byte.class;
 		case "char":
 			return char.class;
@@ -412,7 +443,7 @@ public class Types implements Opcodes {
 		case "f64":
 			return double.class;
 		default:
-			throw new CompileError("Unresolved type: " + primitive);
+			throw new CompileError("Unresolved type: " + Types.beautify(primitive));
 		}
 	}
 
@@ -453,7 +484,7 @@ public class Types implements Opcodes {
 			return "V";
 		} else if (type.equals("bool")) {
 			return "Z";
-		} else if (type.equals("byte")) {
+		} else if (type.equals("i8")) {
 			return "B";
 		} else if (type.equals("char")) {
 			return "C";

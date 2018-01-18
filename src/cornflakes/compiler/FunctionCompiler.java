@@ -204,8 +204,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				boolean hasAny = data.hasMethodBySignature(methodName, methodData.getSignature());
 				if (hasAny) {
 					if (!override) {
-						throw new CompileError("A superclass of " + data.getSimpleClassName() + " has a method named "
-								+ methodName + ". If you meant to override it, use the 'override' keyword");
+						throw new CompileError(
+								"A superclass of " + Types.beautify(data.getClassName()) + " has a method named "
+										+ methodName + ". If you meant to override it, use the 'override' keyword");
 					}
 				} else {
 					if (override) {

@@ -145,7 +145,8 @@ public class CompileUtils {
 
 				if (valueType != null) {
 					if (!Types.isSuitable(variableType, Types.getTypeSignature(valueType))) {
-						throw new CompileError(valueType + " is not assignable to " + variableType);
+						throw new CompileError(
+								Types.beautify(valueType) + " is not assignable to " + Types.beautify(variableType));
 					}
 				}
 

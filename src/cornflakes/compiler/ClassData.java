@@ -119,7 +119,7 @@ public class ClassData {
 			use("java.lang.Integer", "i32");
 			use("java.lang.Double", "f64");
 			use("java.lang.Float", "f32");
-			use("java.lang.Byte", "byte");
+			use("java.lang.Byte", "i8");
 			use("java.lang.Short", "i16");
 			use("java.lang.Character", "char");
 			use("java.lang.System");
@@ -136,14 +136,14 @@ public class ClassData {
 			ClassData.forName(use);
 			this.use.put(as, Strings.transformClassName(use));
 		} catch (ClassNotFoundException e) {
-			throw new CompileError("Unresolved class: " + use);
+			throw new CompileError("Unresolved class: " + Types.beautify(use));
 		}
 	}
 
 	public void useMacro(String macro, String result) {
 		macros.put(macro, result);
 	}
-	
+
 	public String resolveMacro(String macro) {
 		return macros.get(macro);
 	}
@@ -190,7 +190,7 @@ public class ClassData {
 					return arrayType ? "[L" + use.getValue().replace('.', '/') : use.getValue().replace('.', '/');
 				}
 			}
-			throw new CompileError("Unresolved type: " + name);
+			throw new CompileError("Unresolved type: " + Types.beautify(name));
 		}
 	}
 
@@ -409,7 +409,7 @@ public class ClassData {
 					return true;
 				}
 			} catch (ClassNotFoundException e) {
-				throw new CompileError("Invalid parent: " + test.parentName);
+				throw new CompileError("Invalid parent: " + Types.beautify(test.parentName));
 			}
 		}
 
@@ -510,7 +510,7 @@ public class ClassData {
 	public GenericParameter[] getGenerics() {
 		return this.genericParameters.toArray(new GenericParameter[this.genericParameters.size()]);
 	}
-	
+
 	public boolean isJavaClass() {
 		return javaClass != null;
 	}

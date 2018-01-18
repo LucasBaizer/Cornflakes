@@ -91,7 +91,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 				if (this.data.getReturnTypeSignature().equals("V")) {
 					m.visitInsn(RETURN);
 				} else {
-					throw new CompileError("A return value of type " + this.data.getReturnType() + " is expected");
+					throw new CompileError("A return value of type "
+							+ Types.beautify(this.data.getReturnType().getClassName()) + " is expected");
 				}
 			}
 		} else if (body.startsWith("throw")) {
@@ -212,7 +213,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 					String to = "set" + Strings.capitalize(name) + "(" + value + ")";
 					String end = total == null ? to : total + "." + to;
-					
+
 					try {
 						compiler.compile(data, m, block, end, new String[] { end });
 					} catch (CompileError e2) {
@@ -231,7 +232,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 					String valueType = Types.getType(value, field.getType());
 					if (valueType != null) {
 						if (!Types.isSuitable(field.getType(), Types.getTypeSignature(valueType))) {
-							throw new CompileError(valueType + " is not assignable to " + field.getType());
+							throw new CompileError(Types.beautify(valueType) + " is not assignable to "
+									+ Types.beautify(field.getType()));
 						}
 
 						Object obj = Types.parseLiteral(valueType, value);

@@ -444,7 +444,7 @@ public class ExpressionCompiler implements GenericCompiler {
 		try {
 			cls = ClassData.forName(Types.padSignature(clazz));
 		} catch (ClassNotFoundException e) {
-			throw new CompileError("Unresolved class: " + clazz.replace('/', '.'));
+			throw new CompileError("Unresolved class: " + Types.beautify(clazz));
 		}
 
 		if (end == body.length()) {
@@ -598,9 +598,9 @@ public class ExpressionCompiler implements GenericCompiler {
 			String generic = body.substring(body.indexOf('<') + 1, body.lastIndexOf('>')).trim();
 			String[] params = generic.split(",");
 			if (params.length != containerData.getGenerics().length) {
-				throw new CompileError(containerData.getClassName() + " expects " + containerData.getGenerics().length
-						+ " generic parameter" + (containerData.getGenerics().length != 1 ? "s" : "") + " ("
-						+ params.length + " were given)");
+				throw new CompileError(Types.beautify(containerData.getClassName()) + " expects "
+						+ containerData.getGenerics().length + " generic parameter"
+						+ (containerData.getGenerics().length != 1 ? "s" : "") + " (" + params.length + " were given)");
 			}
 
 			for (String param : params) {
@@ -628,8 +628,9 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 		} else {
 			if (containerData.hasGenericParameters()) {
-				throw new CompileError(containerData.getClassName() + " expects " + containerData.getGenerics().length
-						+ " generic parameter" + (containerData.getGenerics().length != 1 ? "s" : ""));
+				throw new CompileError(
+						Types.beautify(containerData.getClassName()) + " expects " + containerData.getGenerics().length
+								+ " generic parameter" + (containerData.getGenerics().length != 1 ? "s" : ""));
 			}
 		}
 		if (clazz.equals("__array__")) {

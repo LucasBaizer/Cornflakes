@@ -67,7 +67,7 @@ public class MainCompiler implements Opcodes {
 						}
 
 						if (!match) {
-							throw new CompileError("The interface " + ifd.getSimpleClassName()
+							throw new CompileError("The interface " + Types.beautify(ifd.getClassName())
 									+ " requires the method '" + method.getName() + "' to be implemented");
 						}
 					}
