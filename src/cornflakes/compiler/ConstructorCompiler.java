@@ -2,10 +2,7 @@ package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
@@ -85,7 +82,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 
 			String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')'))
 					.trim();
-			Map<String, String> parameters = new LinkedHashMap<>();
+			List<ParameterData> parameters = new ArrayList<>();
+			methodData = new ConstructorData(data, -1);
 			if (!params.isEmpty()) {
 				String[] split = params.split(",");
 				for (String par : split) {
@@ -104,17 +102,19 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
 					Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
 
-					if (parameters.containsKey(name)) {
-						throw new CompileError("Duplicate parameter name: " + par);
+					for (ParameterData datum : parameters) {
+						if (datum.getName().equals(name)) {
+							throw new CompileError("Duplicate parameter name: " + name);
+						}
 					}
 
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 							: data.resolveClass(type);
-					parameters.put(name, Types.padSignature(resolvedType));
+					parameters.add(new ParameterData(this.methodData, name, Types.padSignature(resolvedType), 0));
 				}
 			}
 
-			methodData = new ConstructorData(data, methodName, accessor);
+			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
 
 			data.addConstructor(methodData);
@@ -132,8 +132,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 
 			this.methodData.addLocalVariable();
 			HashMap<String, Integer> paramMap = new HashMap<>();
-			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
-				paramMap.put(par.getKey(), this.methodData.getLocalVariables());
+			for (ParameterData par : methodData.getParameters()) {
+				paramMap.put(par.getName(), this.methodData.getLocalVariables());
 				this.methodData.addLocalVariable();
 			}
 
@@ -155,8 +155,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 
 			m.visitLabel(post);
 			m.visitLocalVariable("this", Types.padSignature(data.getClassName()), null, start, post, 0);
-			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
-				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, paramMap.get(par.getKey()));
+			for (ParameterData par : methodData.getParameters()) {
+				m.visitLocalVariable(par.getName(), par.getType(), null, start, post, paramMap.get(par.getName()));
 			}
 
 			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());
@@ -178,7 +178,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 		mv.visitLineNumber(0, l0);
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitMethodInsn(INVOKESPECIAL, data.getParentName(), "<init>", "()V", false);
-		ConstructorData mData = new ConstructorData(data, "<init>", ACC_PUBLIC);
+		ConstructorData mData = new ConstructorData(data, ACC_PUBLIC);
 		assignDefaults(mv, data, mData, new ConstructorBlock(0, l0, l1));
 		mv.visitInsn(RETURN);
 		mv.visitLabel(l1);

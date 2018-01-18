@@ -10,6 +10,28 @@ public class Types implements Opcodes {
 
 	private static final String INTEGER = "-0123456789";
 
+	public static String translatePrimitive(String prim) {
+		if (prim.equals("i8") || prim.equals("B")) {
+			return "byte";
+		} else if (prim.equals("i16") || prim.equals("S")) {
+			return "short";
+		} else if (prim.equals("i32") || prim.equals("I")) {
+			return "int";
+		} else if (prim.equals("i64") || prim.equals("J")) {
+			return "long";
+		} else if (prim.equals("f32") || prim.equals("F")) {
+			return "float";
+		} else if (prim.equals("f64") || prim.equals("D")) {
+			return "double";
+		} else if (prim.equals("bool") || prim.equals("Z")) {
+			return "boolean";
+		} else if (prim.equals("C")) {
+			return "char";
+		}
+
+		return prim;
+	}
+
 	public static int getArrayOpcode(int op, String type) {
 		if (type == null) {
 			if (op == STORE) {
@@ -184,31 +206,48 @@ public class Types implements Opcodes {
 	}
 
 	public static String beautify(String txt1) {
+		boolean array = false;
+		if (txt1.startsWith("[")) {
+			txt1 = txt1.substring(1);
+			array = true;
+		}
 		String txt2 = Types.unpadSignature(txt1);
 		if (Types.isPrimitive(txt2)) {
+			String ret = txt2;
 			if (txt2.equals("I")) {
-				return "i32";
+				ret = "i32";
 			} else if (txt2.equals("S")) {
-				return "i16";
+				ret = "i16";
 			} else if (txt2.equals("B")) {
-				return "i8";
+				ret = "i8";
 			} else if (txt2.equals("J")) {
-				return "i64";
+				ret = "i64";
 			} else if (txt2.equals("F")) {
-				return "f32";
+				ret = "f32";
 			} else if (txt2.equals("D")) {
-				return "f64";
+				ret = "f64";
 			} else if (txt2.equals("Z")) {
-				return "bool";
+				ret = "bool";
 			} else if (txt2.equals("C")) {
-				return "char";
+				ret = "char";
 			}
 
+			if (array) {
+				ret += "[]";
+			}
+			return ret;
+		}
+		
+		if(txt2.equals("string") || txt2.equals("object")) {
 			return txt2;
 		}
 
 		try {
-			return ClassData.forName(txt2).getClassName().replace('/', '.');
+			String ret = ClassData.forName(txt2).getClassName().replace('/', '.');
+			if (array) {
+				ret += "[]";
+			}
+			return ret;
 		} catch (ClassNotFoundException e) {
 			throw new CompileError(e);
 		}

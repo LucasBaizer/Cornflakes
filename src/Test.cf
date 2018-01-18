@@ -1,5 +1,10 @@
 package cornflakes.lang;
 public class Test;
 
+use java.util.Arrays;
+
 public static func test() {
+	var array = array(string, 5);
+		
+	System.out.println(Arrays.asList(array[0]));
 }

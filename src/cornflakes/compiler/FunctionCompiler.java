@@ -2,10 +2,7 @@ package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
@@ -133,7 +130,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				returnType = Types.padSignature(data.resolveClass(afterParams));
 			}
 
-			Map<String, String> parameters = new LinkedHashMap<>();
+			this.methodData = new MethodData(data, null, null, false, -1);
+			List<ParameterData> parameters = new ArrayList<>();
 			if (index) {
 				methodName = "_get_index_";
 
@@ -160,7 +158,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 							: data.resolveClass(type);
-					parameters.put(name, Types.padSignature(resolvedType));
+					parameters.add(new ParameterData(this.methodData, name, Types.padSignature(resolvedType), 0));
 				} else {
 					throw new CompileError("Indexer methods have 1 parameter");
 				}
@@ -186,18 +184,22 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						Strings.handleLetterString(name, Strings.VARIABLE_NAME);
 						Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
 
-						if (parameters.containsKey(name)) {
-							throw new CompileError("Duplicate parameter name: " + par);
+						for (ParameterData datum : parameters) {
+							if (datum.getName().equals(name)) {
+								throw new CompileError("Duplicate parameter name: " + name);
+							}
 						}
 
 						String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 								: data.resolveClass(type);
-						parameters.put(name, Types.padSignature(resolvedType));
+						parameters.add(new ParameterData(this.methodData, name, Types.padSignature(resolvedType), 0));
 					}
 				}
 			}
 
-			methodData = new MethodData(data, methodName, returnType, false, accessor);
+			methodData.setName(methodName);
+			methodData.setReturnTypeSignature(returnType);
+			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
 
 			try {
@@ -238,8 +240,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			HashMap<String, Integer> paramMap = new HashMap<>();
-			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
-				paramMap.put(par.getKey(), this.methodData.getLocalVariables());
+			for (ParameterData par : methodData.getParameters()) {
+				paramMap.put(par.getName(), this.methodData.getLocalVariables());
 				this.methodData.addLocalVariable();
 			}
 
@@ -268,8 +270,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			if (!methodData.hasModifier(ACC_STATIC)) {
 				m.visitLocalVariable("this", Types.padSignature(data.getClassName()), null, start, post, 0);
 			}
-			for (Entry<String, String> par : methodData.getParameters().entrySet()) {
-				m.visitLocalVariable(par.getKey(), par.getValue(), null, start, post, paramMap.get(par.getKey()));
+			for (ParameterData par : methodData.getParameters()) {
+				m.visitLocalVariable(par.getName(), par.getType(), null, start, post, paramMap.get(par.getName()));
 			}
 
 			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());

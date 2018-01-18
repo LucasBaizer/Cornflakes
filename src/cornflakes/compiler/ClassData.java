@@ -54,7 +54,7 @@ public class ClassData {
 		if (classes.containsKey(t)) {
 			return classes.get(t);
 		}
-
+		
 		ClassData container = new ClassData(false);
 		container.javaClass = cls;
 		container.setIsInterface(cls.isInterface());

@@ -149,7 +149,7 @@ public class CompileUtils {
 								Types.beautify(valueType) + " is not assignable to " + Types.beautify(variableType));
 					}
 				}
-
+				
 				if (!isRef && !math && valueType != null
 						&& (compiler == null || compiler.getExpressionType() != ExpressionCompiler.CAST)) {
 					value = Types.parseLiteral(valueType, givenValue);

@@ -7,10 +7,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.objectweb.asm.Opcodes;
@@ -19,7 +16,7 @@ public class MethodData implements Accessible {
 	private ClassData context;
 	private String name;
 	private String returnType;
-	private Map<String, String> parameters = new LinkedHashMap<>();
+	private List<ParameterData> parameters = new ArrayList<>();
 	private Set<GenericParameter> genericParameters = new HashSet<>();
 	private List<LocalData> locals = new ArrayList<>();
 	private int stackSize;
@@ -45,7 +42,8 @@ public class MethodData implements Accessible {
 							.getTypeSignature(Strings.transformClassName(wildcard.getUpperBounds()[0].getTypeName()))));
 				}
 			} else {
-				mData.addParameter(param.getName(), Types.getTypeSignature(param.getType()));
+				mData.addParameter(new ParameterData(mData, param.getName(), Types.getTypeSignature(param.getType()),
+						param.getModifiers()));
 			}
 		}
 
@@ -120,12 +118,12 @@ public class MethodData implements Accessible {
 		locals.add(local);
 	}
 
-	public void setParameters(Map<String, String> params) {
-		this.parameters = new LinkedHashMap<>(params);
+	public void setParameters(List<ParameterData> params) {
+		this.parameters = new ArrayList<>(params);
 
 		int idx = hasModifier(Opcodes.ACC_STATIC) ? 0 : 1;
-		for (Entry<String, String> par : this.parameters.entrySet()) {
-			this.locals.add(new LocalData(par.getKey(), par.getValue(), null, idx++, 0));
+		for (ParameterData par : this.parameters) {
+			this.locals.add(new LocalData(par.getName(), par.getType(), null, idx++, 0));
 		}
 	}
 
@@ -135,20 +133,25 @@ public class MethodData implements Accessible {
 		}
 	}
 
-	public void addParameter(String name, String type) {
-		this.parameters.put(name, type);
+	public void addParameter(ParameterData data) {
+		this.parameters.add(data);
 	}
 
-	public Map<String, String> getParameters() {
+	public List<ParameterData> getParameters() {
 		return this.parameters;
 	}
 
-	public String getParameterType(String name) {
-		return parameters.get(name);
+	public ParameterData getParameter(String name) {
+		for (ParameterData data : this.parameters) {
+			if (data.getName().equals(name)) {
+				return data;
+			}
+		}
+		return null;
 	}
 
 	public boolean hasParameter(String name) {
-		return parameters.containsKey(name);
+		return getParameter(name) != null;
 	}
 
 	@Override
@@ -162,8 +165,8 @@ public class MethodData implements Accessible {
 
 	public String getSignature() {
 		String desc = "(";
-		for (String par : parameters.values()) {
-			desc += par;
+		for (ParameterData par : parameters) {
+			desc += par.getType();
 		}
 		desc += ")" + getReturnTypeSignature();
 

@@ -643,7 +643,6 @@ public class ExpressionCompiler implements GenericCompiler {
 			String size = split[1].trim();
 
 			String resolved = data.resolveClass(type);
-
 			try {
 				int x = Integer.parseInt(size);
 				if (x < 0) {
@@ -659,7 +658,29 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 			}
 
-			if (!Types.isPrimitive(resolved)) {
+			if (Types.isPrimitive(resolved)) {
+				int val;
+				if (resolved.equals("I")) {
+					val = T_INT;
+				} else if (resolved.equals("J")) {
+					val = T_LONG;
+				} else if (resolved.equals("S")) {
+					val = T_SHORT;
+				} else if (resolved.equals("B")) {
+					val = T_BYTE;
+				} else if (resolved.equals("Z")) {
+					val = T_BOOLEAN;
+				} else if (resolved.equals("F")) {
+					val = T_FLOAT;
+				} else if (resolved.equals("D")) {
+					val = T_DOUBLE;
+				} else if (resolved.equals("C")) {
+					val = T_CHAR;
+				} else {
+					throw new CompileError("Invalid primitive");
+				}
+				m.visitIntInsn(NEWARRAY, val);
+			} else {
 				m.visitTypeInsn(ANEWARRAY, resolved);
 			}
 
@@ -679,7 +700,7 @@ public class ExpressionCompiler implements GenericCompiler {
 					boolean success = true;
 					for (String par : split) {
 						String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
-						String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+						String paramType = met.getParameters().get(idx).getType();
 
 						if (type != null) {
 							if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
@@ -786,7 +807,8 @@ public class ExpressionCompiler implements GenericCompiler {
 					boolean success = true;
 					for (String par : split) {
 						String type = Types.getType(par, met.getReturnType().getSimpleClassName().toLowerCase());
-						String paramType = new ArrayList<>(met.getParameters().values()).get(idx);
+						ParameterData parData = met.getParameters().get(idx);
+						String paramType = parData.getType();
 
 						if (type != null) {
 							if (!Types.isSuitable(paramType, Types.getTypeSignature(type))) {
@@ -864,8 +886,8 @@ public class ExpressionCompiler implements GenericCompiler {
 			} else {
 				if ((method.getModifiers() & ACC_STATIC) == ACC_STATIC) {
 					if (write) {
-						m.visitMethodInsn(INVOKESTATIC, containerData.getClassName(), before, method.getSignature(),
-								method.isInterfaceMethod());
+						m.visitMethodInsn(INVOKESTATIC, method.getContext().getClassName(), before,
+								method.getSignature(), method.isInterfaceMethod());
 						if (!method.getReturnTypeSignature().equals("V")) {
 							if (this.data != null)
 								this.data.ics();
@@ -879,7 +901,7 @@ public class ExpressionCompiler implements GenericCompiler {
 					}
 					if (write) {
 						m.visitMethodInsn(method.isInterfaceMethod() ? INVOKEINTERFACE : INVOKEVIRTUAL,
-								containerData.getClassName(), before, method.getSignature(),
+								method.getContext().getClassName(), before, method.getSignature(),
 								method.isInterfaceMethod());
 						if (!method.getReturnTypeSignature().equals("V")) {
 							if (this.data != null)
