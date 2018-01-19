@@ -216,7 +216,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			methodData.setReturnTypeSignature(returnType);
 			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
-			if(iter) {
+			if (iter) {
 				methodData.setIterator(-3);
 			}
 
@@ -261,7 +261,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			int itrIdx = !methodData.hasModifier(ACC_STATIC) ? 1 : 0;
-			methodData.setIterator(itrIdx);
+			if (methodData.isIterator()) {
+				methodData.setIterator(itrIdx);
+			}
 
 			HashMap<String, Integer> paramMap = new HashMap<>();
 			for (ParameterData par : methodData.getParameters()) {

@@ -25,7 +25,7 @@ public class MethodData implements Accessible {
 	private int modifiers;
 	private int blocks;
 	private boolean interfaceMethod;
-	private int iterator;
+	private int iterator = -1;
 
 	public static MethodData fromJavaMethod(ClassData context, Method method) {
 		MethodData mData = new MethodData(context, method.getName(), Types.getTypeSignature(method.getReturnType()),
