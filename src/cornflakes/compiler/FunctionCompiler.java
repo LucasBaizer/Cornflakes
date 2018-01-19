@@ -33,6 +33,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			boolean override = false;
 			boolean index = false;
+			boolean iter = false;
 			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
@@ -100,6 +101,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						index = true;
 					} else if (key.equals("override")) {
 						override = true;
+					} else if (key.equals("iter")) {
+						iter = true;
 					} else {
 						throw new CompileError("Unexpected keyword: " + key);
 					}
@@ -128,6 +131,18 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				Strings.handleLetterString(afterParams, Strings.VARIABLE_TYPE);
 
 				returnType = Types.padSignature(data.resolveClass(afterParams));
+
+				if (iter) {
+					if (!(returnType.equals("java/util/Iterator")
+							|| returnType.equals("cornflakes/lang/YieldIterator"))) {
+						throw new CompileError(
+								"Iterator methods do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
+					}
+				}
+			} else {
+				if (iter) {
+					returnType = "Lcornflakes/lang/YieldIterator;";
+				}
 			}
 
 			this.methodData = new MethodData(data, null, null, false, -1);
@@ -201,6 +216,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			methodData.setReturnTypeSignature(returnType);
 			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
+			if(iter) {
+				methodData.setIterator(-3);
+			}
 
 			try {
 				boolean hasAny = data.hasMethodBySignature(methodName, methodData.getSignature());
@@ -238,11 +256,24 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			if (!methodData.hasModifier(ACC_STATIC)) {
 				this.methodData.addLocalVariable();
 			}
+			if (methodData.isIterator()) {
+				this.methodData.addLocalVariable();
+			}
+
+			int itrIdx = !methodData.hasModifier(ACC_STATIC) ? 1 : 0;
+			methodData.setIterator(itrIdx);
 
 			HashMap<String, Integer> paramMap = new HashMap<>();
 			for (ParameterData par : methodData.getParameters()) {
 				paramMap.put(par.getName(), this.methodData.getLocalVariables());
 				this.methodData.addLocalVariable();
+			}
+
+			if (methodData.isIterator()) {
+				m.visitTypeInsn(NEW, "cornflakes/lang/YieldIterator");
+				m.visitInsn(DUP);
+				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/YieldIterator", "<init>", "()V", false);
+				m.visitVarInsn(ASTORE, itrIdx);
 			}
 
 			String[] inner = Strings.before(Strings.after(lines, 1), 1);
@@ -260,6 +291,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						}
 
 						m.visitInsn(RETURN);
+					} else if (methodData.isIterator()) {
+						m.visitVarInsn(ALOAD, itrIdx);
+						m.visitInsn(ARETURN);
 					} else {
 						throw new CompileError("A non-void method must return a value");
 					}
@@ -269,6 +303,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			m.visitLabel(post);
 			if (!methodData.hasModifier(ACC_STATIC)) {
 				m.visitLocalVariable("this", Types.padSignature(data.getClassName()), null, start, post, 0);
+			}
+
+			if (methodData.isIterator()) {
+				m.visitLocalVariable("_iterator", "Lcornflakes/lang/YieldIterator;", null, start, post, itrIdx);
 			}
 			for (ParameterData par : methodData.getParameters()) {
 				m.visitLocalVariable(par.getName(), par.getType(), null, start, post, paramMap.get(par.getName()));

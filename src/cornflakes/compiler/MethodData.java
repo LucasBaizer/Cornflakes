@@ -7,6 +7,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -24,6 +25,7 @@ public class MethodData implements Accessible {
 	private int modifiers;
 	private int blocks;
 	private boolean interfaceMethod;
+	private int iterator;
 
 	public static MethodData fromJavaMethod(ClassData context, Method method) {
 		MethodData mData = new MethodData(context, method.getName(), Types.getTypeSignature(method.getReturnType()),
@@ -47,6 +49,8 @@ public class MethodData implements Accessible {
 			}
 		}
 
+		mData.setIterator(Iterator.class.isAssignableFrom(method.getReturnType()) ? -2 : -1);
+
 		return mData;
 	}
 
@@ -54,7 +58,7 @@ public class MethodData implements Accessible {
 		this.name = name;
 		this.context = data;
 		this.returnType = ret;
-		this.setInterfaceMethod(ifm);
+		this.interfaceMethod = ifm;
 		this.modifiers = mods;
 	}
 
@@ -253,5 +257,17 @@ public class MethodData implements Accessible {
 	@Override
 	public ClassData getContext() {
 		return context;
+	}
+
+	public boolean isIterator() {
+		return iterator != -1;
+	}
+
+	public int getIterator() {
+		return iterator;
+	}
+
+	public void setIterator(int isIterator) {
+		this.iterator = isIterator;
 	}
 }

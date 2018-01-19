@@ -8,6 +8,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 	public static final int RETURN = 1;
 	public static final int VAR = 2;
 	public static final int THROW = 3;
+	public static final int SET_VAR = 4;
+	public static final int YIELD = 5;
 
 	private MethodData data;
 	private int type;
@@ -18,7 +20,38 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
-		if (body.startsWith("return")) {
+		if (body.startsWith("yield")) {
+			type = YIELD;
+
+			if (!this.data.isIterator()) {
+				throw new CompileError("Cannot yield to a non-iterator method");
+			}
+
+			m.visitVarInsn(ALOAD, this.data.getIterator());
+			String str = body.substring(5).trim();
+			String type = Types.getType(str, null);
+			if (type != null) {
+				Object val = Types.parseLiteral(type, str);
+				int push = Types.getOpcode(Types.PUSH, type);
+				if (push == LDC) {
+					m.visitLdcInsn(val);
+				} else {
+					String toString = val.toString();
+
+					if (toString.equals("true") || toString.equals("false")) {
+						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+					} else {
+						m.visitVarInsn(push, Integer.parseInt(val.toString()));
+					}
+				}
+				this.data.ics();
+			} else {
+				ExpressionCompiler exp = new ExpressionCompiler(true, this.data);
+				exp.compile(data, m, block, str, new String[] { str });
+			}
+
+			m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/YieldIterator", "yield", "(Ljava/lang/Object;)V", false);
+		} else if (body.startsWith("return")) {
 			type = RETURN;
 
 			body = Strings.normalizeSpaces(body);
@@ -27,6 +60,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 			if (split.length == 2) {
 				if (this.data.getReturnTypeSignature().equals("V")) {
 					throw new CompileError("Cannot return a value to a void function");
+				}
+				if (this.data.isIterator()) {
+					throw new CompileError("Cannot return a value to an iterator function");
 				}
 
 				String par = split[1].trim();
@@ -90,6 +126,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 			} else {
 				if (this.data.getReturnTypeSignature().equals("V")) {
 					m.visitInsn(RETURN);
+				} else if (this.data.isIterator()) {
+					m.visitVarInsn(ALOAD, this.data.getIterator());
+					m.visitInsn(ARETURN);
 				} else {
 					throw new CompileError("A return value of type "
 							+ Types.beautify(this.data.getReturnType().getClassName()) + " is expected");
@@ -191,6 +230,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			boolean ref = true;
 
 			if (body.contains("=")) {
+				type = SET_VAR;
 				String[] split = body.split("=", 2);
 				String name = split[0].trim();
 				String value = split[1].trim();

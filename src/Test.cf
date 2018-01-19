@@ -1,10 +1,12 @@
 package cornflakes.lang;
 public class Test;
 
-use java.util.Arrays;
+public static func test() {		
+	foreach x in iteratorFunction() {
+		println!(x);
+	}
+}
 
-public static func test() {
-	var array = array(string, 5);
-		
-	System.out.println(Arrays.asList(array[0]));
+public static iter func iteratorFunction() {
+
 }
