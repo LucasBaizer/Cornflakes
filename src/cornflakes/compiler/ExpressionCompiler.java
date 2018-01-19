@@ -87,8 +87,10 @@ public class ExpressionCompiler implements GenericCompiler {
 					throw new CompileError("Cannot reference this until super has been called");
 				}
 			}
-			m.visitVarInsn(ALOAD, 0);
-			this.data.ics();
+			if (write) {
+				m.visitVarInsn(ALOAD, 0);
+				this.data.ics();
+			}
 
 			thisType = true;
 			referenceName = "this";
@@ -845,13 +847,13 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			if (!superCall) {
 				if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
-						&& containerClass.equals(data.getClassName())) {
+						&& containerClass.equals(data.getClassName()) && write) {
 					m.visitVarInsn(ALOAD, 0);
 
 					if (this.data != null)
 						this.data.ics();
 				}
-			} else if (!thisType && (last == null || !last.thisType)) {
+			} else if (!thisType && (last == null || !last.thisType) && write) {
 				m.visitVarInsn(ALOAD, 0);
 
 				if (this.data != null)

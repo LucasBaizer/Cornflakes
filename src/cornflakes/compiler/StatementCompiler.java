@@ -27,11 +27,11 @@ public class StatementCompiler extends Compiler {
 				String trim = s.trim();
 				String[] split = trim.split(" as ");
 				if (split.length == 1) {
-					Strings.handleLetterString(trim);
+					Strings.handleLetterString(trim, Strings.NUMBERS);
 					data.use(prefix + trim);
 				} else {
 					String trim0 = split[0].trim();
-					Strings.handleLetterString(trim0);
+					Strings.handleLetterString(trim0, Strings.NUMBERS);
 					data.use(prefix + trim0, split[1].trim());
 				}
 			}
@@ -63,7 +63,7 @@ public class StatementCompiler extends Compiler {
 					}
 
 					if (name.equals("*")) {
-						for(Entry<String, String> entry : classData.getMacros().entrySet()) {
+						for (Entry<String, String> entry : classData.getMacros().entrySet()) {
 							data.useMacro(entry.getKey(), entry.getValue());
 						}
 					} else {
