@@ -17,6 +17,8 @@ public class BodyCompiler extends Compiler implements PostCompiler {
 
 	@Override
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+		ClassData.setCurrentClass(data);
+		
 		int cursor = 0;
 		while (cursor < body.length()) {
 			String line = body.substring(cursor, body.indexOf(System.lineSeparator(), cursor));

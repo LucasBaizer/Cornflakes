@@ -58,7 +58,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			String[] split = body.split(" ", 2);
 			if (split.length == 2) {
-				if (this.data.getReturnTypeSignature().equals("V")) {
+				if (this.data.getReturnType().getTypeSignature().equals("V")) {
 					throw new CompileError("Cannot return a value to a void function");
 				}
 				if (this.data.isIterator()) {
@@ -67,12 +67,12 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				String par = split[1].trim();
 
-				String type = Types.getType(par, this.data.getReturnType().getSimpleClassName().toLowerCase());
+				String type = Types.getType(par, this.data.getReturnType().getTypeName().toLowerCase());
 				if (type != null) {
 					if (type.equals("string")) {
-						if (!this.data.getReturnTypeSignature().equals("Ljava/lang/String;")) {
+						if (!this.data.getReturnType().getTypeSignature().equals("Ljava/lang/String;")) {
 							throw new CompileError(
-									"A return value of type " + this.data.getReturnType().getSimpleClassName()
+									"A return value of type " + Types.beautify(this.data.getReturnType().getTypeName())
 											+ " is expected, but one of type string was given");
 						}
 
@@ -82,9 +82,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 						this.data.ics();
 					} else {
-						if (!Types.isSuitable(this.data.getReturnTypeSignature(), Types.getTypeSignature(type))) {
+						if (!Types.isSuitable(this.data.getReturnType().getTypeSignature(),
+								Types.getTypeSignature(type))) {
 							throw new CompileError(
-									"A return value of type " + this.data.getReturnType().getSimpleClassName()
+									"A return value of type " + Types.beautify(this.data.getReturnType().getTypeName())
 											+ " is expected, but one of type " + type + " was given");
 						}
 
@@ -110,28 +111,25 @@ public class GenericStatementCompiler implements GenericCompiler {
 					ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 					compiler.compile(data, m, block, par, new String[] { par });
 
-					String ref = Types.getTypeFromSignature(Types.unpadSignature(compiler.getReferenceSignature()))
-							.getSimpleClassName();
-
-					if (!Types.isSuitable(this.data.getReturnTypeSignature(), compiler.getReferenceSignature())) {
+					if (!Types.isSuitable(this.data.getReturnType(), compiler.getReferenceType())) {
 						throw new CompileError("A return value of type "
-								+ this.data.getReturnType().getSimpleClassName() + " is expected, but one of type "
-								+ Types.getTypeFromSignature(compiler.getReferenceSignature()).getSimpleClassName()
-								+ " was given");
+								+ Types.beautify(this.data.getReturnType().getTypeName())
+								+ " is expected, but one of type "
+								+ Types.beautify(compiler.getReferenceType().getTypeSignature()) + " was given");
 					}
 
-					int op = Types.getOpcode(Types.RETURN, ref);
+					int op = Types.getOpcode(Types.RETURN, compiler.getReferenceType().getTypeName());
 					m.visitInsn(op);
 				}
 			} else {
-				if (this.data.getReturnTypeSignature().equals("V")) {
+				if (this.data.getReturnType().getTypeSignature().equals("V")) {
 					m.visitInsn(RETURN);
 				} else if (this.data.isIterator()) {
 					m.visitVarInsn(ALOAD, this.data.getIterator());
 					m.visitInsn(ARETURN);
 				} else {
 					throw new CompileError("A return value of type "
-							+ Types.beautify(this.data.getReturnType().getClassName()) + " is expected");
+							+ Types.beautify(this.data.getReturnType().getTypeSignature()) + " is expected");
 				}
 			}
 		} else if (body.startsWith("throw")) {
@@ -146,14 +144,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 			ExpressionCompiler ref = new ExpressionCompiler(true, this.data);
 			ref.compile(data, m, block, split[1], new String[] { split[1] });
 
-			String signature = ref.getReferenceSignature();
-			if (Types.isPrimitive(signature)) {
+			DefinitiveType signature = ref.getReferenceType();
+			if (signature.isPrimitive()) {
 				throw new CompileError("Only types which are subclasses of java.lang.Throwable can be thrown");
 			}
 
 			try {
-				ClassData classData = ClassData.forName(signature);
-				if (!classData.is("java/lang/Throwable")) {
+				if (!signature.getObjectType().is("java/lang/Throwable")) {
 					throw new CompileError("Only types which are subclasses of java.lang.Throwable can be thrown");
 				}
 				m.visitInsn(ATHROW);
@@ -180,13 +177,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			VariableDeclaration decl = CompileUtils.declareVariable(this.data, data, m, block, body, split);
 			Object value = decl.getValue();
-			String valueType = decl.getValueType();
-			String variableType = decl.getVariableType();
+			DefinitiveType valueType = decl.getValueType();
+			DefinitiveType variableType = decl.getVariableType();
 
 			int idx = this.data.getLocalVariables();
 			String signature = null;
 			if (decl.isGenericTyped()) {
-				signature = Types.padSignature(variableType);
+				signature = variableType.getTypeSignature();
 				signature = signature.substring(0, signature.length() - 1);
 				signature += "<";
 				for (GenericType type : decl.getGenericTypes()) {
@@ -194,11 +191,11 @@ public class GenericStatementCompiler implements GenericCompiler {
 				}
 				signature += ">;";
 			}
-			m.visitLocalVariable(variableName, variableType, signature, block.getStartLabel(), block.getEndLabel(),
-					idx);
+			m.visitLocalVariable(variableName, variableType.getAbsoluteTypeSignature(), signature, block.getStartLabel(),
+					block.getEndLabel(), idx);
 			if (value != null) {
-				int push = Types.getOpcode(Types.PUSH, valueType);
-				int store = Types.getOpcode(Types.STORE, variableType);
+				int push = Types.getOpcode(Types.PUSH, valueType.getTypeSignature());
+				int store = Types.getOpcode(Types.STORE, variableType.getTypeSignature());
 
 				if (push == LDC) {
 					m.visitLdcInsn(value);
@@ -215,7 +212,23 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				m.visitVarInsn(store, idx);
 			} else {
-				m.visitVarInsn(Types.getOpcode(Types.STORE, valueType), idx);
+				if (valueType.isNull()) {
+					if (variableType.equals("B") || variableType.equals("S") || variableType.equals("I")
+							|| variableType.equals("C") || variableType.equals("B")) {
+						m.visitInsn(ICONST_0);
+					} else if (variableType.equals("J")) {
+						m.visitInsn(LCONST_0);
+					} else if (variableType.equals("F")) {
+						m.visitInsn(FCONST_0);
+					} else if (variableType.equals("D")) {
+						m.visitInsn(DCONST_0);
+					} else {
+						m.visitInsn(ACONST_NULL);
+					}
+
+					this.data.ics();
+				}
+				m.visitVarInsn(Types.getOpcode(Types.STORE, variableType.getTypeSignature()), idx);
 			}
 
 			LocalData local = new LocalData(variableName, variableType, block, idx,
@@ -269,11 +282,11 @@ public class GenericStatementCompiler implements GenericCompiler {
 				if (field != null) {
 					ref = false;
 
-					String valueType = Types.getType(value, field.getType());
+					String valueType = Types.getType(value, field.getType().getTypeSignature());
 					if (valueType != null) {
-						if (!Types.isSuitable(field.getType(), Types.getTypeSignature(valueType))) {
+						if (!Types.isSuitable(field.getType().getTypeSignature(), Types.getTypeSignature(valueType))) {
 							throw new CompileError(Types.beautify(valueType) + " is not assignable to "
-									+ Types.beautify(field.getType()));
+									+ Types.beautify(field.getType().getTypeSignature()));
 						}
 
 						Object obj = Types.parseLiteral(valueType, value);
@@ -289,29 +302,29 @@ public class GenericStatementCompiler implements GenericCompiler {
 						this.data.ics();
 
 						if (field instanceof LocalData) {
-							int store = Types.getOpcode(Types.STORE, field.getType());
+							int store = Types.getOpcode(Types.STORE, field.getType().getTypeSignature());
 							m.visitVarInsn(store, ((LocalData) field).getIndex());
 						} else if (field instanceof FieldData) {
 							m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
 									compiler.getReferenceOwner().getClassName(), refName,
-									compiler.getReferenceSignature());
+									compiler.getReferenceType().getTypeSignature());
 						}
 					} else {
 						ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
 						compiler1.compile(data, m, block, value, new String[] { value });
 
-						if (!Types.isSuitable(field.getType(), compiler1.getReferenceSignature())) {
+						if (!Types.isSuitable(field.getType(), compiler1.getReferenceType())) {
 							throw new CompileError(
-									compiler1.getReferenceSignature() + " is not assignable to " + field.getType());
+									compiler1.getReferenceType() + " is not assignable to " + field.getType());
 						}
 
 						if (field instanceof LocalData) {
-							int store = Types.getOpcode(Types.STORE, field.getType());
+							int store = Types.getOpcode(Types.STORE, field.getType().getTypeSignature());
 							m.visitVarInsn(store, ((LocalData) field).getIndex());
 						} else if (field instanceof FieldData) {
 							m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
 									compiler.getReferenceOwner().getClassName(), refName,
-									compiler.getReferenceSignature());
+									compiler.getReferenceType().getTypeSignature());
 						}
 					}
 				}

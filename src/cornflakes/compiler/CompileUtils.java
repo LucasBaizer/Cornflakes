@@ -7,15 +7,15 @@ import org.objectweb.asm.MethodVisitor;
 
 public class CompileUtils {
 	public static class VariableDeclaration {
-		private String variableType;
+		private DefinitiveType variableType;
 		private Object value;
-		private String valueType;
+		private DefinitiveType valueType;
 		private String rawValue;
 		private boolean isReference;
 		private List<GenericType> genericTypes;
 
-		public VariableDeclaration(String type, Object val, String valType, String raw, List<GenericType> generics,
-				boolean ref) {
+		public VariableDeclaration(DefinitiveType type, Object val, DefinitiveType valType, String raw,
+				List<GenericType> generics, boolean ref) {
 			this.variableType = type;
 			this.value = val;
 			this.genericTypes = generics;
@@ -24,11 +24,11 @@ public class CompileUtils {
 			this.rawValue = raw;
 		}
 
-		public String getVariableType() {
+		public DefinitiveType getVariableType() {
 			return variableType;
 		}
 
-		public void setVariableType(String variableType) {
+		public void setVariableType(DefinitiveType variableType) {
 			this.variableType = variableType;
 		}
 
@@ -40,11 +40,11 @@ public class CompileUtils {
 			this.value = value;
 		}
 
-		public String getValueType() {
+		public DefinitiveType getValueType() {
 			return valueType;
 		}
 
-		public void setValueType(String valueType) {
+		public void setValueType(DefinitiveType valueType) {
 			this.valueType = valueType;
 		}
 
@@ -104,7 +104,7 @@ public class CompileUtils {
 				ExpressionCompiler ref = new ExpressionCompiler(true, methodData);
 				ref.compile(data, m, block, givenValue, new String[] { givenValue });
 
-				if ((valueType = ref.getReferenceSignature()) == null) {
+				if ((valueType = ref.getReferenceType().getTypeSignature()) == null) {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 				}
 
@@ -116,13 +116,15 @@ public class CompileUtils {
 
 			variableType = Types.getTypeSignature(valueType);
 		} else {
-			String[] spaces = split[1].trim().split(" ");
-			variableType = spaces[0];
+			String[] spaces = split[1].trim().split("=");
+			variableType = spaces[0].trim();
 
-			if (!Types.isPrimitive(variableType)) {
-				variableType = Types.padSignature(data.resolveClass(variableType));
-			} else {
-				variableType = Types.getTypeSignature(variableType);
+			if (!Types.isTupleDefinition(variableType)) {
+				if (!Types.isPrimitive(variableType)) {
+					variableType = Types.padSignature(data.resolveClass(variableType));
+				} else {
+					variableType = Types.getTypeSignature(variableType);
+				}
 			}
 
 			String[] set = body.split("=", 2);
@@ -137,19 +139,19 @@ public class CompileUtils {
 				if (!isMember && valueType == null) {
 					compiler = new ExpressionCompiler(true, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
-					valueType = compiler.getReferenceSignature();
+					valueType = compiler.getReferenceType().getTypeSignature();
 					math = compiler.isMath();
 					generics = compiler.getGenericTypes();
 					isRef = !compiler.isPrimitiveReference();
 				}
 
 				if (valueType != null) {
-					if (!Types.isSuitable(variableType, Types.getTypeSignature(valueType))) {
+					if (!Types.isSuitable(variableType, valueType)) {
 						throw new CompileError(
 								Types.beautify(valueType) + " is not assignable to " + Types.beautify(variableType));
 					}
 				}
-				
+
 				if (!isRef && !math && valueType != null
 						&& (compiler == null || compiler.getExpressionType() != ExpressionCompiler.CAST)) {
 					value = Types.parseLiteral(valueType, givenValue);
@@ -161,6 +163,7 @@ public class CompileUtils {
 			}
 		}
 
-		return new VariableDeclaration(variableType, value, valueType, raw, generics, isRef);
+		return new VariableDeclaration(DefinitiveType.assume(variableType), value, DefinitiveType.assume(valueType),
+				raw, generics, isRef);
 	}
 }

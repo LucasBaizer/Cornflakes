@@ -23,7 +23,7 @@ public class StaticInitializerCompiler extends Compiler {
 		MethodVisitor m = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
 		m.visitCode();
 
-		MethodData method = new MethodData(data, "<clinit>", "()V", false, ACC_STATIC);
+		MethodData method = new MethodData(data, "<clinit>", DefinitiveType.primitive("V"), false, ACC_STATIC);
 
 		Label start = new Label();
 		Label post = new Label();
@@ -34,7 +34,7 @@ public class StaticInitializerCompiler extends Compiler {
 		Block block = new Block(0, start, post);
 		for (FieldData datum : data.getFields()) {
 			if (datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
-				String type = datum.getType();
+				String type = datum.getType().getTypeSignature();
 
 				if (Types.isPrimitive(type) || type.equals("Ljava/lang/String;")) {
 					int push = Types.getOpcode(Types.PUSH, type);
@@ -46,19 +46,22 @@ public class StaticInitializerCompiler extends Compiler {
 						method.ics();
 					}
 
-					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(), datum.getType());
+					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(),
+							datum.getType().getTypeSignature());
 				} else {
 					String raw = (String) datum.getProposedData();
 
 					ExpressionCompiler compiler = new ExpressionCompiler(true, method);
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
-					if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
+					if (!Types.isSuitable(datum.getType().getTypeSignature(),
+							compiler.getReferenceType().getTypeSignature())) {
 						throw new CompileError(
-								compiler.getReferenceSignature() + " is not assignable to " + datum.getType());
+								compiler.getReferenceType() + " is not assignable to " + datum.getType());
 					}
 
-					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(), datum.getType());
+					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(),
+							datum.getType().getTypeSignature());
 				}
 			}
 		}

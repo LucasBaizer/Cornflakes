@@ -100,7 +100,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					String type = spl[1].trim();
 
 					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
-					Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
+					Strings.handleLetterString(type, Strings.TYPE);
 
 					for (ParameterData datum : parameters) {
 						if (datum.getName().equals(name)) {
@@ -110,7 +110,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 							: data.resolveClass(type);
-					parameters.add(new ParameterData(this.methodData, name, Types.padSignature(resolvedType), 0));
+					parameters.add(new ParameterData(this.methodData, name,
+							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
 				}
 			}
 
@@ -156,7 +157,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			m.visitLabel(post);
 			m.visitLocalVariable("this", Types.padSignature(data.getClassName()), null, start, post, 0);
 			for (ParameterData par : methodData.getParameters()) {
-				m.visitLocalVariable(par.getName(), par.getType(), null, start, post, paramMap.get(par.getName()));
+				m.visitLocalVariable(par.getName(), par.getType().getTypeName(), null, start, post,
+						paramMap.get(par.getName()));
 			}
 
 			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());
@@ -194,7 +196,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			if (!datum.hasModifier(ACC_STATIC) && datum.getProposedData() != null) {
 				m.visitVarInsn(ALOAD, 0);
 
-				String type = datum.getType();
+				String type = datum.getType().getTypeName();
 
 				if (Types.isPrimitive(type) || type.equals("Ljava/lang/String;")) {
 					int push = Types.getOpcode(Types.PUSH, type);
@@ -205,19 +207,19 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					}
 					mData.ics();
 
-					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType());
+					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType().getTypeName());
 				} else {
 					String raw = (String) datum.getProposedData();
 
 					ExpressionCompiler compiler = new ExpressionCompiler(true, this.methodData);
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
-					if (!Types.isSuitable(datum.getType(), compiler.getReferenceSignature())) {
-						throw new CompileError(
-								compiler.getReferenceSignature() + " is not assignable to " + datum.getType());
+					if (!Types.isSuitable(datum.getType(), compiler.getReferenceType())) {
+						throw new CompileError(compiler.getReferenceType() + " is not assignable to "
+								+ datum.getType().getTypeName());
 					}
 
-					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType());
+					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType().getTypeName());
 				}
 			}
 		}

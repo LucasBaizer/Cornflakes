@@ -128,9 +128,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			String returnType = "V";
 			if (withoutBracket.contains("->")) {
 				String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
-				Strings.handleLetterString(afterParams, Strings.VARIABLE_TYPE);
+				Strings.handleLetterString(afterParams, Strings.TYPE);
 
-				returnType = Types.padSignature(data.resolveClass(afterParams));
+				if (Types.isTupleDefinition(afterParams)) {
+					returnType = afterParams;
+				} else {
+					returnType = Types.padSignature(data.resolveClass(afterParams));
+				}
 
 				if (iter) {
 					if (!(returnType.equals("java/util/Iterator")
@@ -169,19 +173,23 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					String type = spl[1].trim();
 
 					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
-					Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
+					Strings.handleLetterString(type, Strings.TYPE);
 
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 							: data.resolveClass(type);
-					parameters.add(new ParameterData(this.methodData, name, Types.padSignature(resolvedType), 0));
+					parameters.add(new ParameterData(this.methodData, name,
+							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
 				} else {
 					throw new CompileError("Indexer methods have 1 parameter");
 				}
 			} else {
-				String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')'))
-						.trim();
+				String params = withoutBracket;
+				if (Strings.contains(params, "->")) {
+					params = params.substring(0, params.lastIndexOf("->"));
+				}
+				params = params.substring(params.indexOf('(') + 1, params.lastIndexOf(')')).trim();
 				if (!params.isEmpty()) {
-					String[] split = params.split(",");
+					String[] split = Strings.splitParameters(params);
 					for (String par : split) {
 						par = Strings.normalizeSpaces(par);
 
@@ -197,7 +205,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						String type = spl[1].trim();
 
 						Strings.handleLetterString(name, Strings.VARIABLE_NAME);
-						Strings.handleLetterString(type, Strings.VARIABLE_TYPE);
+						Strings.handleLetterString(type, Strings.TYPE);
 
 						for (ParameterData datum : parameters) {
 							if (datum.getName().equals(name)) {
@@ -205,15 +213,20 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 							}
 						}
 
-						String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
-								: data.resolveClass(type);
-						parameters.add(new ParameterData(this.methodData, name, Types.padSignature(resolvedType), 0));
+						if (Types.isTupleDefinition(type)) {
+							parameters.add(new ParameterData(this.methodData, name, DefinitiveType.assume(type), 0));
+						} else {
+							String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
+									: data.resolveClass(type);
+							parameters.add(new ParameterData(this.methodData, name,
+									DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
+						}
 					}
 				}
 			}
 
 			methodData.setName(methodName);
-			methodData.setReturnTypeSignature(returnType);
+			methodData.setReturnType(DefinitiveType.assume(returnType));
 			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
 			if (iter) {
@@ -287,7 +300,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			if (!gbc.returns()) {
 				if (!block.doesThrow()) {
-					if (methodData.getReturnTypeSignature().equals("V")) {
+					if (methodData.getReturnType().getTypeSignature().equals("V")) {
 						if (methodData.getName().equals("_get_index_")) {
 							throw new CompileError("Indexer methods must return a value");
 						}
@@ -311,7 +324,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				m.visitLocalVariable("_iterator", "Lcornflakes/lang/YieldIterator;", null, start, post, itrIdx);
 			}
 			for (ParameterData par : methodData.getParameters()) {
-				m.visitLocalVariable(par.getName(), par.getType(), null, start, post, paramMap.get(par.getName()));
+				m.visitLocalVariable(par.getName(), par.getType().getAbsoluteTypeSignature(), null, start, post,
+						paramMap.get(par.getName()));
 			}
 
 			m.visitMaxs(this.methodData.getStackSize(), this.methodData.getLocalVariables());

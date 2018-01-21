@@ -4,7 +4,7 @@ public class LocalData extends FieldData {
 	private Block block;
 	private int index;
 
-	public LocalData(String name, String type, Block block, int index, int mods) {
+	public LocalData(String name, DefinitiveType type, Block block, int index, int mods) {
 		super(null, name, type, mods);
 
 		this.setBlock(block);

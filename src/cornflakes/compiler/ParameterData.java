@@ -3,10 +3,10 @@ package cornflakes.compiler;
 public class ParameterData {
 	private String name;
 	private MethodData context;
-	private String type;
+	private DefinitiveType type;
 	private int modifiers;
 
-	public ParameterData(MethodData context, String name, String type, int mods) {
+	public ParameterData(MethodData context, String name, DefinitiveType type, int mods) {
 		this.context = context;
 		this.name = name;
 		this.type = type;
@@ -21,11 +21,11 @@ public class ParameterData {
 		this.name = name;
 	}
 
-	public String getType() {
+	public DefinitiveType getType() {
 		return type;
 	}
 
-	public void setType(String type) {
+	public void setType(DefinitiveType type) {
 		this.type = type;
 	}
 

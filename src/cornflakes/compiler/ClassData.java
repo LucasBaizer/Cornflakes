@@ -18,6 +18,7 @@ import org.objectweb.asm.ClassWriter;
 
 public class ClassData {
 	private static final HashMap<String, ClassData> classes = new HashMap<>();
+	private static ClassData currentClass;
 	private String simpleClassName;
 	private String parentName;
 	private String className;
@@ -39,13 +40,17 @@ public class ClassData {
 	private boolean isInterface;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
-		name = Strings.transformClassName(Types.unpadSignature(name));
+		if (Types.isTupleDefinition(name)) {
+			return new TupleClassData(name);
+		} else {
+			name = Strings.transformClassName(Types.unpadSignature(name));
 
-		if (classes.containsKey(name)) {
-			return classes.get(name);
+			if (classes.containsKey(name)) {
+				return classes.get(name);
+			}
+
+			return fromJavaClass(Class.forName(name.replace('/', '.')));
 		}
-
-		return fromJavaClass(Class.forName(name.replace('/', '.')));
 	}
 
 	public static ClassData fromJavaClass(Class<?> cls) {
@@ -54,7 +59,7 @@ public class ClassData {
 		if (classes.containsKey(t)) {
 			return classes.get(t);
 		}
-		
+
 		ClassData container = new ClassData(false);
 		container.javaClass = cls;
 		container.setIsInterface(cls.isInterface());
@@ -98,8 +103,8 @@ public class ClassData {
 				container.addConstructor(ConstructorData.fromJavaConstructor(container, constructor));
 			}
 			for (Field field : cls.getDeclaredFields()) {
-				container.fields.add(new FieldData(container, field.getName(), Types.getTypeSignature(field.getType()),
-						field.getModifiers()));
+				container.fields.add(new FieldData(container, field.getName(),
+						DefinitiveType.assume(Types.getTypeSignature(field.getType())), field.getModifiers()));
 			}
 		}
 
@@ -111,7 +116,7 @@ public class ClassData {
 		this(true);
 	}
 
-	private ClassData(boolean use) {
+	ClassData(boolean use) {
 		if (use) {
 			use("java.lang.Object", "object");
 			use("java.lang.String", "string");
@@ -179,7 +184,7 @@ public class ClassData {
 			}
 		}
 
-		Strings.handleLetterString(name, Strings.combineExceptions(Strings.NUMBERS, Strings.PERIOD));
+		Strings.handleLetterString(name, Strings.TYPE);
 
 		try {
 			return ClassData.forName(name).getClassName();
@@ -192,6 +197,10 @@ public class ClassData {
 			}
 			throw new CompileError("Unresolved type: " + Types.beautify(name));
 		}
+	}
+
+	public boolean isTuple() {
+		return className.equals("cornflakes/lang/Tuple");
 	}
 
 	public String getClassName() {
@@ -374,18 +383,18 @@ public class ClassData {
 	}
 
 	public boolean isSubclassOf(String test) throws ClassNotFoundException {
-		return ClassData.forName(test).isSuperclassOf(this);
+		return ClassData.forName(test).isAssignableFrom(this);
 	}
 
 	public boolean isSubclassOf(ClassData test) {
-		return test.isSuperclassOf(this);
+		return test.isAssignableFrom(this);
 	}
 
-	public boolean isSuperclassOf(String test) throws ClassNotFoundException {
-		return isSuperclassOf(ClassData.forName(test));
+	public boolean isAssignableFrom(String test) throws ClassNotFoundException {
+		return isAssignableFrom(ClassData.forName(test));
 	}
 
-	public boolean isSuperclassOf(ClassData test) {
+	public boolean isAssignableFrom(ClassData test) {
 		if (this.isInterface) {
 			for (String iface : test.interfaces) {
 				if (iface.equals(className)) {
@@ -517,5 +526,13 @@ public class ClassData {
 
 	public Map<String, String> getMacros() {
 		return macros;
+	}
+
+	public static ClassData getCurrentClass() {
+		return currentClass;
+	}
+
+	public static void setCurrentClass(ClassData currentClass) {
+		ClassData.currentClass = currentClass;
 	}
 }

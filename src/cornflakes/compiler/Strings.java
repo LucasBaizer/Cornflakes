@@ -15,8 +15,8 @@ public class Strings {
 	public static final char[] SPACE = new char[] { ' ' };
 	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
 	public static final char[] VARIABLE_NAME = Arrays.copyOf(NUMBERS, NUMBERS.length);
-	public static final char[] VARIABLE_TYPE = combineExceptions(NUMBERS, SQUARE_BRACKETS);
 	public static final char[] SLASH = new char[] { '/' };
+	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE, new char[] { '(', ')', ',' });
 
 	public static boolean contains(String x, String value) {
 		return Pattern.compile(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)").matcher(x).find();
@@ -28,6 +28,28 @@ public class Strings {
 
 	public static String[] split(String x, String value, int max) {
 		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", max);
+	}
+
+	public static String[] splitParameters(String x) {
+		int par = 0;
+		List<String> list = new ArrayList<>();
+		int start = 0;
+		for (int i = 0; i < x.length(); i++) {
+			char c = x.charAt(i);
+			if (c == '(') {
+				par++;
+			} else if (c == ')') {
+				par--;
+			} else if (par == 0) {
+				if (c == ',') {
+					list.add(x.substring(start, i).trim());
+					start = i + 2;
+				}
+			}
+		}
+
+		list.add(x.substring(start, x.length()));
+		return list.toArray(new String[list.size()]);
 	}
 
 	public static char[] combineExceptions(char[]... exceptions) {

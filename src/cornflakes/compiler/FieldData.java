@@ -7,12 +7,12 @@ public class FieldData implements Accessible {
 	private List<GenericType> genericTypes = new ArrayList<>();
 	private String name;
 	private ClassData context;
-	private String type;
+	private DefinitiveType type;
 	private Object proposedData;
 	private boolean isGeneric;
 	private int modifiers;
 
-	public FieldData(ClassData context, String name, String type, int mods) {
+	public FieldData(ClassData context, String name, DefinitiveType type, int mods) {
 		this.context = context;
 		this.name = name;
 		this.type = type;
@@ -27,11 +27,11 @@ public class FieldData implements Accessible {
 		this.name = name;
 	}
 
-	public String getType() {
+	public DefinitiveType getType() {
 		return type;
 	}
 
-	public void setType(String type) {
+	public void setType(DefinitiveType type) {
 		this.type = type;
 	}
 

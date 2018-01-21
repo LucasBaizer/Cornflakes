@@ -154,8 +154,8 @@ public class StatementCompiler extends Compiler {
 
 			VariableDeclaration decl = CompileUtils.declareVariable(null, data, null, null, body, split);
 			Object value = decl.getValue();
-			String valueType = decl.getValueType();
-			String variableType = decl.getVariableType();
+			DefinitiveType valueType = decl.getValueType();
+			DefinitiveType variableType = decl.getVariableType();
 			boolean useValue = false;
 
 			FieldData fdata = new FieldData(data, variableName, variableType, accessor);
@@ -170,7 +170,8 @@ public class StatementCompiler extends Compiler {
 				fdata.setProposedData(value);
 			}
 
-			cw.visitField(accessor, variableName, variableType, null, useValue ? value : null).visitEnd();
+			cw.visitField(accessor, variableName, variableType.getTypeSignature(), null, useValue ? value : null)
+					.visitEnd();
 			data.addField(fdata);
 		} else {
 			throw new CompileError("Unexpected statement: " + cmd);

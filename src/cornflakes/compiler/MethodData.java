@@ -16,7 +16,7 @@ import org.objectweb.asm.Opcodes;
 public class MethodData implements Accessible {
 	private ClassData context;
 	private String name;
-	private String returnType;
+	private DefinitiveType returnType;
 	private List<ParameterData> parameters = new ArrayList<>();
 	private Set<GenericParameter> genericParameters = new HashSet<>();
 	private List<LocalData> locals = new ArrayList<>();
@@ -26,9 +26,11 @@ public class MethodData implements Accessible {
 	private int blocks;
 	private boolean interfaceMethod;
 	private int iterator = -1;
+	private int syntheticVariables = 0;
 
 	public static MethodData fromJavaMethod(ClassData context, Method method) {
-		MethodData mData = new MethodData(context, method.getName(), Types.getTypeSignature(method.getReturnType()),
+		MethodData mData = new MethodData(context, method.getName(),
+				DefinitiveType.assume(Types.getTypeSignature(method.getReturnType())),
 				method.getDeclaringClass().isInterface(), method.getModifiers());
 		Parameter[] params = method.getParameters();
 		Type[] genericTypes = method.getGenericParameterTypes();
@@ -44,7 +46,8 @@ public class MethodData implements Accessible {
 							.getTypeSignature(Strings.transformClassName(wildcard.getUpperBounds()[0].getTypeName()))));
 				}
 			} else {
-				mData.addParameter(new ParameterData(mData, param.getName(), Types.getTypeSignature(param.getType()),
+				mData.addParameter(new ParameterData(mData, param.getName(),
+						DefinitiveType.uninitializedObject(Types.getTypeSignature(param.getType())),
 						param.getModifiers()));
 			}
 		}
@@ -54,7 +57,7 @@ public class MethodData implements Accessible {
 		return mData;
 	}
 
-	public MethodData(ClassData data, String name, String ret, boolean ifm, int mods) {
+	public MethodData(ClassData data, String name, DefinitiveType ret, boolean ifm, int mods) {
 		this.name = name;
 		this.context = data;
 		this.returnType = ret;
@@ -70,16 +73,12 @@ public class MethodData implements Accessible {
 		this.name = name;
 	}
 
-	public String getReturnTypeSignature() {
+	public DefinitiveType getReturnType() {
 		return returnType;
 	}
 
-	public void setReturnTypeSignature(String returnType) {
-		this.returnType = returnType;
-	}
-
-	public ClassData getReturnType() {
-		return Types.getTypeFromSignature(Types.unpadSignature(returnType));
+	public void setReturnType(DefinitiveType type) {
+		this.returnType = type;
 	}
 
 	public int getStackSize() {
@@ -170,9 +169,9 @@ public class MethodData implements Accessible {
 	public String getSignature() {
 		String desc = "(";
 		for (ParameterData par : parameters) {
-			desc += par.getType();
+			desc += par.getType().getAbsoluteTypeSignature();
 		}
-		desc += ")" + getReturnTypeSignature();
+		desc += ")" + returnType.getAbsoluteTypeSignature();
 
 		return desc;
 	}
@@ -269,5 +268,17 @@ public class MethodData implements Accessible {
 
 	public void setIterator(int isIterator) {
 		this.iterator = isIterator;
+	}
+
+	public int getSyntheticVariables() {
+		return syntheticVariables;
+	}
+
+	public void setSyntheticVariables(int syntheticVariables) {
+		this.syntheticVariables = syntheticVariables;
+	}
+
+	public void addSyntheticVariable() {
+		this.syntheticVariables++;
 	}
 }

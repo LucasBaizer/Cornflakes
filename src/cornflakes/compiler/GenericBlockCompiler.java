@@ -169,22 +169,26 @@ public class GenericBlockCompiler implements GenericCompiler {
 				exp.compile(data, m, currentBlock, itr, new String[] { itr });
 
 				int idx = this.data.getLocalVariables();
-				this.data.addLocal(new LocalData(var, "Ljava/lang/Object;", currentBlock, idx, 0));
+				this.data.addLocal(
+						new LocalData(var, DefinitiveType.assume("Ljava/lang/Object;"), currentBlock, idx, 0));
 				this.data.addLocalVariable();
 
 				int itrIdx = this.data.getLocalVariables();
-				this.data.addLocal(new LocalData("temp_itr", "Ljava/lang/Iterator;", currentBlock, itrIdx, ACC_FINAL));
+				this.data.addLocal(new LocalData("temp_itr", DefinitiveType.assume("Ljava/lang/Iterator;"),
+						currentBlock, itrIdx, ACC_FINAL));
 				this.data.addLocalVariable();
 
 				try {
-					if (exp.getReferenceSignature().equals("Ljava/util/Iterator;")) {
+					if (exp.getReferenceType().getTypeSignature().equals("Ljava/util/Iterator;")) {
 						exp.setWrite(true);
 						exp.compile(data, m, currentBlock, itr, new String[] { itr });
-					} else if (ClassData.forName(exp.getReferenceSignature()).isSubclassOf("java.lang.Iterable")) {
+					} else if (exp.getReferenceType().isPrimitive()
+							&& exp.getReferenceType().getObjectType().isSubclassOf("java.lang.Iterable")) {
 						exp.setWrite(true);
 						exp.compile(data, m, currentBlock, itr, new String[] { itr });
 
-						m.visitMethodInsn(INVOKEINTERFACE, "java/lang/Iterable", "iterator", "()Ljava/util/Iterator;", true);
+						m.visitMethodInsn(INVOKEINTERFACE, "java/lang/Iterable", "iterator", "()Ljava/util/Iterator;",
+								true);
 					} else {
 						throw new CompileError(
 								"Cannot for-each over the given object; should be an instance of java.util.Iterator or java.util.Iterable");

@@ -32,6 +32,28 @@ public class Types implements Opcodes {
 		return prim;
 	}
 
+	public static String translatePrimitiveToSignature(String prim) {
+		if (prim.equals("i8") || prim.equals("B")) {
+			return "B";
+		} else if (prim.equals("i16") || prim.equals("S")) {
+			return "S";
+		} else if (prim.equals("i32") || prim.equals("I")) {
+			return "I";
+		} else if (prim.equals("i64") || prim.equals("J")) {
+			return "J";
+		} else if (prim.equals("f32") || prim.equals("F")) {
+			return "F";
+		} else if (prim.equals("f64") || prim.equals("D")) {
+			return "D";
+		} else if (prim.equals("bool") || prim.equals("Z")) {
+			return "Z";
+		} else if (prim.equals("C")) {
+			return "C";
+		}
+
+		return prim;
+	}
+
 	public static int getArrayOpcode(int op, String type) {
 		if (type == null) {
 			if (op == STORE) {
@@ -91,6 +113,11 @@ public class Types implements Opcodes {
 		}
 
 		throw new CompileError("Could not get array opcode for type " + Types.beautify(type) + " with code " + op);
+	}
+
+	public static boolean isTupleDefinition(String def) {
+		return def.startsWith("(") && def.endsWith(")") && Strings.countOccurrences(def, "(") == 1
+				&& Strings.countOccurrences(def, ")") == 1;
 	}
 
 	public static int getOpcode(int op, String type) {
@@ -202,10 +229,15 @@ public class Types implements Opcodes {
 			}
 		}
 
-		throw new CompileError("Could not get opcode for type " + Types.beautify(type) + " with code " + op);
+		throw new CompileError(
+				"Could not get opcode for type " + Types.beautify(type) + " (raw " + type + ") with code " + op);
 	}
 
 	public static String beautify(String txt1) {
+		if(Types.isTupleDefinition(txt1)) {
+			return txt1;
+		}
+		
 		boolean array = false;
 		if (txt1.startsWith("[")) {
 			txt1 = txt1.substring(1);
@@ -237,8 +269,8 @@ public class Types implements Opcodes {
 			}
 			return ret;
 		}
-		
-		if(txt2.equals("string") || txt2.equals("object")) {
+
+		if (txt2.equals("string") || txt2.equals("object")) {
 			return txt2;
 		}
 
@@ -258,32 +290,32 @@ public class Types implements Opcodes {
 	 */
 	public static String getWrapperType(String type) {
 		switch (type) {
-		case "I":
-		case "i32":
-			return "Ljava/lang/Integer";
-		case "S":
-		case "i16":
-			return "Ljava/lang/Short";
-		case "J":
-		case "i64":
-			return "Ljava/lang/Long";
-		case "B":
-		case "i8":
-			return "Ljava/lang/Byte";
-		case "Z":
-		case "bool":
-			return "Ljava/lang/Boolean";
-		case "F":
-		case "f32":
-			return "Ljava/lang/Float";
-		case "D":
-		case "f64":
-			return "Ljava/lang/Double";
-		case "C":
-		case "char":
-			return "Ljava/lang/Character";
-		default:
-			throw new CompileError("Unknown type: " + type);
+			case "I":
+			case "i32":
+				return "Ljava/lang/Integer";
+			case "S":
+			case "i16":
+				return "Ljava/lang/Short";
+			case "J":
+			case "i64":
+				return "Ljava/lang/Long";
+			case "B":
+			case "i8":
+				return "Ljava/lang/Byte";
+			case "Z":
+			case "bool":
+				return "Ljava/lang/Boolean";
+			case "F":
+			case "f32":
+				return "Ljava/lang/Float";
+			case "D":
+			case "f64":
+				return "Ljava/lang/Double";
+			case "C":
+			case "char":
+				return "Ljava/lang/Character";
+			default:
+				throw new CompileError("Unknown type: " + type);
 		}
 	}
 
@@ -291,6 +323,14 @@ public class Types implements Opcodes {
 		if (type == null)
 			return false;
 		return isPrimitive(type);
+	}
+
+	public static boolean isSuitable(DefinitiveType target, DefinitiveType test) {
+		if (target.isObject() && test.isObject()) {
+			return target.getObjectType().isAssignableFrom(test.getObjectType());
+		}
+
+		return isSuitable(target.getTypeSignature(), test.getTypeSignature());
 	}
 
 	public static boolean isSuitable(String target, String test) {
@@ -320,7 +360,7 @@ public class Types implements Opcodes {
 
 		ClassData targetClass = getTypeFromSignature(target);
 		ClassData testClass = getTypeFromSignature(test);
-		return targetClass.isSuperclassOf(testClass);
+		return targetClass.isAssignableFrom(testClass);
 	}
 
 	public static Object parseLiteral(String type, String val) {
@@ -347,7 +387,17 @@ public class Types implements Opcodes {
 	}
 
 	public static String padSignature(String sig) {
+		if (Types.isTupleDefinition(sig)) {
+			return sig;
+		}
+
+		if (Types.isPrimitive(sig)) {
+			sig = Types.translatePrimitiveToSignature(sig);
+		}
 		if (sig.length() == 1) {
+			return sig;
+		}
+		if(sig.length() == 2 && sig.startsWith("[")) {
 			return sig;
 		}
 		if (!sig.endsWith(";")) {
@@ -434,55 +484,60 @@ public class Types implements Opcodes {
 		return "i32";
 	}
 
+	public static boolean isPrimitive(DefinitiveType name) {
+		return name.isPrimitive();
+	}
+
 	public static boolean isPrimitive(String name) {
 		if (name == null)
 			return false;
 		switch (name) {
-		case "I":
-		case "Z":
-		case "B":
-		case "C":
-		case "S":
-		case "J":
-		case "F":
-		case "D":
-		case "void":
-		case "bool":
-		case "i8":
-		case "char":
-		case "i16":
-		case "i32":
-		case "i64":
-		case "f32":
-		case "f64":
-			return true;
-		default:
-			return false;
+			case "I":
+			case "Z":
+			case "B":
+			case "C":
+			case "S":
+			case "J":
+			case "F":
+			case "D":
+			case "void":
+			case "bool":
+			case "i8":
+			case "char":
+			case "i16":
+			case "i32":
+			case "i64":
+			case "f32":
+			case "f64":
+			case "V":
+				return true;
+			default:
+				return false;
 		}
 	}
 
 	public static Class<?> getClassFromPrimitive(String primitive) {
 		switch (primitive) {
-		case "void":
-			return Void.class;
-		case "bool":
-			return boolean.class;
-		case "i8":
-			return byte.class;
-		case "char":
-			return char.class;
-		case "i16":
-			return short.class;
-		case "i32":
-			return int.class;
-		case "i64":
-			return long.class;
-		case "f32":
-			return float.class;
-		case "f64":
-			return double.class;
-		default:
-			throw new CompileError("Unresolved type: " + Types.beautify(primitive));
+			case "void":
+				return Void.class;
+			case "bool":
+				return boolean.class;
+			case "i8":
+				return byte.class;
+			case "char":
+				return char.class;
+			case "i16":
+				return short.class;
+			case "i32":
+				return int.class;
+			case "i64":
+				return long.class;
+			case "f32":
+				return float.class;
+			case "f64":
+				return double.class;
+			default:
+				throw new CompileError("Unresolved type: " + Types.beautify(primitive));
 		}
 	}
 
@@ -548,24 +603,24 @@ public class Types implements Opcodes {
 
 	public static ClassData getTypeFromSignature(String sig) {
 		switch (sig) {
-		case "V":
-			return ClassData.fromJavaClass(Void.class);
-		case "Z":
-			return ClassData.fromJavaClass(boolean.class);
-		case "B":
-			return ClassData.fromJavaClass(byte.class);
-		case "C":
-			return ClassData.fromJavaClass(char.class);
-		case "D":
-			return ClassData.fromJavaClass(double.class);
-		case "F":
-			return ClassData.fromJavaClass(float.class);
-		case "I":
-			return ClassData.fromJavaClass(int.class);
-		case "J":
-			return ClassData.fromJavaClass(long.class);
-		case "S":
-			return ClassData.fromJavaClass(short.class);
+			case "V":
+				return ClassData.fromJavaClass(Void.class);
+			case "Z":
+				return ClassData.fromJavaClass(boolean.class);
+			case "B":
+				return ClassData.fromJavaClass(byte.class);
+			case "C":
+				return ClassData.fromJavaClass(char.class);
+			case "D":
+				return ClassData.fromJavaClass(double.class);
+			case "F":
+				return ClassData.fromJavaClass(float.class);
+			case "I":
+				return ClassData.fromJavaClass(int.class);
+			case "J":
+				return ClassData.fromJavaClass(long.class);
+			case "S":
+				return ClassData.fromJavaClass(short.class);
 		}
 
 		if (sig.startsWith("[")) {

@@ -13,7 +13,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 
 	private int type = -1;
 	private MethodData data;
-	private String resultType;
+	private DefinitiveType resultType;
 	private boolean write;
 	private boolean valid = true;
 	private boolean bool;
@@ -54,13 +54,13 @@ public class MathExpressionCompiler implements GenericCompiler {
 						boolean isDouble = type.equals("D");
 
 						if (isLong) {
-							resultType = "J";
+							resultType = DefinitiveType.primitive("J");
 						} else if (isInt) {
-							resultType = "I";
+							resultType = DefinitiveType.primitive("I");
 						} else if (isFloat) {
-							resultType = "F";
+							resultType = DefinitiveType.primitive("F");
 						} else if (isDouble) {
-							resultType = "D";
+							resultType = DefinitiveType.primitive("D");
 						} else {
 							invalid(new CompileError("Expecting numerical variable"));
 						}
@@ -111,7 +111,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 								} else {
 									m.visitFieldInsn(ref.getField().hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
 											ref.getReferenceOwner().getClassName(), ref.getReferenceName(),
-											ref.getReferenceSignature());
+											ref.getReferenceType().getTypeSignature());
 								}
 							}
 						}
@@ -158,13 +158,13 @@ public class MathExpressionCompiler implements GenericCompiler {
 		boolean isFloat = leftType.equals("F") || rightType.equals("F");
 		boolean isDouble = leftType.equals("D") || rightType.equals("D");
 		if (isLong) {
-			resultType = "J";
+			resultType = DefinitiveType.primitive("J");
 		} else if (isInt) {
-			resultType = "I";
+			resultType = DefinitiveType.primitive("I");
 		} else if (isFloat) {
-			resultType = "F";
+			resultType = DefinitiveType.primitive("F");
 		} else if (isDouble) {
-			resultType = "D";
+			resultType = DefinitiveType.primitive("D");
 		}
 
 		if (leftType.equals("Ljava/lang/String;") && rightType.equals("Ljava/lang/String;")) {
@@ -173,7 +173,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 				m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "combine",
 						"(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);
 			}
-			resultType = "Ljava/lang/String;";
+			resultType = DefinitiveType.object("Ljava/lang/String;");
 			return;
 		}
 
@@ -269,7 +269,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			ref.setAllowBoolean(this.bool);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
-			return ref.getReferenceSignature();
+			return ref.getReferenceType().getTypeSignature();
 		}
 	}
 
@@ -281,11 +281,11 @@ public class MathExpressionCompiler implements GenericCompiler {
 		this.write = write;
 	}
 
-	public String getResultType() {
+	public DefinitiveType getResultType() {
 		return resultType;
 	}
 
-	public void setResultType(String resultType) {
+	public void setResultType(DefinitiveType resultType) {
 		this.resultType = resultType;
 	}
 }
