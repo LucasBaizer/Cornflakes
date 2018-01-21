@@ -109,7 +109,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					}
 
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
-							: data.resolveClass(type);
+							: data.resolveClass(type).getTypeSignature();
 					parameters.add(new ParameterData(this.methodData, name,
 							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
 				}
@@ -215,8 +215,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
 					if (!Types.isSuitable(datum.getType(), compiler.getReferenceType())) {
-						throw new CompileError(compiler.getReferenceType() + " is not assignable to "
-								+ datum.getType().getTypeName());
+						throw new CompileError(
+								compiler.getReferenceType() + " is not assignable to " + datum.getType().getTypeName());
 					}
 
 					m.visitFieldInsn(PUTFIELD, data.getClassName(), datum.getName(), datum.getType().getTypeName());

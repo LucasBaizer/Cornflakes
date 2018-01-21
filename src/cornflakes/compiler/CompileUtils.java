@@ -121,7 +121,7 @@ public class CompileUtils {
 
 			if (!Types.isTupleDefinition(variableType)) {
 				if (!Types.isPrimitive(variableType)) {
-					variableType = Types.padSignature(data.resolveClass(variableType));
+					variableType = data.resolveClass(variableType).getTypeSignature();
 				} else {
 					variableType = Types.getTypeSignature(variableType);
 				}

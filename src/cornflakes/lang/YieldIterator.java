@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class YieldIterator implements Iterator<Object>, Iterable<Object> {
+public final class YieldIterator implements Iterator<Object>, Iterable<Object> {
 	private List<Object> list = new ArrayList<>();
 	
 	public YieldIterator() {

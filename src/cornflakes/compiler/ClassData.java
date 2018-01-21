@@ -128,6 +128,7 @@ public class ClassData {
 			use("java.lang.Short", "i16");
 			use("java.lang.Character", "char");
 			use("java.lang.System");
+			use("cornflakes.lang.Tuple");
 			useMacro("println", "System.out.println");
 		}
 	}
@@ -166,11 +167,11 @@ public class ClassData {
 		return false;
 	}
 
-	public String resolveClass(String name) {
+	public DefinitiveType resolveClass(String name) {
 		return resolveClass(name, true);
 	}
 
-	public String resolveClass(String name, boolean prim) {
+	public DefinitiveType resolveClass(String name, boolean prim) {
 		boolean arrayType = false;
 
 		if (name.endsWith("[]")) {
@@ -180,19 +181,20 @@ public class ClassData {
 
 		if (prim) {
 			if (Types.isPrimitive(name)) {
-				return Types.getTypeSignature(Types.getClassFromPrimitive(name));
+				return DefinitiveType.primitive(Types.getTypeSignature(Types.getClassFromPrimitive(name)));
 			}
 		}
 
 		Strings.handleLetterString(name, Strings.TYPE);
 
 		try {
-			return ClassData.forName(name).getClassName();
+			return DefinitiveType.object(ClassData.forName(name));
 		} catch (ClassNotFoundException e) {
 			for (Entry<String, String> use : this.use.entrySet()) {
 				if (use.getKey().equals(name) || use.equals(name.replace('.', '/'))
 						|| use.getValue().endsWith("/" + name)) {
-					return arrayType ? "[L" + use.getValue().replace('.', '/') : use.getValue().replace('.', '/');
+					return DefinitiveType.assume(
+							arrayType ? "[L" + use.getValue().replace('.', '/') : use.getValue().replace('.', '/'));
 				}
 			}
 			throw new CompileError("Unresolved type: " + Types.beautify(name));
@@ -471,6 +473,7 @@ public class ClassData {
 	}
 
 	public boolean is(String type) throws ClassNotFoundException {
+		type = Types.unpadSignature(Strings.transformClassName(type));
 		if (className.equals(type)) {
 			return true;
 		}

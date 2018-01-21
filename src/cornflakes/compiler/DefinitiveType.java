@@ -27,8 +27,12 @@ public class DefinitiveType {
 	}
 
 	public static DefinitiveType uninitializedObject(String name) {
+		if(Types.isPrimitive(name)) {
+			return primitive(name);
+		}
+		
 		DefinitiveType type = new DefinitiveType();
-		type.type = name;
+		type.type = Types.unpadSignature(name);
 		type.init = false;
 		return type;
 	}
@@ -46,29 +50,37 @@ public class DefinitiveType {
 	public String getTypeSignature() {
 		return Types.padSignature(getTypeName());
 	}
-	
+
 	public String getAbsoluteTypeSignature() {
-		if(Types.isTupleDefinition(getTypeSignature())) {
+		if (Types.isTupleDefinition(getTypeSignature())) {
 			return "Lcornflakes/lang/Tuple;";
 		}
 		return getTypeSignature();
 	}
-	
+
 	public String getAbsoluteTypeName() {
-		if(Types.isTupleDefinition(getTypeSignature())) {
+		if (Types.isTupleDefinition(getTypeSignature())) {
 			return "cornflakes/lang/Tuple";
 		}
 		return getTypeName();
 	}
 
 	public boolean isPrimitive() {
+		if (!init) {
+			return false;
+		}
 		return data == null;
 	}
 
 	public boolean isObject() {
-		return type == null;
+		if(!init) {
+			getObjectType();
+			return true;
+		}
+		
+		return !isPrimitive();
 	}
-	
+
 	public boolean isTuple() {
 		return isObject() && !isNull() && this.data instanceof TupleClassData;
 	}
@@ -77,6 +89,7 @@ public class DefinitiveType {
 		if (!init) {
 			try {
 				this.data = ClassData.forName(this.type);
+				this.init = true;
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}
@@ -88,16 +101,15 @@ public class DefinitiveType {
 	public boolean equals(Object obj) {
 		if (obj instanceof DefinitiveType) {
 			DefinitiveType def = (DefinitiveType) obj;
-			if (def.isPrimitive()) {
-				return def.type.equals(this.type);
-			}
-			return def.data.getClassName().equals(this.data.getClassName());
+			return def.getTypeName().equals(this.getTypeName());
 		} else if (obj instanceof String) {
 			String str = Types.unpadSignature((String) obj);
-			if (isPrimitive()) {
-				return type.equals(str);
+			if(isTuple()) {
+				if(str.equals("cornflakes/lang/Tuple")) {
+					return true;
+				}
 			}
-			return data.getClassName().equals(str);
+			return getTypeName().equals(str);
 		}
 		return false;
 	}

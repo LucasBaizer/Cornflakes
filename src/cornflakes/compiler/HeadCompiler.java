@@ -88,7 +88,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 					if (keywordSplit.length < 4) {
 						throw new CompileError("Expecting identifier after keyword 'extends'");
 					}
-					parent = data.resolveClass(keywordSplit[3]);
+					parent = Strings.transformClassName(keywordSplit[3]);
 					Strings.handleLetterString(parent, Strings.SLASH);
 
 					if (keywordSplit.length > 4) {
@@ -116,7 +116,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 						str = str.substring(0, str.length() - 1);
 					}
 					str = str.trim();
-					String resolved = data.resolveClass(str);
+					String resolved = Strings.transformClassName(str);
 					try {
 						ClassData intData = ClassData.forName(resolved);
 						if (!intData.isInterface()) {

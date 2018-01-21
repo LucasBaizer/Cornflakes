@@ -157,7 +157,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				}
 				if (ifType == IS) {
 					if (write) {
-						m.visitTypeInsn(INSTANCEOF, data.resolveClass(right));
+						m.visitTypeInsn(INSTANCEOF, data.resolveClass(right).getAbsoluteTypeName());
 						m.visitJumpInsn(IFEQ, end);
 					}
 				} else {

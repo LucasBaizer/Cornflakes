@@ -4,11 +4,12 @@ public class Test;
 public static func test() {
 	var x: (i32, i32, i32) = (5, 5, 5)
 	
-	println!(functionThatTakesTuple(x))
+	var tuple = functionThatTakesTuple(x)
+	foreach y in tuple {
+		println!(y)
+	}
 }
 
-public static func functionThatTakesTuple(tuple: (i32, i32, i32)) -> (i32, string, i32) {
-	println!(tuple)
-	
-	return (5, "hello", 7)
+public static func functionThatTakesTuple(tuple: (i32, i32, i32)) -> (i32, i32, i32) {
+	return (5, 6, 7)
 }

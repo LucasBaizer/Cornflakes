@@ -133,7 +133,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				if (Types.isTupleDefinition(afterParams)) {
 					returnType = afterParams;
 				} else {
-					returnType = Types.padSignature(data.resolveClass(afterParams));
+					returnType = data.resolveClass(afterParams).getTypeSignature();
 				}
 
 				if (iter) {
@@ -176,7 +176,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					Strings.handleLetterString(type, Strings.TYPE);
 
 					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
-							: data.resolveClass(type);
+							: data.resolveClass(type).getTypeSignature();
 					parameters.add(new ParameterData(this.methodData, name,
 							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
 				} else {
@@ -217,9 +217,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 							parameters.add(new ParameterData(this.methodData, name, DefinitiveType.assume(type), 0));
 						} else {
 							String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
-									: data.resolveClass(type);
-							parameters.add(new ParameterData(this.methodData, name,
-									DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
+									: data.resolveClass(type).getTypeSignature();
+							parameters.add(
+									new ParameterData(this.methodData, name, DefinitiveType.assume(resolvedType), 0));
 						}
 					}
 				}

@@ -55,7 +55,7 @@ public class StatementCompiler extends Compiler {
 				String name = within[0];
 				String clazz = within[1];
 
-				String resolved = data.resolveClass(clazz);
+				String resolved = data.resolveClass(clazz).getTypeSignature();
 				try {
 					ClassData classData = ClassData.forName(resolved);
 					if (classData.isJavaClass() || classData.getMacros().size() == 0) {
@@ -160,7 +160,7 @@ public class StatementCompiler extends Compiler {
 
 			FieldData fdata = new FieldData(data, variableName, variableType, accessor);
 			if ((accessor & ACC_STATIC) == ACC_STATIC) {
-				if (valueType != null && (valueType.equals("I") || valueType.equals("J") || valueType.equals("F")
+				if (!valueType.isNull() && (valueType.equals("I") || valueType.equals("J") || valueType.equals("F")
 						|| valueType.equals("string"))) {
 					useValue = true;
 				} else {
@@ -170,8 +170,8 @@ public class StatementCompiler extends Compiler {
 				fdata.setProposedData(value);
 			}
 
-			cw.visitField(accessor, variableName, variableType.getTypeSignature(), null, useValue ? value : null)
-					.visitEnd();
+			cw.visitField(accessor, variableName, variableType.getAbsoluteTypeSignature(), null,
+					useValue ? value : null).visitEnd();
 			data.addField(fdata);
 		} else {
 			throw new CompileError("Unexpected statement: " + cmd);

@@ -1,13 +1,9 @@
 package cornflakes.compiler;
 
-import java.util.Arrays;
-
 import org.objectweb.asm.Opcodes;
 
-import cornflakes.lang.Tuple;
-
 public class TupleClassData extends ClassData {
-	private int[] types;
+	private DefinitiveType[] types;
 
 	public TupleClassData(String tuple) {
 		super(false);
@@ -17,6 +13,8 @@ public class TupleClassData extends ClassData {
 		setModifiers(Opcodes.ACC_PUBLIC);
 		setParentName(true, "java/lang/Object");
 		setHasConstructor(true);
+		setInterfaces(new String[] { "java/io/Serializable" });
+		addMethod(new MethodData(this, "getLength", DefinitiveType.primitive("I"), false, Opcodes.ACC_PUBLIC));
 
 		String inner = tuple.substring(1, tuple.length() - 1).trim();
 		String[] split = inner.split(",");
@@ -24,29 +22,38 @@ public class TupleClassData extends ClassData {
 			throw new CompileError("Tuple must have more than 1 parameter");
 		}
 
-		types = new int[split.length];
+		types = new DefinitiveType[split.length];
 		for (int i = 0; i < types.length; i++) {
-			String resolved = ClassData.getCurrentClass().resolveClass(split[i].trim());
-			types[i] = Tuple.type(resolved);
+			DefinitiveType resolved = ClassData.getCurrentClass().resolveClass(split[i].trim());
+			types[i] = resolved;
 		}
 	}
 
-	public int type(int index) {
+	public DefinitiveType getType(int index) {
 		return types[index];
 	}
 
-	public int[] getTypes() {
+	public DefinitiveType[] getTypes() {
 		return types;
 	}
 
-	public void setTypes(int[] types) {
+	public void setTypes(DefinitiveType[] types) {
 		this.types = types;
 	}
 
 	@Override
 	public boolean isAssignableFrom(ClassData test) {
 		if (test instanceof TupleClassData) {
-			return Arrays.equals(((TupleClassData) test).types, this.types);
+			TupleClassData tuple = (TupleClassData) test;
+			if (tuple.types.length != this.types.length) {
+				return false;
+			}
+			for (int i = 0; i < tuple.types.length; i++) {
+				if (!Types.isSuitable(this.types[i], tuple.types[i])) {
+					return false;
+				}
+			}
+			return true;
 		}
 		return false;
 	}

@@ -10,7 +10,7 @@ public class Types implements Opcodes {
 
 	private static final String INTEGER = "-0123456789";
 
-	public static String translatePrimitive(String prim) {
+	public static String primitiveToJava(String prim) {
 		if (prim.equals("i8") || prim.equals("B")) {
 			return "byte";
 		} else if (prim.equals("i16") || prim.equals("S")) {
@@ -32,23 +32,45 @@ public class Types implements Opcodes {
 		return prim;
 	}
 
-	public static String translatePrimitiveToSignature(String prim) {
-		if (prim.equals("i8") || prim.equals("B")) {
+	public static String primitiveToSignature(String prim) {
+		if (prim.equals("i8") || prim.equals("byte")) {
 			return "B";
-		} else if (prim.equals("i16") || prim.equals("S")) {
+		} else if (prim.equals("i16") || prim.equals("short")) {
 			return "S";
-		} else if (prim.equals("i32") || prim.equals("I")) {
+		} else if (prim.equals("i32") || prim.equals("int")) {
 			return "I";
-		} else if (prim.equals("i64") || prim.equals("J")) {
+		} else if (prim.equals("i64") || prim.equals("long")) {
 			return "J";
-		} else if (prim.equals("f32") || prim.equals("F")) {
+		} else if (prim.equals("f32") || prim.equals("float")) {
 			return "F";
-		} else if (prim.equals("f64") || prim.equals("D")) {
+		} else if (prim.equals("f64") || prim.equals("double")) {
 			return "D";
-		} else if (prim.equals("bool") || prim.equals("Z")) {
+		} else if (prim.equals("bool") || prim.equals("bool")) {
 			return "Z";
-		} else if (prim.equals("C")) {
+		} else if (prim.equals("C") || prim.equals("char")) {
 			return "C";
+		}
+
+		return prim;
+	}
+
+	public static String primitiveToCornflakes(String prim) {
+		if (prim.equals("B") || prim.equals("byte")) {
+			return "i8";
+		} else if (prim.equals("S") || prim.equals("short")) {
+			return "i16";
+		} else if (prim.equals("I") || prim.equals("int")) {
+			return "i32";
+		} else if (prim.equals("J") || prim.equals("long")) {
+			return "i64";
+		} else if (prim.equals("F") || prim.equals("float")) {
+			return "f32";
+		} else if (prim.equals("D") || prim.equals("double")) {
+			return "f64";
+		} else if (prim.equals("Z") || prim.equals("bool")) {
+			return "bool";
+		} else if (prim.equals("C") || prim.equals("char")) {
+			return "char";
 		}
 
 		return prim;
@@ -234,10 +256,10 @@ public class Types implements Opcodes {
 	}
 
 	public static String beautify(String txt1) {
-		if(Types.isTupleDefinition(txt1)) {
+		if (Types.isTupleDefinition(txt1)) {
 			return txt1;
 		}
-		
+
 		boolean array = false;
 		if (txt1.startsWith("[")) {
 			txt1 = txt1.substring(1);
@@ -341,14 +363,15 @@ public class Types implements Opcodes {
 			return true;
 		}
 
-		boolean isInt = target.equals("i32") || target.equals("I") || target.equals("int");
-		boolean isShort = target.equals("i16") || target.equals("S") || target.equals("short");
-		boolean isByte = target.equals("i8") || target.equals("B");
-		boolean isChar = target.equals("char") || target.equals("C");
-		if (isInt) {
-			return isShort || isByte || isChar;
-		} else if (isShort) {
-			return isByte || isChar;
+		boolean tInt = target.equals("i32") || target.equals("I") || target.equals("int");
+		boolean tShort = target.equals("i16") || target.equals("S") || target.equals("short");
+		boolean sShort = test.equals("i16") || test.equals("S") || test.equals("short");
+		boolean sByte = test.equals("i8") || test.equals("B") || test.equals("byte");
+		boolean sChar = test.equals("char") || test.equals("C");
+		if (tInt) {
+			return sShort || sByte || sChar;
+		} else if (tShort) {
+			return sByte || sChar;
 		}
 
 		target = unpadSignature(target);
@@ -392,12 +415,12 @@ public class Types implements Opcodes {
 		}
 
 		if (Types.isPrimitive(sig)) {
-			sig = Types.translatePrimitiveToSignature(sig);
+			sig = Types.primitiveToSignature(sig);
 		}
 		if (sig.length() == 1) {
 			return sig;
 		}
-		if(sig.length() == 2 && sig.startsWith("[")) {
+		if (sig.length() == 2 && sig.startsWith("[")) {
 			return sig;
 		}
 		if (!sig.endsWith(";")) {
@@ -453,6 +476,9 @@ public class Types implements Opcodes {
 			if (!INTEGER.contains(Character.toString(l))) {
 				if (l == '.') {
 					if (Strings.countOccurrences(x, ".") == 1) {
+						if(context == null) {
+							return "f32";
+						}
 						if (context.equals("f32") || context.equals("F")) {
 							return "f32";
 						} else if (context.equals("f64") || context.equals("D")) {

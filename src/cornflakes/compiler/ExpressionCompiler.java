@@ -7,8 +7,6 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
-import cornflakes.lang.Tuple;
-
 public class ExpressionCompiler implements GenericCompiler {
 	public static final int LOCAL_VARIABLE = 0;
 	public static final int MEMBER_VARIABLE = 1;
@@ -46,14 +44,14 @@ public class ExpressionCompiler implements GenericCompiler {
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		try {
-			compile(null, data.getClassName(), data, data, m, block, body, lines);
+			compile(null, data, data, m, block, body, lines);
 		} catch (ClassNotFoundException e) {
 			throw new CompileError(e);
 		}
 	}
 
-	private void compile(ExpressionCompiler last, String containerClass, ClassData containerData, ClassData data,
-			MethodVisitor m, Block block, String body, String[] lines) throws ClassNotFoundException {
+	private void compile(ExpressionCompiler last, ClassData containerData, ClassData data, MethodVisitor m, Block block,
+			String body, String[] lines) throws ClassNotFoundException {
 		if (body.equals("null")) {
 			m.visitInsn(ACONST_NULL);
 			return;
@@ -61,14 +59,19 @@ public class ExpressionCompiler implements GenericCompiler {
 
 		int end = body.length();
 		int opens = 0;
+		int brack = 0;
 		for (int i = 0; i < body.length(); i++) {
 			char c = body.charAt(i);
 			if (c == '(') {
 				opens++;
 			} else if (c == ')') {
 				opens--;
+			} else if (c == '[') {
+				brack++;
+			} else if (c == ']') {
+				brack--;
 			}
-			if (opens == 0) {
+			if (opens == 0 && brack == 0) {
 				if (c == '.') {
 					if (!(body.charAt(i + 1) >= '0' && body.charAt(i + 1) <= '9')) {
 						end = i;
@@ -101,12 +104,102 @@ public class ExpressionCompiler implements GenericCompiler {
 			referenceSignature = DefinitiveType.assume(Types.getTypeSignature(data.getClassName()));
 			referenceType = THIS;
 			next = true;
+		} else if (Types.isTupleDefinition(part)) {
+			String[] tuple = Strings.splitParameters(part.substring(1, part.length() - 1).trim());
+
+			int idx = 16384 + this.data.getSyntheticVariables();
+			if (write) {
+				m.visitLocalVariable("_tuple_init_" + idx, "Lcornflakes/lang/Tuple;", null, block.getStartLabel(),
+						block.getEndLabel(), idx);
+
+				m.visitTypeInsn(NEW, "cornflakes/lang/Tuple");
+				m.visitInsn(DUP);
+				m.visitLdcInsn(tuple.length);
+				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I)V", false);
+				m.visitVarInsn(ASTORE, idx);
+				this.data.addSyntheticVariable();
+			}
+
+			String[] types = new String[tuple.length];
+			for (int i = 0; i < tuple.length; i++) {
+				String par = tuple[i].trim();
+				String type = Types.getType(par, null);
+				if (write) {
+					m.visitVarInsn(ALOAD, idx);
+					m.visitLdcInsn(i);
+				}
+				if (type == null) {
+					ExpressionCompiler exp = new ExpressionCompiler(this.write, this.data);
+					exp.compile(data, m, block, par, new String[] { par });
+
+					String sig = exp.getReferenceType().getAbsoluteTypeSignature();
+					if (write) {
+						if (Types.isPrimitive(sig)) {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V", false);
+						} else {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(ILjava/lang/Object;)V",
+									false);
+						}
+					}
+
+					types[i] = Types.primitiveToCornflakes(exp.getReferenceType().getTypeSignature());
+				} else {
+					Object value = Types.parseLiteral(type, par);
+					int push = Types.getOpcode(Types.PUSH, type);
+
+					if (write) {
+						if (push == LDC) {
+							m.visitLdcInsn(value);
+							this.data.ics();
+						} else if (value != null) {
+							String toString = value.toString();
+							if (toString.equals("true") || toString.equals("false")) {
+								m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+							} else {
+								m.visitVarInsn(push, Integer.parseInt(toString));
+								this.data.ics();
+							}
+						}
+					}
+
+					String sig = Types.getTypeSignature(type);
+					types[i] = Types.primitiveToCornflakes(sig);
+					if (write) {
+						if (Types.isPrimitive(sig)) {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V", false);
+						} else {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(ILjava/lang/Object;)V",
+									false);
+						}
+					}
+				}
+			}
+
+			if (write) {
+				m.visitVarInsn(ALOAD, idx);
+			}
+
+			referenceName = part;
+			referenceOwner = ClassData.forName("cornflakes/lang/Tuple");
+
+			String str = "(";
+			for (int i = 0; i < types.length; i++) {
+				str += types[i];
+				if (i < types.length - 1) {
+					str += ", ";
+				}
+			}
+			str += ")";
+			referenceSignature = DefinitiveType.object(str);
+			referenceType = TUPLE;
+
+			next = true;
 		} else if (Strings.contains(part, " as ")) {
 			String[] split = Strings.split(part, " as ");
 			String val = split[0].trim();
-			String cls = data.resolveClass(split[1].trim());
+			DefinitiveType cls = data.resolveClass(split[1].trim());
 
-			String type = Types.getType(val, cls);
+			String type = Types.getType(val, cls.getTypeName());
 			String cast = null;
 			boolean prim = false;
 			if (type == null) {
@@ -206,104 +299,14 @@ public class ExpressionCompiler implements GenericCompiler {
 						}
 					}
 				} else {
-					m.visitTypeInsn(CHECKCAST, cls);
+					m.visitTypeInsn(CHECKCAST, cls.getAbsoluteTypeName());
 				}
 			}
 
 			referenceName = val;
 			referenceOwner = data;
-			referenceSignature = DefinitiveType.assume(Types.padSignature(cls));
+			referenceSignature = cls;
 			referenceType = CAST;
-
-			next = true;
-		} else if (Types.isTupleDefinition(part)) {
-			String[] tuple = Strings.splitParameters(part.substring(1, part.length() - 1).trim());
-
-			int idx = 16384 + this.data.getSyntheticVariables();
-			if (write) {
-				m.visitLocalVariable("_tuple_init_" + idx, "Lcornflakes/lang/Tuple;", null, block.getStartLabel(),
-						block.getEndLabel(), idx);
-
-				m.visitTypeInsn(NEW, "cornflakes/lang/Tuple");
-				m.visitInsn(DUP);
-				m.visitLdcInsn(tuple.length);
-				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I)V", false);
-				m.visitVarInsn(ASTORE, idx);
-				this.data.addSyntheticVariable();
-			}
-
-			String[] types = new String[tuple.length];
-			for (int i = 0; i < tuple.length; i++) {
-				String par = tuple[i].trim();
-				String type = Types.getType(par, null);
-				if (write) {
-					m.visitVarInsn(ALOAD, idx);
-					m.visitLdcInsn(i);
-				}
-				if (type == null) {
-					ExpressionCompiler exp = new ExpressionCompiler(this.write, this.data);
-					exp.compile(data, m, block, par, new String[] { par });
-
-					String sig = exp.getReferenceType().getAbsoluteTypeSignature();
-					if (write) {
-						if (Types.isPrimitive(sig)) {
-							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V", false);
-						} else {
-							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(ILjava/lang/Object;)V",
-									false);
-						}
-					}
-
-					types[i] = Tuple.getTypeName(Tuple.type(exp.getReferenceType().getTypeSignature()));
-				} else {
-					Object value = Types.parseLiteral(type, par);
-					int push = Types.getOpcode(Types.PUSH, type);
-
-					if (write) {
-						if (push == LDC) {
-							m.visitLdcInsn(value);
-							this.data.ics();
-						} else if (value != null) {
-							String toString = value.toString();
-							if (toString.equals("true") || toString.equals("false")) {
-								m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
-							} else {
-								m.visitVarInsn(push, Integer.parseInt(toString));
-								this.data.ics();
-							}
-						}
-					}
-
-					String sig = Types.getTypeSignature(type);
-					types[i] = Tuple.getTypeName(Tuple.type(sig));
-					if (write) {
-						if (Types.isPrimitive(sig)) {
-							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V", false);
-						} else {
-							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(ILjava/lang/Object;)V",
-									false);
-						}
-					}
-				}
-			}
-
-			if (write) {
-				m.visitVarInsn(ALOAD, idx);
-			}
-
-			referenceName = part;
-			referenceOwner = ClassData.forName("cornflakes/lang/Tuple");
-
-			String str = "(";
-			for (int i = 0; i < types.length; i++) {
-				str += types[i];
-				if (i < types.length - 1) {
-					str += ", ";
-				}
-			}
-			str += ")";
-			referenceSignature = DefinitiveType.object(str);
-			referenceType = TUPLE;
 
 			next = true;
 		} else {
@@ -312,8 +315,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				String test = "get" + Strings.capitalize(part);
 				if (containerData.getAllMethods(test).length > 0) {
 					if (containerData != data || !data.hasField(test)) {
-						compileMethodCall(last, containerData.getClassName(), containerData, data, m, block,
-								test + "()", false);
+						compileMethodCall(last, containerData, data, m, block, test + "()", false);
 						if (referenceSignature.equals("V")) {
 							throw new CompileError("Cannot reference void-returning getters");
 						}
@@ -356,22 +358,21 @@ public class ExpressionCompiler implements GenericCompiler {
 							ClassData toUse = thisType ? data : containerData;
 
 							if (superCall || toUse.hasMethod(name)) {
-								compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
+								compileMethodCall(last, toUse, data, m, block, part, superCall);
 								next = true;
 							} else if (name.equals("typeof")) {
-								compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part, superCall);
+								compileMethodCall(last, toUse, data, m, block, part, superCall);
 								next = true;
 							} else {
 								MethodData[] methods = toUse.getAllMethods(name);
 								if (methods.length > 0) {
-									compileMethodCall(last, toUse.getClassName(), toUse, data, m, block, part,
-											superCall);
+									compileMethodCall(last, toUse, data, m, block, part, superCall);
 									next = true;
 								}
 
 								if (!next && !thisType) {
 									if (!name.equals("array")) {
-										String resolved = null;
+										DefinitiveType resolved = null;
 										try {
 											if (Strings.contains(name, "<")) {
 												name = name.substring(0, name.indexOf('<'));
@@ -382,15 +383,14 @@ public class ExpressionCompiler implements GenericCompiler {
 										}
 
 										try {
-											compileConstructorCall(resolved, ClassData.forName(resolved), data, m,
-													block, part, resolved);
+											compileConstructorCall(resolved.getObjectType(), data, m, block, part,
+													resolved.getAbsoluteTypeName());
 										} catch (ClassNotFoundException e) {
 											throw new CompileError(e);
 										}
 										next = true;
 									} else {
-										compileConstructorCall(data.getClassName(), data, data, m, block, part,
-												"__array__");
+										compileConstructorCall(data, data, m, block, part, "__array__");
 										next = true;
 									}
 								}
@@ -419,17 +419,17 @@ public class ExpressionCompiler implements GenericCompiler {
 							arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
 						}
 						if (!thisType && this.data != null && this.data.hasLocal(varPart, block)) {
-							compileVariableReference(last, 1, containerClass, containerData, data, m, block, varPart,
-									arrayIndex, end == body.length());
+							compileVariableReference(last, 1, containerData, data, m, block, varPart, arrayIndex,
+									end == body.length());
 							next = true;
 						} else {
 							if (data.hasField(varPart)) {
-								compileVariableReference(last, 0, data.getClassName(), data, data, m, block, varPart,
-										arrayIndex, end == body.length());
+								compileVariableReference(last, 0, data, data, m, block, varPart, arrayIndex,
+										end == body.length());
 								next = true;
 							} else if (!thisType && containerData.hasField(varPart)) {
-								compileVariableReference(last, 0, containerClass, containerData, data, m, block,
-										varPart, arrayIndex, end == body.length());
+								compileVariableReference(last, 0, containerData, data, m, block, varPart, arrayIndex,
+										end == body.length());
 								next = true;
 							} else {
 								boolean math = true;
@@ -507,15 +507,15 @@ public class ExpressionCompiler implements GenericCompiler {
 						throw new CompileError(e);
 					}
 
-					compile(this, newClass.getClassName(), newClass, data, m, block, newBody, new String[] { newBody });
+					compile(this, newClass, data, m, block, newBody, new String[] { newBody });
 				} else {
-					compile(this, data.getClassName(), data, data, m, block, newBody, new String[] { newBody });
+					compile(this, data, data, m, block, newBody, new String[] { newBody });
 				}
 			}
 			return;
 		}
 
-		String clazz = null;
+		DefinitiveType clazz = null;
 
 		if (part.equals("true") || part.equals("false")) {
 			m.visitInsn(part.equals("true") ? ICONST_1 : ICONST_0);
@@ -535,25 +535,19 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 		}
 
-		ClassData cls = null;
-		try {
-			cls = ClassData.forName(Types.padSignature(clazz));
-		} catch (ClassNotFoundException e) {
-			throw new CompileError("Unresolved class: " + Types.beautify(clazz));
-		}
+		ClassData cls = clazz.getObjectType();
 
 		if (end == body.length()) {
 			return;
 		}
 		String newBody = body.substring(end + 1).trim();
 
-		compile(this, clazz, cls, data, m, block, newBody, new String[] { newBody });
+		compile(this, cls, data, m, block, newBody, new String[] { newBody });
 
 	}
 
-	private void compileVariableReference(ExpressionCompiler last, int source, String containerClass,
-			ClassData containerData, ClassData data, MethodVisitor m, Block block, String body, String arrayIndex,
-			boolean isLast) {
+	private void compileVariableReference(ExpressionCompiler last, int source, ClassData containerData, ClassData data,
+			MethodVisitor m, Block block, String body, String arrayIndex, boolean isLast) {
 		if (source == 0) {
 			FieldData field = containerData.getField(body);
 			if (!field.isAccessible(data)) {
@@ -562,7 +556,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			if (write) {
 				if (this.data != null) {
 					if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
-							&& containerClass.equals(data.getClassName())) {
+							&& containerData.getClassName().equals(data.getClassName())) {
 						m.visitVarInsn(ALOAD, 0);
 						this.data.ics();
 					}
@@ -570,9 +564,11 @@ public class ExpressionCompiler implements GenericCompiler {
 
 				if (!(!loadVariableReference && isLast)) {
 					if (field.hasModifier(ACC_STATIC)) {
-						m.visitFieldInsn(GETSTATIC, containerClass, body, field.getType().getTypeSignature());
+						m.visitFieldInsn(GETSTATIC, containerData.getClassName(), body,
+								field.getType().getTypeSignature());
 					} else {
-						m.visitFieldInsn(GETFIELD, containerClass, body, field.getType().getTypeSignature());
+						m.visitFieldInsn(GETFIELD, containerData.getClassName(), body,
+								field.getType().getTypeSignature());
 					}
 
 					if (this.data != null)
@@ -590,47 +586,71 @@ public class ExpressionCompiler implements GenericCompiler {
 			DefinitiveType type = local.getType();
 			ClassData typeClass = type.getObjectType();
 
+			DefinitiveType tupleType = null;
 			MethodData indexer = typeClass != null && typeClass.isIndexedClass()
 					? typeClass.getMethods("_get_index_")[0] : null;
-			if (write) {
-				if (!(!loadVariableReference && isLast)) {
-					int op = Types.getOpcode(Types.LOAD, type.getTypeSignature());
+			if (!(!loadVariableReference && isLast)) {
+				int op = Types.getOpcode(Types.LOAD, type.getTypeSignature());
+				if (write) {
 					m.visitVarInsn(op, local.getIndex());
+				}
 
-					if (arrayIndex != null) {
-						String idxType = Types.getType(arrayIndex, null);
-						if (idxType == null) {
-							ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
-							compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
+				if (arrayIndex != null) {
+					String idxType = Types.getType(arrayIndex, null);
+					if (idxType == null) {
+						ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
+						compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
 
-							try {
-								if (typeClass.isSubclassOf("java.util.List")
-										|| type.getTypeSignature().startsWith("[")) {
-									if (!compiler.getReferenceType().equals("I")) {
-										throw new CompileError("Arrays can only be indexed by integers");
-									}
+						try {
+							if (typeClass.isSubclassOf("java.util.List") || type.getTypeSignature().startsWith("[")) {
+								if (!compiler.getReferenceType().equals("I")) {
+									throw new CompileError("Arrays can only be indexed by integers");
 								}
-							} catch (ClassNotFoundException e) {
-								throw new CompileError(e);
+							} else if (type.equals("Lcornflakes/lang/Tuple")) {
+								throw new CompileError("Tuple can only be indexed by integer literals");
+							}
+						} catch (ClassNotFoundException e) {
+							throw new CompileError(e);
+						}
+					} else {
+						if (idxType.equals("string")) {
+							if (this.write) {
+								m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
 							}
 						} else {
-							if (idxType.equals("string")) {
-								m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
-							} else {
-								int x = Integer.parseInt(arrayIndex);
-								if (x < 0) {
-									throw new CompileError("Array literal indexes must be greater than or equal to 0");
-								}
+							int x = Integer.parseInt(arrayIndex);
+							if (x < 0) {
+								throw new CompileError("Array literal indexes must be greater than or equal to 0");
+							}
+							if (this.write) {
 								m.visitLdcInsn(x);
 							}
+							if (type.equals("Lcornflakes/lang/Tuple;")) {
+								TupleClassData clz = (TupleClassData) typeClass;
+								if (x >= clz.getTypes().length) {
+									throw new CompileError("Tuple index out of range");
+								}
+								tupleType = clz.getType(x);
+							}
 						}
+					}
 
+					if (this.write) {
 						try {
 							if (typeClass.isIndexedClass()) {
 								m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
 										indexer.getSignature(), false);
 							} else if (type.equals("Ljava/lang/String;")) {
 								m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
+							} else if (type.equals("Lcornflakes/lang/Tuple;")) {
+								if (tupleType.isPrimitive()) {
+									m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple",
+											Types.primitiveToCornflakes(tupleType.getAbsoluteTypeSignature()) + "Item",
+											"(I)" + tupleType.getAbsoluteTypeSignature(), false);
+								} else {
+									m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
+											"(I)Ljava/lang/Object;", false);
+								}
 							} else if (typeClass.isSubclassOf("java.util.List")) {
 								m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get", "(I)Ljava/lang/Object;",
 										true);
@@ -644,10 +664,10 @@ public class ExpressionCompiler implements GenericCompiler {
 							throw new CompileError(e);
 						}
 					}
+				}
 
-					if (this.data != null) {
-						this.data.ics();
-					}
+				if (this.write && this.data != null) {
+					this.data.ics();
 				}
 			}
 
@@ -660,6 +680,8 @@ public class ExpressionCompiler implements GenericCompiler {
 						referenceSignature = indexer.getReturnType();
 					} else if (type.equals("Ljava/lang/String;")) {
 						referenceSignature = DefinitiveType.primitive("C");
+					} else if (type.equals("Lcornflakes/lang/Tuple;")) {
+						referenceSignature = tupleType;
 					} else if (typeClass.isSubclassOf("java.util.List") || typeClass.isSubclassOf("java.util.Map")) {
 						referenceSignature = DefinitiveType.object("Ljava/lang/Object;");
 					} else {
@@ -679,8 +701,8 @@ public class ExpressionCompiler implements GenericCompiler {
 		}
 	}
 
-	private void compileConstructorCall(String containerClass, ClassData containerData, ClassData data, MethodVisitor m,
-			Block block, String body, String clazz) throws ClassNotFoundException {
+	private void compileConstructorCall(ClassData containerData, ClassData data, MethodVisitor m, Block block,
+			String body, String clazz) throws ClassNotFoundException {
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
 		if (Strings.hasMatching(body, '<', '>')) {
 			String generic = body.substring(body.indexOf('<') + 1, body.lastIndexOf('>')).trim();
@@ -709,7 +731,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				if (Types.isPrimitive(type)) {
 					type = Types.getWrapperType(type);
 				} else {
-					type = Types.getTypeSignature(data.resolveClass(type));
+					type = data.resolveClass(type).getTypeSignature();
 				}
 
 				genericTypes.add(new GenericType(type, ext));
@@ -730,7 +752,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			String type = split[0].trim();
 			String size = split[1].trim();
 
-			String resolved = data.resolveClass(type);
+			DefinitiveType resolved = data.resolveClass(type);
 			try {
 				int x = Integer.parseInt(size);
 				if (x < 0) {
@@ -769,10 +791,10 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 				m.visitIntInsn(NEWARRAY, val);
 			} else {
-				m.visitTypeInsn(ANEWARRAY, resolved);
+				m.visitTypeInsn(ANEWARRAY, resolved.getAbsoluteTypeName());
 			}
 
-			referenceSignature = DefinitiveType.assume("[" + Types.getTypeSignature(resolved));
+			referenceSignature = DefinitiveType.assume("[" + resolved.getTypeSignature());
 			referenceType = NEW_ARRAY;
 			referenceName = "array";
 			referenceOwner = containerData;
@@ -797,8 +819,7 @@ public class ExpressionCompiler implements GenericCompiler {
 							}
 						} else {
 							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
-							compiler.compile(this, data.getClassName(), data, data, m, block, par,
-									new String[] { par });
+							compiler.compile(this, data, data, m, block, par, new String[] { par });
 
 							if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
 								success = false;
@@ -816,8 +837,8 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 
 			if (method == null) {
-				throw new CompileError(
-						"No constructor overload for type " + containerClass + " takes the given parameters");
+				throw new CompileError("No constructor overload for type "
+						+ Types.beautify(containerData.getClassName()) + " takes the given parameters");
 			}
 
 			if (!method.isAccessible(data)) {
@@ -862,9 +883,8 @@ public class ExpressionCompiler implements GenericCompiler {
 		}
 	}
 
-	private void compileMethodCall(ExpressionCompiler last, String containerClass, ClassData containerData,
-			ClassData data, MethodVisitor m, Block block, String body, boolean superCall)
-			throws ClassNotFoundException {
+	private void compileMethodCall(ExpressionCompiler last, ClassData containerData, ClassData data, MethodVisitor m,
+			Block block, String body, boolean superCall) throws ClassNotFoundException {
 		String before = body.substring(0, body.indexOf('(')).trim();
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
 		String[] split = getParameters(pars);
@@ -874,9 +894,9 @@ public class ExpressionCompiler implements GenericCompiler {
 				throw new CompileError("typeof function takes 1 parameter, but " + split.length + " were given");
 			}
 			String type = split[0].trim();
-			String resolve = data.resolveClass(type);
+			DefinitiveType resolve = data.resolveClass(type);
 			if (write) {
-				m.visitLdcInsn(Type.getType(Types.getTypeSignature(resolve)));
+				m.visitLdcInsn(Type.getType(resolve.getAbsoluteTypeName()));
 			}
 
 			referenceSignature = DefinitiveType.object("Ljava/lang/Class;");
@@ -904,8 +924,7 @@ public class ExpressionCompiler implements GenericCompiler {
 							}
 						} else {
 							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
-							compiler.compile(this, data.getClassName(), data, data, m, block, par,
-									new String[] { par });
+							compiler.compile(this, data, data, m, block, par, new String[] { par });
 
 							if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
 								success = false;
@@ -932,7 +951,7 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			if (!superCall) {
 				if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
-						&& containerClass.equals(data.getClassName()) && write) {
+						&& containerData.getClassName().equals(data.getClassName()) && write) {
 					m.visitVarInsn(ALOAD, 0);
 
 					if (this.data != null)

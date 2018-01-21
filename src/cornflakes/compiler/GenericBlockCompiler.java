@@ -179,11 +179,15 @@ public class GenericBlockCompiler implements GenericCompiler {
 				this.data.addLocalVariable();
 
 				try {
-					if (exp.getReferenceType().getTypeSignature().equals("Ljava/util/Iterator;")) {
+					DefinitiveType type = exp.getReferenceType();
+					if (type.isPrimitive()) {
+						throw new CompileError("Cannot for-each over a primitive type");
+					}
+
+					if (type.getObjectType().is("java.util.Iterator")) {
 						exp.setWrite(true);
 						exp.compile(data, m, currentBlock, itr, new String[] { itr });
-					} else if (exp.getReferenceType().isPrimitive()
-							&& exp.getReferenceType().getObjectType().isSubclassOf("java.lang.Iterable")) {
+					} else if (type.getObjectType().is("java.lang.Iterable") || type.isTuple()) {
 						exp.setWrite(true);
 						exp.compile(data, m, currentBlock, itr, new String[] { itr });
 
