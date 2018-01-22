@@ -548,8 +548,9 @@ public class ExpressionCompiler implements GenericCompiler {
 
 	private void compileVariableReference(ExpressionCompiler last, int source, ClassData containerData, ClassData data,
 			MethodVisitor m, Block block, String body, String arrayIndex, boolean isLast) {
+		FieldData field = null;
 		if (source == 0) {
-			FieldData field = containerData.getField(body);
+			field = containerData.getField(body);
 			if (!field.isAccessible(data)) {
 				throw new CompileError("Field is not accessible from this context");
 			}
@@ -582,88 +583,12 @@ public class ExpressionCompiler implements GenericCompiler {
 			referenceName = field.getName();
 			referenceOwner = containerData;
 		} else if (source == 1) {
-			LocalData local = this.data.getLocal(body, block);
-			DefinitiveType type = local.getType();
-			ClassData typeClass = type.getObjectType();
+			field = this.data.getLocal(body, block);
 
-			DefinitiveType tupleType = null;
-			MethodData indexer = typeClass != null && typeClass.isIndexedClass()
-					? typeClass.getMethods("_get_index_")[0] : null;
 			if (!(!loadVariableReference && isLast)) {
-				int op = Types.getOpcode(Types.LOAD, type.getTypeSignature());
+				int op = Types.getOpcode(Types.LOAD, field.getType().getTypeSignature());
 				if (write) {
-					m.visitVarInsn(op, local.getIndex());
-				}
-
-				if (arrayIndex != null) {
-					String idxType = Types.getType(arrayIndex, null);
-					if (idxType == null) {
-						ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
-						compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
-
-						try {
-							if (typeClass.isSubclassOf("java.util.List") || type.getTypeSignature().startsWith("[")) {
-								if (!compiler.getReferenceType().equals("I")) {
-									throw new CompileError("Arrays can only be indexed by integers");
-								}
-							} else if (type.equals("Lcornflakes/lang/Tuple")) {
-								throw new CompileError("Tuple can only be indexed by integer literals");
-							}
-						} catch (ClassNotFoundException e) {
-							throw new CompileError(e);
-						}
-					} else {
-						if (idxType.equals("string")) {
-							if (this.write) {
-								m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
-							}
-						} else {
-							int x = Integer.parseInt(arrayIndex);
-							if (x < 0) {
-								throw new CompileError("Array literal indexes must be greater than or equal to 0");
-							}
-							if (this.write) {
-								m.visitLdcInsn(x);
-							}
-							if (type.equals("Lcornflakes/lang/Tuple;")) {
-								TupleClassData clz = (TupleClassData) typeClass;
-								if (x >= clz.getTypes().length) {
-									throw new CompileError("Tuple index out of range");
-								}
-								tupleType = clz.getType(x);
-							}
-						}
-					}
-
-					if (this.write) {
-						try {
-							if (typeClass.isIndexedClass()) {
-								m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
-										indexer.getSignature(), false);
-							} else if (type.equals("Ljava/lang/String;")) {
-								m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
-							} else if (type.equals("Lcornflakes/lang/Tuple;")) {
-								if (tupleType.isPrimitive()) {
-									m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple",
-											Types.primitiveToCornflakes(tupleType.getAbsoluteTypeSignature()) + "Item",
-											"(I)" + tupleType.getAbsoluteTypeSignature(), false);
-								} else {
-									m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
-											"(I)Ljava/lang/Object;", false);
-								}
-							} else if (typeClass.isSubclassOf("java.util.List")) {
-								m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get", "(I)Ljava/lang/Object;",
-										true);
-							} else if (typeClass.isSubclassOf("java.util.Map")) {
-								m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "get",
-										"(Ljava/lang/Object;)Ljava/lang/Object;", true);
-							} else {
-								m.visitInsn(Types.getArrayOpcode(Types.LOAD, type.getTypeSignature()));
-							}
-						} catch (ClassNotFoundException e) {
-							throw new CompileError(e);
-						}
-					}
+					m.visitVarInsn(op, ((LocalData) field).getIndex());
 				}
 
 				if (this.write && this.data != null) {
@@ -671,29 +596,102 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 			}
 
-			this.field = local;
-			if (arrayIndex == null) {
-				referenceSignature = type;
-			} else {
+			this.field = field;
+		}
+
+		DefinitiveType type = field.getType();
+		ClassData typeClass = type.getObjectType();
+		MethodData indexer = typeClass != null && typeClass.isIndexedClass() ? typeClass.getMethods("_get_index_")[0]
+				: null;
+		DefinitiveType tupleType = null;
+		if (arrayIndex != null) {
+			String idxType = Types.getType(arrayIndex, null);
+			if (idxType == null) {
+				ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
+				compiler.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
+
 				try {
-					if (indexer != null) {
-						referenceSignature = indexer.getReturnType();
+					if (typeClass.is("java.util.List") || type.getTypeSignature().startsWith("[")) {
+						if (!compiler.getReferenceType().equals("I")) {
+							throw new CompileError("Arrays can only be indexed by integers");
+						}
+					} else if (type.equals("Lcornflakes/lang/Tuple")) {
+						throw new CompileError("Tuple can only be indexed by integer literals");
+					}
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
+				}
+			} else {
+				if (idxType.equals("string")) {
+					if (this.write) {
+						m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
+					}
+				} else {
+					int x = Integer.parseInt(arrayIndex);
+					if (x < 0) {
+						throw new CompileError("Array literal indexes must be greater than or equal to 0");
+					}
+					if (this.write) {
+						m.visitLdcInsn(x);
+					}
+					if (type.equals("Lcornflakes/lang/Tuple;")) {
+						TupleClassData clz = (TupleClassData) typeClass;
+						if (x >= clz.getTypes().length) {
+							throw new CompileError("Tuple index out of range");
+						}
+						tupleType = clz.getType(x);
+					}
+				}
+			}
+
+			if (this.write) {
+				try {
+					if (typeClass.isIndexedClass()) {
+						m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
+								indexer.getSignature(), false);
 					} else if (type.equals("Ljava/lang/String;")) {
-						referenceSignature = DefinitiveType.primitive("C");
+						m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
 					} else if (type.equals("Lcornflakes/lang/Tuple;")) {
-						referenceSignature = tupleType;
-					} else if (typeClass.isSubclassOf("java.util.List") || typeClass.isSubclassOf("java.util.Map")) {
-						referenceSignature = DefinitiveType.object("Ljava/lang/Object;");
+						if (tupleType.isPrimitive()) {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple",
+									Types.primitiveToCornflakes(tupleType.getAbsoluteTypeSignature()) + "Item",
+									"(I)" + tupleType.getAbsoluteTypeSignature(), false);
+						} else {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I)Ljava/lang/Object;",
+									false);
+						}
+					} else if (typeClass.is("java.util.List")) {
+						m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get", "(I)Ljava/lang/Object;", true);
+					} else if (typeClass.is("java.util.Map")) {
+						m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "get",
+								"(Ljava/lang/Object;)Ljava/lang/Object;", true);
 					} else {
-						referenceSignature = DefinitiveType.assume(type.getTypeSignature().substring(1));
+						m.visitInsn(Types.getArrayOpcode(Types.LOAD, type.getTypeSignature()));
 					}
 				} catch (ClassNotFoundException e) {
 					throw new CompileError(e);
 				}
 			}
-			referenceType = LOCAL_VARIABLE;
-			referenceName = local.getName();
-			referenceOwner = containerData;
+		}
+
+		if (arrayIndex == null) {
+			referenceSignature = type;
+		} else {
+			try {
+				if (indexer != null) {
+					referenceSignature = indexer.getReturnType();
+				} else if (type.equals("Ljava/lang/String;")) {
+					referenceSignature = DefinitiveType.primitive("C");
+				} else if (type.equals("Lcornflakes/lang/Tuple;")) {
+					referenceSignature = tupleType;
+				} else if (typeClass.is("java.util.List") || typeClass.is("java.util.Map")) {
+					referenceSignature = DefinitiveType.object("Ljava/lang/Object;");
+				} else {
+					referenceSignature = DefinitiveType.assume(type.getTypeSignature().substring(1));
+				}
+			} catch (ClassNotFoundException e) {
+				throw new CompileError(e);
+			}
 		}
 
 		if (field.isGeneric()) {
@@ -744,7 +742,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 		}
 		if (clazz.equals("__array__")) {
-			String[] split = pars.split(",");
+			String[] split = Strings.splitParameters(pars);
 			if (split.length != 2) {
 				throw new CompileError("Array declarations should be in the form 'array(type, size)'");
 			}

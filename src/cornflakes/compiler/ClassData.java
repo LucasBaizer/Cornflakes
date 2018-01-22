@@ -384,14 +384,6 @@ public class ClassData {
 		return (this.modifiers & mod) == mod;
 	}
 
-	public boolean isSubclassOf(String test) throws ClassNotFoundException {
-		return ClassData.forName(test).isAssignableFrom(this);
-	}
-
-	public boolean isSubclassOf(ClassData test) {
-		return test.isAssignableFrom(this);
-	}
-
 	public boolean isAssignableFrom(String test) throws ClassNotFoundException {
 		return isAssignableFrom(ClassData.forName(test));
 	}

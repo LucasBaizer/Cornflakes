@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 
-public final class Tuple implements Serializable, Iterable<Object> {
+public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	private static final long serialVersionUID = 3065105932170095516L;
 	private Object[] items;
 
@@ -128,21 +128,18 @@ public final class Tuple implements Serializable, Iterable<Object> {
 	}
 
 	@Override
-	public Iterator<Object> iterator() {
-		return new TupleIterator();
+	public Object clone() {
+		Tuple x = new Tuple(this.items.length);
+		x.items = this.toArray();
+		return x;
 	}
-	
-	private class TupleIterator implements Iterator<Object> {
-		private int idx = 0;
-		
-		@Override
-		public boolean hasNext() {
-			return idx < items.length;
-		}
 
-		@Override
-		public Object next() {
-			return items[idx++];
-		}
+	public Object[] toArray() {
+		return Arrays.copyOf(items, items.length);
+	}
+
+	@Override
+	public Iterator<Object> iterator() {
+		return new ArrayIterator(this.items);
 	}
 }

@@ -169,14 +169,20 @@ public class GenericBlockCompiler implements GenericCompiler {
 				exp.compile(data, m, currentBlock, itr, new String[] { itr });
 
 				int idx = this.data.getLocalVariables();
-				this.data.addLocal(
-						new LocalData(var, DefinitiveType.assume("Ljava/lang/Object;"), currentBlock, idx, 0));
+				LocalData objData = new LocalData(var, DefinitiveType.assume("Ljava/lang/Object;"), currentBlock, idx,
+						0);
+				this.data.addLocal(objData);
+				m.visitLocalVariable(objData.getName(), objData.getType().getAbsoluteTypeSignature(), null, start,
+						currentBlock.getEndLabel(), idx);
 				this.data.addLocalVariable();
 
-				int itrIdx = this.data.getLocalVariables();
-				this.data.addLocal(new LocalData("temp_itr", DefinitiveType.assume("Ljava/lang/Iterator;"),
-						currentBlock, itrIdx, ACC_FINAL));
-				this.data.addLocalVariable();
+				int itrIdx = 16384 + this.data.getSyntheticVariables();
+				LocalData itrData = new LocalData("_itr_" + itrIdx, DefinitiveType.assume("Ljava/lang/Iterator;"),
+						currentBlock, itrIdx, ACC_FINAL);
+				this.data.addLocal(itrData);
+				m.visitLocalVariable(itrData.getName(), itrData.getType().getAbsoluteTypeSignature(), null, start,
+						currentBlock.getEndLabel(), itrIdx);
+				this.data.addSyntheticVariable();
 
 				try {
 					DefinitiveType type = exp.getReferenceType();
@@ -184,7 +190,16 @@ public class GenericBlockCompiler implements GenericCompiler {
 						throw new CompileError("Cannot for-each over a primitive type");
 					}
 
-					if (type.getObjectType().is("java.util.Iterator")) {
+					if (type.getObjectType().getClassName().startsWith("[")) {
+						m.visitTypeInsn(NEW, "cornflakes/lang/ArrayIterator");
+						m.visitInsn(DUP);
+
+						exp.setWrite(true);
+						exp.compile(data, m, currentBlock, itr, new String[] { itr });
+
+						m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/ArrayIterator", "<init>",
+								"([Ljava/lang/Object;)V", false);
+					} else if (type.getObjectType().is("java.util.Iterator")) {
 						exp.setWrite(true);
 						exp.compile(data, m, currentBlock, itr, new String[] { itr });
 					} else if (type.getObjectType().is("java.lang.Iterable") || type.isTuple()) {

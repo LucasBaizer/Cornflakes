@@ -2,6 +2,8 @@ package cornflakes.compiler;
 
 import org.objectweb.asm.Opcodes;
 
+import cornflakes.lang.Tuple;
+
 public class TupleClassData extends ClassData {
 	private DefinitiveType[] types;
 
@@ -13,8 +15,17 @@ public class TupleClassData extends ClassData {
 		setModifiers(Opcodes.ACC_PUBLIC);
 		setParentName(true, "java/lang/Object");
 		setHasConstructor(true);
-		setInterfaces(new String[] { "java/io/Serializable" });
-		addMethod(new MethodData(this, "getLength", DefinitiveType.primitive("I"), false, Opcodes.ACC_PUBLIC));
+		setInterfaces(new String[] { "java/io/Serializable", "java/lang/Iterable", "java/lang/Cloneable" });
+		try {
+			addMethod(MethodData.fromJavaMethod(this, Tuple.class.getMethod("getLength")));
+			addMethod(MethodData.fromJavaMethod(this, Tuple.class.getMethod("toArray")));
+			addMethod(MethodData.fromJavaMethod(this, Tuple.class.getMethod("iterator")));
+			addMethod(MethodData.fromJavaMethod(this, Tuple.class.getMethod("hashCode")));
+			addMethod(MethodData.fromJavaMethod(this, Tuple.class.getMethod("equals", Object.class)));
+			addMethod(MethodData.fromJavaMethod(this, Tuple.class.getMethod("clone")));
+		} catch (NoSuchMethodException | SecurityException e) {
+			throw new CompileError(e);
+		}
 
 		String inner = tuple.substring(1, tuple.length() - 1).trim();
 		String[] split = inner.split(",");
@@ -59,7 +70,7 @@ public class TupleClassData extends ClassData {
 	}
 
 	@Override
-	public boolean isSubclassOf(ClassData test) {
+	public boolean is(String test) {
 		return false;
 	}
 }

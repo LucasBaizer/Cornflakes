@@ -19,7 +19,12 @@ public interface Accessible {
 			return context == getContext();
 		}
 		if (hasModifier(Opcodes.ACC_PROTECTED)) {
-			return context.getPackageName().equals(getContext().getPackageName()) || context.isSubclassOf(getContext());
+			try {
+				return context.getPackageName().equals(getContext().getPackageName())
+						|| context.is(getContext().getClassName());
+			} catch (ClassNotFoundException e) {
+				throw new CompileError(e);
+			}
 		}
 		return context.getPackageName().equals(getContext().getPackageName());
 	}
