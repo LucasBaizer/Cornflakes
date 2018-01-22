@@ -1,5 +1,8 @@
 package cornflakes.compiler;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.objectweb.asm.MethodVisitor;
 
 import cornflakes.compiler.CompileUtils.VariableDeclaration;
@@ -191,8 +194,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 				}
 				signature += ">;";
 			}
-			m.visitLocalVariable(variableName, variableType.getAbsoluteTypeSignature(), signature, block.getStartLabel(),
-					block.getEndLabel(), idx);
+			m.visitLocalVariable(variableName, variableType.getAbsoluteTypeSignature(), signature,
+					block.getStartLabel(), block.getEndLabel(), idx);
 			if (value != null) {
 				int push = Types.getOpcode(Types.PUSH, valueType.getTypeSignature());
 				int store = Types.getOpcode(Types.STORE, variableType.getTypeSignature());
@@ -279,53 +282,92 @@ public class GenericStatementCompiler implements GenericCompiler {
 				String refName = compiler.getReferenceName();
 				FieldData field = compiler.getField();
 
-				if (field != null) {
-					ref = false;
+				String regex = "(.+?)\\[(.+?)\\]";
+				if (name.matches(regex)) {
+					Matcher x = Pattern.compile(regex).matcher(name);
+					x.find();
+					String arrayName = x.group(1);
+					String arrayIndex = x.group(2);
+					String idxType = Types.getType(arrayIndex, null);
+					DefinitiveType type = field.getType();
+					ClassData typeClass = type.getObjectType();
+					DefinitiveType tupleType = null;
+					MethodData indexer = typeClass != null && typeClass.isIndexedClass()
+							? typeClass.getMethods("_get_index_")[0] : null;
 
-					String valueType = Types.getType(value, field.getType().getTypeSignature());
-					if (valueType != null) {
-						if (!Types.isSuitable(field.getType().getTypeSignature(), Types.getTypeSignature(valueType))) {
-							throw new CompileError(Types.beautify(valueType) + " is not assignable to "
-									+ Types.beautify(field.getType().getTypeSignature()));
-						}
+					ExpressionCompiler array = new ExpressionCompiler(true, this.data);
+					array.compile(data, m, block, arrayName, new String[] { arrayName });
 
-						Object obj = Types.parseLiteral(valueType, value);
+					if (idxType == null) {
+						ExpressionCompiler exp = new ExpressionCompiler(true, this.data);
+						exp.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
 
-						int push = Types.getOpcode(Types.PUSH, valueType);
-
-						if (push == LDC) {
-							m.visitLdcInsn(obj);
-						} else {
-							m.visitVarInsn(push, Integer.parseInt(obj.toString()));
-						}
-
-						this.data.ics();
-
-						if (field instanceof LocalData) {
-							int store = Types.getOpcode(Types.STORE, field.getType().getTypeSignature());
-							m.visitVarInsn(store, ((LocalData) field).getIndex());
-						} else if (field instanceof FieldData) {
-							m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
-									compiler.getReferenceOwner().getClassName(), refName,
-									compiler.getReferenceType().getTypeSignature());
+						try {
+							if (typeClass.is("java.util.List") || type.getTypeSignature().startsWith("[")) {
+								if (!exp.getReferenceType().equals("I")) {
+									throw new CompileError("Arrays can only be indexed by integers");
+								}
+							} else if (type.equals("Lcornflakes/lang/Tuple")) {
+								throw new CompileError("Tuple can only be indexed by integer literals");
+							}
+						} catch (ClassNotFoundException e) {
+							throw new CompileError(e);
 						}
 					} else {
-						ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
-						compiler1.compile(data, m, block, value, new String[] { value });
-
-						if (!Types.isSuitable(field.getType(), compiler1.getReferenceType())) {
-							throw new CompileError(
-									compiler1.getReferenceType() + " is not assignable to " + field.getType());
+						if (idxType.equals("string")) {
+							m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
+						} else {
+							int y = Integer.parseInt(arrayIndex);
+							if (y < 0) {
+								throw new CompileError("Array literal indexes must be greater than or equal to 0");
+							}
+							m.visitLdcInsn(y);
+							if (type.equals("Lcornflakes/lang/Tuple;")) {
+								TupleClassData clz = (TupleClassData) typeClass;
+								if (y >= clz.getTypes().length) {
+									throw new CompileError("Tuple index out of range");
+								}
+								tupleType = clz.getType(y);
+							}
 						}
+					}
 
-						if (field instanceof LocalData) {
-							int store = Types.getOpcode(Types.STORE, field.getType().getTypeSignature());
-							m.visitVarInsn(store, ((LocalData) field).getIndex());
-						} else if (field instanceof FieldData) {
-							m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
-									compiler.getReferenceOwner().getClassName(), refName,
-									compiler.getReferenceType().getTypeSignature());
+					pushValue(value, field, compiler, refName, m, block, data, true);
+
+					try {
+						if (typeClass.isIndexedClass()) {
+							m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
+									indexer.getSignature(), false);
+						} else if (type.equals("Ljava/lang/String;")) {
+							m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "replaceChar",
+									"(Ljava/lang/String;IC)Ljava/lang/String;", false);
+							storeVariable(field, refName, compiler, m);
+						} else if (type.equals("Lcornflakes/lang/Tuple;")) {
+							if (tupleType.isPrimitive()) {
+								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
+										"(I" + tupleType.getAbsoluteTypeSignature() + ")V", false);
+							} else {
+								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
+										"(ILjava/lang/Object;)V", false);
+							}
+						} else if (typeClass.is("java.util.List")) {
+							m.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "set",
+									"(ILjava/lang/Object;)Ljava/lang/Object;", true);
+						} else if (typeClass.is("java.util.Map")) {
+							m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "put",
+									"(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", true);
+						} else {
+							m.visitInsn(Types.getArrayOpcode(Types.STORE, type.getTypeSignature()));
 						}
+					} catch (ClassNotFoundException e) {
+						throw new CompileError(e);
+					}
+				} else {
+					if (field != null) {
+						ref = false;
+
+						pushValue(value, field, compiler, refName, m, block, data, false);
+						storeVariable(field, refName, compiler, m);
 					}
 				}
 			}
@@ -333,6 +375,57 @@ public class GenericStatementCompiler implements GenericCompiler {
 			if (ref) {
 				new ExpressionCompiler(true, this.data).compile(data, m, block, body, lines);
 			}
+		}
+	}
+
+	private void pushValue(String value, FieldData field, ExpressionCompiler compiler, String refName, MethodVisitor m,
+			Block block, ClassData data, boolean array) {
+		String valueType = Types.getType(value, field.getType().getTypeSignature());
+		if (valueType != null) {
+			if (!array && !Types.isSuitable(field.getType().getTypeSignature(), Types.getTypeSignature(valueType))) {
+				throw new CompileError(Types.beautify(valueType) + " is not assignable to "
+						+ Types.beautify(field.getType().getTypeSignature()));
+			}
+
+			Object obj = Types.parseLiteral(valueType, value);
+
+			int push = Types.getOpcode(Types.PUSH, valueType);
+
+			if (push == LDC) {
+				m.visitLdcInsn(obj);
+			} else {
+				if (valueType.equals("bool")) {
+					if (value.equals("true")) {
+						m.visitInsn(ICONST_1);
+					} else {
+						m.visitInsn(ICONST_0);
+					}
+				} else if (valueType.equals("char")) {
+					m.visitVarInsn(push, (int) (char) obj);
+				} else {
+					m.visitVarInsn(push, Integer.parseInt(obj.toString()));
+				}
+			}
+
+			this.data.ics();
+		} else {
+			ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
+			compiler1.compile(data, m, block, value, new String[] { value });
+
+			if (!array && !Types.isSuitable(field.getType(), compiler1.getReferenceType())) {
+				throw new CompileError(compiler1.getReferenceType() + " is not assignable to " + field.getType());
+			}
+		}
+	}
+
+	private void storeVariable(FieldData field, String refName, ExpressionCompiler compiler, MethodVisitor m) {
+		if (field instanceof LocalData) {
+			int store = Types.getOpcode(Types.STORE, field.getType().getTypeSignature());
+			m.visitVarInsn(store, ((LocalData) field).getIndex());
+		} else if (field instanceof FieldData) {
+			m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
+					compiler.getReferenceOwner().getClassName(), refName,
+					compiler.getReferenceType().getTypeSignature());
 		}
 	}
 

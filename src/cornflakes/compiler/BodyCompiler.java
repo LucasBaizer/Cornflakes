@@ -18,10 +18,11 @@ public class BodyCompiler extends Compiler implements PostCompiler {
 	@Override
 	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
 		ClassData.setCurrentClass(data);
-		
+
 		int cursor = 0;
 		while (cursor < body.length()) {
 			String line = body.substring(cursor, body.indexOf(System.lineSeparator(), cursor));
+
 			if (line == null) {
 				break;
 			}
@@ -32,7 +33,7 @@ public class BodyCompiler extends Compiler implements PostCompiler {
 				String block = body.substring(cursor, close);
 				String[] blockLines = Strings.accumulate(block);
 				new BlockCompiler().compile(data, cw, block, blockLines);
-				
+
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {
 					cursor++;

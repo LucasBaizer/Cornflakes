@@ -1,16 +1,8 @@
 package cornflakes.lang
-public class Test
+public abstract class Test
 
 public static func test() {
-	var x: (i32, i32, i32) = (5, 5, 5)
-	var arr = array((i32, i32, i32), 5)
-	
-	var tuple = functionThatTakesTuple(x)
-	foreach y in tuple {
-		println!(y)
-	}
-}
-
-public static func functionThatTakesTuple(tuple: (i32, i32, i32)) -> (i32, i32, i32) {
-	return (5, tuple[2], 7)
+	var tuple = (0, 0, 0)
+	tuple[1] = 2
+	println!(tuple)
 }

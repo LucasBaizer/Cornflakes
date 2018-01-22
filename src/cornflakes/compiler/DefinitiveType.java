@@ -48,6 +48,9 @@ public class DefinitiveType {
 	}
 
 	public String getTypeSignature() {
+		if(getTypeName().equals("string")) {
+			return "string";
+		}
 		return Types.padSignature(getTypeName());
 	}
 

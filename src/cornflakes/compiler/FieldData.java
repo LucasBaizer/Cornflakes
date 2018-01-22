@@ -30,6 +30,10 @@ public class FieldData implements Accessible {
 	public DefinitiveType getType() {
 		return type;
 	}
+	
+	public boolean isArray() {
+		return type.getTypeSignature().startsWith("[");
+	}
 
 	public void setType(DefinitiveType type) {
 		this.type = type;

@@ -623,7 +623,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 			} else {
 				if (idxType.equals("string")) {
-					if (this.write) {
+					if (this.write && !(!loadVariableReference && isLast)) {
 						m.visitLdcInsn(Types.parseLiteral("string", arrayIndex));
 					}
 				} else {
@@ -631,7 +631,7 @@ public class ExpressionCompiler implements GenericCompiler {
 					if (x < 0) {
 						throw new CompileError("Array literal indexes must be greater than or equal to 0");
 					}
-					if (this.write) {
+					if (this.write && !(!loadVariableReference && isLast)) {
 						m.visitLdcInsn(x);
 					}
 					if (type.equals("Lcornflakes/lang/Tuple;")) {
@@ -644,7 +644,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 			}
 
-			if (this.write) {
+			if (this.write && !(!loadVariableReference && isLast)) {
 				try {
 					if (typeClass.isIndexedClass()) {
 						m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",

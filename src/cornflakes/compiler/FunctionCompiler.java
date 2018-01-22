@@ -16,9 +16,11 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	private ClassWriter cw;
 	private String body;
 	private String[] lines;
+	private boolean isBodyless;
 
-	public FunctionCompiler(boolean write) {
+	public FunctionCompiler(boolean write, boolean bodyless) {
 		this.write = write;
+		this.isBodyless = bodyless;
 	}
 
 	@Override
@@ -45,15 +47,19 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					}
 					if (key.equals("abstract")) {
 						if (!data.hasModifier(ACC_ABSTRACT)) {
-							throw new CompileError("Cannot have abstract methods in a non-abstract class");
+							throw new CompileError("Cannot have abstract functions in a non-abstract class");
 						}
 
 						if (usedKeywords.contains("static")) {
-							throw new CompileError("Abstract methods cannot be static");
+							throw new CompileError("Abstract functions cannot be static");
 						}
 
 						if (usedKeywords.contains("private")) {
-							throw new CompileError("Abstract methods cannot be private");
+							throw new CompileError("Abstract functions cannot be private");
+						}
+
+						if (!isBodyless) {
+							throw new CompileError("Abstract functions cannot have a body");
 						}
 
 						accessor |= ACC_ABSTRACT;
@@ -69,7 +75,11 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						}
 
 						if (usedKeywords.contains("abstract")) {
-							throw new CompileError("Abstract methods cannot be private");
+							throw new CompileError("Abstract functions cannot be private");
+						}
+
+						if (isBodyless) {
+							throw new CompileError("Bodyless functions cannot be private");
 						}
 
 						accessor |= ACC_PRIVATE;
@@ -83,10 +93,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						accessor |= ACC_FINAL;
 					} else if (key.equals("static")) {
 						if (usedKeywords.contains("abstract")) {
-							throw new CompileError("Abstract methods cannot be static");
+							throw new CompileError("Abstract functions cannot be static");
 						}
 						if (usedKeywords.contains("this")) {
-							throw new CompileError("Indexer methods cannot be static");
+							throw new CompileError("Indexer functions cannot be static");
+						}
+						if (isBodyless) {
+							throw new CompileError("Bodyless functions cannot be static");
 						}
 
 						accessor |= ACC_STATIC;
@@ -110,6 +123,12 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
+			if (isBodyless) {
+				if (!usedKeywords.contains("abstract")) {
+					throw new CompileError("Bodyless functions must be abstract");
+				}
+			}
+
 			String after = lines[0].substring(lines[0].indexOf("func") + "func".length()).trim();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
 			if (index) {
@@ -122,7 +141,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			Strings.handleLetterString(methodName, Strings.NUMBERS);
 
 			if (data.hasMethod(methodName)) {
-				throw new CompileError("Duplicate method: " + methodName);
+				throw new CompileError("Duplicate function: " + methodName);
 			}
 
 			String returnType = "V";
@@ -140,7 +159,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					if (!(returnType.equals("java/util/Iterator")
 							|| returnType.equals("cornflakes/lang/YieldIterator"))) {
 						throw new CompileError(
-								"Iterator methods do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
+								"Iterator functions do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
 					}
 				}
 			} else {
@@ -159,7 +178,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				if (!params.isEmpty()) {
 					String[] split = params.split(",");
 					if (split.length != 1) {
-						throw new CompileError("Indexer methods have 1 parameter");
+						throw new CompileError("Indexer functions have 1 parameter");
 					}
 
 					String[] spl = split[0].trim().split(":");
@@ -180,7 +199,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					parameters.add(new ParameterData(this.methodData, name,
 							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
 				} else {
-					throw new CompileError("Indexer methods have 1 parameter");
+					throw new CompileError("Indexer functions have 1 parameter");
 				}
 			} else {
 				String params = withoutBracket;
@@ -238,12 +257,12 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				if (hasAny) {
 					if (!override) {
 						throw new CompileError(
-								"A superclass of " + Types.beautify(data.getClassName()) + " has a method named "
+								"A superclass of " + Types.beautify(data.getClassName()) + " has a function named "
 										+ methodName + ". If you meant to override it, use the 'override' keyword");
 					}
 				} else {
 					if (override) {
-						throw new CompileError("There is no superclass method named " + methodName);
+						throw new CompileError("There is no superclass function named " + methodName);
 					}
 				}
 			} catch (ClassNotFoundException e) {
@@ -302,7 +321,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				if (!block.doesThrow()) {
 					if (methodData.getReturnType().getTypeSignature().equals("V")) {
 						if (methodData.getName().equals("_get_index_")) {
-							throw new CompileError("Indexer methods must return a value");
+							throw new CompileError("Indexer functions must return a value");
 						}
 
 						m.visitInsn(RETURN);
@@ -310,7 +329,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						m.visitVarInsn(ALOAD, itrIdx);
 						m.visitInsn(ARETURN);
 					} else {
-						throw new CompileError("A non-void method must return a value");
+						throw new CompileError("A non-void function must return a value");
 					}
 				}
 			}
@@ -336,5 +355,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	public void write() {
 		write = true;
 		compile(data, cw, body, lines);
+	}
+
+	public boolean isBodyless() {
+		return isBodyless;
+	}
+
+	public void setBodyless(boolean isBodyless) {
+		this.isBodyless = isBodyless;
 	}
 }

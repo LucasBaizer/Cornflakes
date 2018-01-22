@@ -173,6 +173,9 @@ public class StatementCompiler extends Compiler {
 			cw.visitField(accessor, variableName, variableType.getAbsoluteTypeSignature(), null,
 					useValue ? value : null).visitEnd();
 			data.addField(fdata);
+		} else if (Strings.contains(body, " func ")) {
+			FunctionCompiler comp = new FunctionCompiler(true, true);
+			comp.compile(data, cw, body, lines);
 		} else {
 			throw new CompileError("Unexpected statement: " + cmd);
 		}
