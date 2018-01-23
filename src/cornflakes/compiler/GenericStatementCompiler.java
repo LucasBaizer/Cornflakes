@@ -215,7 +215,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 				m.visitVarInsn(store, idx);
 			} else {
-				if (valueType.isNull()) {
+				if (valueType == null || valueType.isNull()) {
 					if (variableType.equals("B") || variableType.equals("S") || variableType.equals("I")
 							|| variableType.equals("C") || variableType.equals("B")) {
 						m.visitInsn(ICONST_0);
@@ -356,9 +356,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 						} else if (typeClass.is("java.util.Map")) {
 							m.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "put",
 									"(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", true);
-						} else {
+						} else if (type.isArray()) {
 							m.visitInsn(Types.getArrayOpcode(Types.STORE, type.getTypeSignature()));
+						} else {
+							throw new CompileError("Cannot index a non-indexable object");
 						}
+
+						return;
 					} catch (ClassNotFoundException e) {
 						throw new CompileError(e);
 					}
@@ -425,7 +429,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 		} else if (field instanceof FieldData) {
 			m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
 					compiler.getReferenceOwner().getClassName(), refName,
-					compiler.getReferenceType().getTypeSignature());
+					compiler.getReferenceType().getAbsoluteTypeSignature());
 		}
 	}
 

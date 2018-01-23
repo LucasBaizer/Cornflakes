@@ -1,15 +1,26 @@
 package cornflakes.lang
 public class Test
 
+use java.util.HashMap
+
+public static var x: HashMap = HashMap<string, string>()
+public static var y: i32 = 1
+public var z: i32 = 2
+
 public static func test() {
 	var x = Test()
 	x["x"] = "y"
+	
+	println!(x["x"])
+	
+	var theZ = x.z
+	println!(y + theZ)
 }
 
 public this func [index: string] -> string {
-	return index
+	return x[index] as string
 }
 
 public this func [index: string, value: string] {
-	println!(index + " " + value)
+	x[index] = value
 }

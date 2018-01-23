@@ -27,13 +27,13 @@ public class DefinitiveType {
 	}
 
 	public static DefinitiveType uninitializedObject(String name) {
-		if(name == null) {
+		if (name == null) {
 			throw new CompileError("Invalid object");
 		}
-		if(Types.isPrimitive(name)) {
+		if (Types.isPrimitive(name)) {
 			return primitive(name);
 		}
-		
+
 		DefinitiveType type = new DefinitiveType();
 		type.type = Types.unpadSignature(name);
 		type.init = false;
@@ -51,7 +51,7 @@ public class DefinitiveType {
 	}
 
 	public String getTypeSignature() {
-		if(getTypeName().equals("string")) {
+		if (getTypeName().equals("string")) {
 			return "string";
 		}
 		return Types.padSignature(getTypeName());
@@ -79,11 +79,11 @@ public class DefinitiveType {
 	}
 
 	public boolean isObject() {
-		if(!init) {
+		if (!init) {
 			getObjectType();
 			return true;
 		}
-		
+
 		return !isPrimitive();
 	}
 
@@ -110,8 +110,8 @@ public class DefinitiveType {
 			return def.getTypeName().equals(this.getTypeName());
 		} else if (obj instanceof String) {
 			String str = Types.unpadSignature((String) obj);
-			if(isTuple()) {
-				if(str.equals("cornflakes/lang/Tuple")) {
+			if (isTuple()) {
+				if (str.equals("cornflakes/lang/Tuple")) {
 					return true;
 				}
 			}
@@ -134,5 +134,9 @@ public class DefinitiveType {
 			return "_null";
 		}
 		return getTypeSignature();
+	}
+
+	public boolean isArray() {
+		return getTypeName().startsWith("[");
 	}
 }

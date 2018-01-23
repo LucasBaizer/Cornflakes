@@ -560,6 +560,13 @@ public class ExpressionCompiler implements GenericCompiler {
 							&& containerData.getClassName().equals(data.getClassName())) {
 						m.visitVarInsn(ALOAD, 0);
 						this.data.ics();
+					} else {
+						if (this.data.hasModifier(ACC_STATIC) && !field.hasModifier(ACC_STATIC)
+								&& containerData.getClassName().equals(data.getClassName())
+								&& (last == null || (last.getExpressionType() != ExpressionCompiler.LOCAL_VARIABLE
+										&& last.getExpressionType() != ExpressionCompiler.MEMBER_VARIABLE))) {
+							throw new CompileError("Cannot access instance variable from a static context");
+						}
 					}
 				}
 

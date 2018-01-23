@@ -132,11 +132,18 @@ public class CompileUtils {
 				String givenValue = set[1].trim();
 
 				raw = givenValue;
-				valueType = Types.getType(givenValue, variableType);
+				String rawType = Types.getType(givenValue, variableType);
+				if (rawType != null) {
+					valueType = Types.getTypeSignature(rawType);
+				} else {
+					ExpressionCompiler compiler = new ExpressionCompiler(false, methodData);
+					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
+					valueType = compiler.getReferenceType().getTypeSignature();
+				}
 				boolean math = false;
 				ExpressionCompiler compiler = null;
 
-				if (valueType == null) {
+				if (!isMember && valueType == null) {
 					compiler = new ExpressionCompiler(true, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getReferenceType().getTypeSignature();
@@ -153,7 +160,8 @@ public class CompileUtils {
 				}
 
 				if (!isRef && !math && valueType != null
-						&& (compiler == null || compiler.getExpressionType() != ExpressionCompiler.CAST)) {
+						&& (compiler == null || compiler.getExpressionType() != ExpressionCompiler.CAST)
+						&& rawType != null) {
 					value = Types.parseLiteral(valueType, givenValue);
 				}
 
@@ -163,7 +171,7 @@ public class CompileUtils {
 			}
 		}
 
-		return new VariableDeclaration(DefinitiveType.assume(variableType), value, DefinitiveType.assume(valueType),
-				raw, generics, isRef);
+		return new VariableDeclaration(DefinitiveType.assume(variableType), value,
+				valueType == null ? null : DefinitiveType.assume(valueType), raw, generics, isRef);
 	}
 }
