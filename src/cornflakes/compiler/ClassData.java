@@ -36,7 +36,8 @@ public class ClassData {
 	private Set<GenericParameter> genericParameters = new HashSet<>();
 	private ClassWriter classWriter;
 	private Class<?> javaClass;
-	private boolean isIndexed;
+	private boolean isGetIndexed;
+	private boolean isSetIndexed;
 	private boolean isInterface;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
@@ -263,7 +264,8 @@ public class ClassData {
 		try {
 			if (!isJavaClass) {
 				ClassData parent = ClassData.forName(parentName);
-				this.isIndexed = parent.isIndexed;
+				this.isGetIndexed = parent.isGetIndexed;
+				this.isSetIndexed = parent.isSetIndexed;
 			}
 		} catch (ClassNotFoundException e) {
 			throw new CompileError(e);
@@ -486,12 +488,20 @@ public class ClassData {
 		return false;
 	}
 
-	public boolean isIndexedClass() {
-		return isIndexed;
+	public boolean isGetIndexedClass() {
+		return isGetIndexed;
 	}
 
-	public void setIsIndexedClass(boolean isIndexed) {
-		this.isIndexed = isIndexed;
+	public void setGetIndexedClass(boolean isIndexed) {
+		this.isGetIndexed = isIndexed;
+	}
+	
+	public boolean isSetIndexedClass() {
+		return isSetIndexed;
+	}
+
+	public void setSetIndexedClass(boolean isIndexed) {
+		this.isSetIndexed = isIndexed;
 	}
 
 	public boolean hasGenericParameters() {

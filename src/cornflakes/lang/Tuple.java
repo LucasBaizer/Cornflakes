@@ -128,7 +128,7 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	}
 
 	@Override
-	public Object clone() {
+	public Tuple clone() {
 		Tuple x = new Tuple(this.items.length);
 		x.items = this.toArray();
 		return x;

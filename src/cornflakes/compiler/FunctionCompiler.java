@@ -106,11 +106,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					} else if (key.equals("sync")) {
 						accessor |= ACC_SYNCHRONIZED;
 					} else if (key.equals("this")) {
-						if (data.isIndexedClass()) {
-							throw new CompileError("Cannot have multiple indexer functions");
-						}
-						data.setIsIndexedClass(true);
-
 						index = true;
 					} else if (key.equals("override")) {
 						override = true;
@@ -171,33 +166,42 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.methodData = new MethodData(data, null, null, false, -1);
 			List<ParameterData> parameters = new ArrayList<>();
 			if (index) {
-				methodName = "_get_index_";
-
 				String params = withoutBracket.substring(withoutBracket.indexOf('[') + 1, withoutBracket.indexOf(']'))
 						.trim();
 				if (!params.isEmpty()) {
 					String[] split = params.split(",");
-					if (split.length != 1) {
-						throw new CompileError("Indexer functions have 1 parameter");
+					if (split.length != 1 && split.length != 2) {
+						throw new CompileError("Indexer functions have 1 parameter, and set-indexer functions have 2");
 					}
 
-					String[] spl = split[0].trim().split(":");
-					if (spl.length == 1) {
-						throw new CompileError("Parameters must have a specified type, in the format 'name': 'type'");
-					} else if (spl.length > 2) {
-						throw new CompileError("Unexpected symbol: " + spl[2]);
+					if (split.length == 1) {
+						methodName = "_get_index_";
+						this.data.setGetIndexedClass(true);
+					} else {
+						methodName = "_set_index_";
+						this.data.setSetIndexedClass(true);
 					}
 
-					String name = spl[0].trim();
-					String type = spl[1].trim();
+					for (int i = 0; i < split.length; i++) {
+						String[] spl = split[i].trim().split(":");
+						if (spl.length == 1) {
+							throw new CompileError(
+									"Parameters must have a specified type, in the format 'name': 'type'");
+						} else if (spl.length > 2) {
+							throw new CompileError("Unexpected symbol: " + spl[2]);
+						}
 
-					Strings.handleLetterString(name, Strings.VARIABLE_NAME);
-					Strings.handleLetterString(type, Strings.TYPE);
+						String name = spl[0].trim();
+						String type = spl[1].trim();
 
-					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
-							: data.resolveClass(type).getTypeSignature();
-					parameters.add(new ParameterData(this.methodData, name,
-							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
+						Strings.handleLetterString(name, Strings.VARIABLE_NAME);
+						Strings.handleLetterString(type, Strings.TYPE);
+
+						String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
+								: data.resolveClass(type).getTypeSignature();
+						parameters.add(new ParameterData(this.methodData, name,
+								DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
+					}
 				} else {
 					throw new CompileError("Indexer functions have 1 parameter");
 				}
@@ -321,7 +325,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				if (!block.doesThrow()) {
 					if (methodData.getReturnType().getTypeSignature().equals("V")) {
 						if (methodData.getName().equals("_get_index_")) {
-							throw new CompileError("Indexer functions must return a value");
+							throw new CompileError("Get-indexer functions must return a value");
 						}
 
 						m.visitInsn(RETURN);

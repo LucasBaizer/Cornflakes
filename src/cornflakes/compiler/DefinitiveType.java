@@ -27,6 +27,9 @@ public class DefinitiveType {
 	}
 
 	public static DefinitiveType uninitializedObject(String name) {
+		if(name == null) {
+			throw new CompileError("Invalid object");
+		}
 		if(Types.isPrimitive(name)) {
 			return primitive(name);
 		}

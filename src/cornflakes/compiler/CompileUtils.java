@@ -136,7 +136,7 @@ public class CompileUtils {
 				boolean math = false;
 				ExpressionCompiler compiler = null;
 
-				if (!isMember && valueType == null) {
+				if (valueType == null) {
 					compiler = new ExpressionCompiler(true, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getReferenceType().getTypeSignature();

@@ -292,8 +292,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 					DefinitiveType type = field.getType();
 					ClassData typeClass = type.getObjectType();
 					DefinitiveType tupleType = null;
-					MethodData indexer = typeClass != null && typeClass.isIndexedClass()
-							? typeClass.getMethods("_get_index_")[0] : null;
+					MethodData indexer = typeClass != null && typeClass.isSetIndexedClass()
+							? typeClass.getMethods("_set_index_")[0] : null;
 
 					ExpressionCompiler array = new ExpressionCompiler(true, this.data);
 					array.compile(data, m, block, arrayName, new String[] { arrayName });
@@ -322,7 +322,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 								throw new CompileError("Array literal indexes must be greater than or equal to 0");
 							}
 							m.visitLdcInsn(y);
-							if (type.equals("Lcornflakes/lang/Tuple;")) {
+							if (type.isTuple()) {
 								TupleClassData clz = (TupleClassData) typeClass;
 								if (y >= clz.getTypes().length) {
 									throw new CompileError("Tuple index out of range");
@@ -335,14 +335,14 @@ public class GenericStatementCompiler implements GenericCompiler {
 					pushValue(value, field, compiler, refName, m, block, data, true);
 
 					try {
-						if (typeClass.isIndexedClass()) {
-							m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
+						if (typeClass.isSetIndexedClass()) {
+							m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_set_index_",
 									indexer.getSignature(), false);
 						} else if (type.equals("Ljava/lang/String;")) {
 							m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "replaceChar",
 									"(Ljava/lang/String;IC)Ljava/lang/String;", false);
 							storeVariable(field, refName, compiler, m);
-						} else if (type.equals("Lcornflakes/lang/Tuple;")) {
+						} else if (type.isTuple()) {
 							if (tupleType.isPrimitive()) {
 								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
 										"(I" + tupleType.getAbsoluteTypeSignature() + ")V", false);

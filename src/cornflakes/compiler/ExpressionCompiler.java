@@ -601,7 +601,7 @@ public class ExpressionCompiler implements GenericCompiler {
 
 		DefinitiveType type = field.getType();
 		ClassData typeClass = type.getObjectType();
-		MethodData indexer = typeClass != null && typeClass.isIndexedClass() ? typeClass.getMethods("_get_index_")[0]
+		MethodData indexer = typeClass != null && typeClass.isGetIndexedClass() ? typeClass.getMethods("_get_index_")[0]
 				: null;
 		DefinitiveType tupleType = null;
 		if (arrayIndex != null) {
@@ -634,7 +634,7 @@ public class ExpressionCompiler implements GenericCompiler {
 					if (this.write && !(!loadVariableReference && isLast)) {
 						m.visitLdcInsn(x);
 					}
-					if (type.equals("Lcornflakes/lang/Tuple;")) {
+					if (type.isTuple()) {
 						TupleClassData clz = (TupleClassData) typeClass;
 						if (x >= clz.getTypes().length) {
 							throw new CompileError("Tuple index out of range");
@@ -646,12 +646,12 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			if (this.write && !(!loadVariableReference && isLast)) {
 				try {
-					if (typeClass.isIndexedClass()) {
+					if (typeClass.isGetIndexedClass()) {
 						m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
 								indexer.getSignature(), false);
 					} else if (type.equals("Ljava/lang/String;")) {
 						m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
-					} else if (type.equals("Lcornflakes/lang/Tuple;")) {
+					} else if (type.isTuple()) {
 						if (tupleType.isPrimitive()) {
 							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple",
 									Types.primitiveToCornflakes(tupleType.getAbsoluteTypeSignature()) + "Item",
@@ -841,6 +841,10 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			if (!method.isAccessible(data)) {
 				throw new CompileError("Constructor is not accessible from this context");
+			}
+
+			if (containerData.hasModifier(ACC_ABSTRACT)) {
+				throw new CompileError("Cannot instantiate an abstract type");
 			}
 
 			if (write) {

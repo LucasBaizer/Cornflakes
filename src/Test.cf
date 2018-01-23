@@ -1,8 +1,15 @@
 package cornflakes.lang
-public abstract class Test
+public class Test
 
 public static func test() {
-	var tuple = (0, 0, 0)
-	tuple[1] = 2
-	println!(tuple)
+	var x = Test()
+	x["x"] = "y"
+}
+
+public this func [index: string] -> string {
+	return index
+}
+
+public this func [index: string, value: string] {
+	println!(index + " " + value)
 }
