@@ -36,6 +36,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			boolean override = false;
 			boolean index = false;
 			boolean iter = false;
+			boolean operator = false;
 			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
@@ -111,6 +112,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						override = true;
 					} else if (key.equals("iter")) {
 						iter = true;
+					} else if (key.equals("operator")) {
+						operator = true;
 					} else {
 						throw new CompileError("Unexpected keyword: " + key);
 					}
@@ -133,7 +136,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			String methodName = withoutBracket.substring(0, withoutBracket.indexOf(index ? '[' : '(')).trim();
-			Strings.handleLetterString(methodName, Strings.NUMBERS);
+			if (operator) {
+				methodName = MathOperator.getOperatorOverloadFunction(MathOperator.toOp(methodName));
+			}
+			Strings.handleLetterString(methodName, Strings.VARIABLE_NAME);
 
 			if (data.hasMethod(methodName)) {
 				throw new CompileError("Duplicate function: " + methodName);
@@ -151,15 +157,22 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 
 				if (iter) {
-					if (!(returnType.equals("java/util/Iterator")
-							|| returnType.equals("cornflakes/lang/YieldIterator"))) {
+					if (!(returnType.equals("Ljava/util/Iterator;")
+							|| returnType.equals("Lcornflakes/lang/YieldIterator;"))) {
 						throw new CompileError(
 								"Iterator functions do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
+					}
+				} else if (operator) {
+					if (!returnType.equals(Types.padSignature(data.getClassName()))) {
+						throw new CompileError(
+								"Operator overloads do not need a specified type; if one is supplied, it should be the type of the declaring class");
 					}
 				}
 			} else {
 				if (iter) {
 					returnType = "Lcornflakes/lang/YieldIterator;";
+				} else if (operator) {
+					returnType = Types.padSignature(data.getClassName());
 				}
 			}
 
@@ -245,6 +258,14 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 									new ParameterData(this.methodData, name, DefinitiveType.assume(resolvedType), 0));
 						}
 					}
+				}
+			}
+
+			if (operator) {
+				if (parameters.size() != 2 || !parameters.get(0).getType().equals(data.getClassName())
+						|| !parameters.get(0).getType().equals(data.getClassName())) {
+					throw new CompileError(
+							"Operator overloads have 2 parameters, which have the type of the declaring class");
 				}
 			}
 

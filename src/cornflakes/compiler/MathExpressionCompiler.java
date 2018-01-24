@@ -1,16 +1,10 @@
 package cornflakes.compiler;
 
+import static cornflakes.compiler.MathOperator.*;
+
 import org.objectweb.asm.MethodVisitor;
 
 public class MathExpressionCompiler implements GenericCompiler {
-	private static final int AND = 0;
-	private static final int ADD = 1;
-	private static final int SUBTRACT = 2;
-	private static final int MULTIPLY = 3;
-	private static final int DIVIDE = 4;
-	private static final int XOR = 5;
-	private static final int OR = 6;
-
 	private int type = -1;
 	private MethodData data;
 	private DefinitiveType resultType;
@@ -46,7 +40,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 				char first = body.charAt(start);
 				if (first == '+' || first == '-') {
 					if (body.charAt(start + 1) == first) {
-						String type = pushToStack(body.substring(0, start), data, m, block);
+						String type = pushToStack(body.substring(0, start), data, m, block).getTypeSignature();
 
 						boolean isLong = type.equals("J");
 						boolean isInt = type.equals("I");
@@ -151,8 +145,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 		String left = split[0].trim();
 		String right = split[1].trim();
 
-		String leftType = pushToStack(left, data, m, block);
-		String rightType = pushToStack(right, data, m, block);
+		DefinitiveType leftType = pushToStack(left, data, m, block);
+		DefinitiveType rightType = pushToStack(right, data, m, block);
 		boolean isLong = leftType.equals("J") || rightType.equals("J");
 		boolean isInt = leftType.equals("I") || rightType.equals("I");
 		boolean isFloat = leftType.equals("F") || rightType.equals("F");
@@ -177,7 +171,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			return;
 		}
 
-		if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
+		if (leftType.isPrimitive() && rightType.isPrimitive()) {
 			int op = 0;
 			if (type == ADD) {
 				if (isDouble) {
@@ -237,12 +231,42 @@ public class MathExpressionCompiler implements GenericCompiler {
 			if (this.write) {
 				m.visitInsn(op);
 			}
+		} else if (leftType.equals(rightType)) {
+			ClassData type = leftType.getObjectType();
+			if (type.getClassName().equals("java/math/BigInteger")) {
+				if (write)
+					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigInteger",
+							MathOperator.getOperatorOverloadName(this.type),
+							"(Ljava/math/BigInteger;)Ljava/math/BigInteger;", false);
+			} else if (type.getClassName().equals("java/math/BigDecimal")) {
+				if (write)
+					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal",
+							MathOperator.getOperatorOverloadName(this.type),
+							"(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
+			} else {
+				try {
+					if (!type.hasOperatorOverload(this.type)) {
+						throw new CompileError(
+								"Operator not overloaded for class " + Types.beautify(type.getClassName()));
+					}
+
+					MethodData overload = type.getOperatorOverload(this.type);
+					if (write) {
+						m.visitMethodInsn(INVOKESTATIC, type.getClassName(), overload.getName(),
+								overload.getSignature(), false);
+					}
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
+				}
+			}
+			
+			resultType = leftType;
 		} else {
 			invalid(new CompileError("Types must be numeric"));
 		}
 	}
 
-	private String pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
+	private DefinitiveType pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
 		String type = Types.getType(term, "");
 		if (type != null) {
 			int oc = Types.getOpcode(Types.PUSH, type);
@@ -262,14 +286,14 @@ public class MathExpressionCompiler implements GenericCompiler {
 				this.data.ics();
 			}
 
-			return Types.getTypeSignature(type);
+			return DefinitiveType.assume(Types.getTypeSignature(type));
 		} else {
 			ref = new ExpressionCompiler(this.write, this.data);
 			ref.setAllowMath(false);
 			ref.setAllowBoolean(this.bool);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
-			return ref.getReferenceType().getTypeSignature();
+			return ref.getReferenceType();
 		}
 	}
 

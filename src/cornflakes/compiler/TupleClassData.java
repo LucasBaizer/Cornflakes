@@ -35,7 +35,7 @@ public class TupleClassData extends ClassData {
 
 		types = new DefinitiveType[split.length];
 		for (int i = 0; i < types.length; i++) {
-			DefinitiveType resolved = ClassData.getCurrentClass().resolveClass(split[i].trim());
+			DefinitiveType resolved = ClassData.getCurrentClass().resolveClass(Types.unpadSignature(split[i].trim()));
 			types[i] = resolved;
 		}
 	}

@@ -1,5 +1,7 @@
 package cornflakes.compiler;
 
+import static cornflakes.compiler.MathOperator.*;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -132,6 +134,14 @@ public class ClassData {
 			use("cornflakes.lang.Tuple");
 			useMacro("println", "System.out.println");
 		}
+	}
+
+	public MethodData getOperatorOverload(int op) throws ClassNotFoundException {
+		return getAllMethods(getOperatorOverloadFunction(op))[0];
+	}
+
+	public boolean hasOperatorOverload(int op) throws ClassNotFoundException {
+		return getAllMethods(getOperatorOverloadFunction(op)).length > 0;
 	}
 
 	public void use(String use) {
@@ -495,7 +505,7 @@ public class ClassData {
 	public void setGetIndexedClass(boolean isIndexed) {
 		this.isGetIndexed = isIndexed;
 	}
-	
+
 	public boolean isSetIndexedClass() {
 		return isSetIndexed;
 	}

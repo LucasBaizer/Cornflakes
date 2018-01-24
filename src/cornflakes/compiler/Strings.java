@@ -14,9 +14,9 @@ public class Strings {
 	public static final char[] PERIOD = new char[] { '.' };
 	public static final char[] SPACE = new char[] { ' ' };
 	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
-	public static final char[] VARIABLE_NAME = Arrays.copyOf(NUMBERS, NUMBERS.length);
+	public static final char[] VARIABLE_NAME = combineExceptions(NUMBERS, new char[] { '_' });
 	public static final char[] SLASH = new char[] { '/' };
-	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE, new char[] { '(', ')', ',' });
+	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE, new char[] { '(', ')', ',', '/' });
 
 	public static boolean contains(String x, String value) {
 		return Pattern.compile(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)").matcher(x).find();
@@ -31,16 +31,23 @@ public class Strings {
 	}
 
 	public static String[] splitParameters(String x) {
+		if(x.isEmpty()) {
+			return new String[0];
+		}
+		
 		int par = 0;
 		List<String> list = new ArrayList<>();
 		int start = 0;
+		boolean quote = false;
 		for (int i = 0; i < x.length(); i++) {
 			char c = x.charAt(i);
 			if (c == '(') {
 				par++;
 			} else if (c == ')') {
 				par--;
-			} else if (par == 0) {
+			} else if (c == '"') {
+				quote = !quote;
+			} else if (par == 0 && !quote) {
 				if (c == ',') {
 					list.add(x.substring(start, i).trim());
 					start = i + 2;

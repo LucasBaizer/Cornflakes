@@ -807,8 +807,8 @@ public class ExpressionCompiler implements GenericCompiler {
 			MethodData[] methods = containerData.getConstructors();
 			MethodData method = null;
 
-			String[] split = getParameters(pars);
-
+			String[] split = Strings.splitParameters(pars);
+			
 			for (MethodData met : methods) {
 				if (met.getParameters().size() == split.length) {
 					int idx = 0;
@@ -896,7 +896,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			Block block, String body, boolean superCall) throws ClassNotFoundException {
 		String before = body.substring(0, body.indexOf('(')).trim();
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
-		String[] split = getParameters(pars);
+		String[] split = Strings.splitParameters(pars);
 
 		if (before.equals("typeof")) {
 			if (split.length != 1) {
@@ -934,7 +934,7 @@ public class ExpressionCompiler implements GenericCompiler {
 						} else {
 							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
 							compiler.compile(this, data, data, m, block, par, new String[] { par });
-
+							
 							if (!Types.isSuitable(paramType, compiler.getReferenceType())) {
 								success = false;
 								break;
@@ -1031,35 +1031,6 @@ public class ExpressionCompiler implements GenericCompiler {
 				referenceOwner = containerData;
 			}
 		}
-	}
-
-	private String[] getParameters(String pars) {
-		List<String> splitList = new ArrayList<>();
-		if (!pars.isEmpty()) {
-			int open = 0;
-			boolean quote = false;
-			int last = 0;
-			for (int i = 0; i < pars.length(); i++) {
-				char c = pars.charAt(i);
-				if (c == '(') {
-					open++;
-				} else if (c == ')') {
-					open--;
-				}
-				if (c == '"') {
-					quote = !quote;
-				}
-
-				if (open == 0 && !quote) {
-					if (c == ',') {
-						splitList.add(pars.substring(last, i).trim());
-						last = i + 1;
-					}
-				}
-			}
-			splitList.add(pars.substring(last, pars.length()).trim());
-		}
-		return splitList.toArray(new String[splitList.size()]);
 	}
 
 	public DefinitiveType getReferenceType() {
