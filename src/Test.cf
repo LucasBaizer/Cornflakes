@@ -1,11 +1,5 @@
 package cornflakes.lang
 public class Test
 
-use java.math.BigInteger
-
 public static func test() {
-	var x = BigInteger("5")
-	var y = BigInteger("6")
-	
-	println!(x / y)
 }

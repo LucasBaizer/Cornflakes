@@ -231,26 +231,32 @@ public class MathExpressionCompiler implements GenericCompiler {
 			if (this.write) {
 				m.visitInsn(op);
 			}
-		} else if (leftType.equals(rightType)) {
+		} else {
 			ClassData type = leftType.getObjectType();
 			if (type.getClassName().equals("java/math/BigInteger")) {
-				if (write)
+				if (write) {
 					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigInteger",
 							MathOperator.getOperatorOverloadName(this.type),
 							"(Ljava/math/BigInteger;)Ljava/math/BigInteger;", false);
+				}
 			} else if (type.getClassName().equals("java/math/BigDecimal")) {
-				if (write)
+				if (write) {
 					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal",
 							MathOperator.getOperatorOverloadName(this.type),
 							"(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
+				}
 			} else {
 				try {
 					if (!type.hasOperatorOverload(this.type)) {
-						throw new CompileError(
-								"Operator not overloaded for class " + Types.beautify(type.getClassName()));
+						invalid(new CompileError(
+								"Operator not overloaded for class " + Types.beautify(type.getClassName())));
 					}
 
 					MethodData overload = type.getOperatorOverload(this.type);
+					if (!Types.isSuitable(overload.getParameters().get(1).getType(), rightType)) {
+						invalid(new CompileError("Overload does not accept parameter of type "
+								+ Types.beautify(rightType.getTypeName())));
+					}
 					if (write) {
 						m.visitMethodInsn(INVOKESTATIC, type.getClassName(), overload.getName(),
 								overload.getSignature(), false);
@@ -259,10 +265,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 					throw new CompileError(e);
 				}
 			}
-			
+
 			resultType = leftType;
-		} else {
-			invalid(new CompileError("Types must be numeric"));
 		}
 	}
 

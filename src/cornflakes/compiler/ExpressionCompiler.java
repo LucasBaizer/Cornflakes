@@ -310,7 +310,7 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			next = true;
 		} else {
-			boolean match = Strings.hasMatching(part, '(', ')');
+			boolean match = part.matches("^([a-zA-Z0-9!_]*?)\\(.*?\\)");
 			if (allowImplicitGetters) {
 				String test = "get" + Strings.capitalize(part);
 				if (containerData.getAllMethods(test).length > 0) {

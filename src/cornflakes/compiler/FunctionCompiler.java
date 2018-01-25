@@ -47,62 +47,16 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Duplicate keyword: " + key);
 					}
 					if (key.equals("abstract")) {
-						if (!data.hasModifier(ACC_ABSTRACT)) {
-							throw new CompileError("Cannot have abstract functions in a non-abstract class");
-						}
-
-						if (usedKeywords.contains("static")) {
-							throw new CompileError("Abstract functions cannot be static");
-						}
-
-						if (usedKeywords.contains("private")) {
-							throw new CompileError("Abstract functions cannot be private");
-						}
-
-						if (!isBodyless) {
-							throw new CompileError("Abstract functions cannot have a body");
-						}
-
 						accessor |= ACC_ABSTRACT;
 					} else if (key.equals("public")) {
-						if (usedKeywords.contains("private") || usedKeywords.contains("protected")) {
-							throw new CompileError("Cannot have multiple access modifiers");
-						}
-
 						accessor |= ACC_PUBLIC;
 					} else if (key.equals("private")) {
-						if (usedKeywords.contains("public") || usedKeywords.contains("protected")) {
-							throw new CompileError("Cannot have multiple access modifiers");
-						}
-
-						if (usedKeywords.contains("abstract")) {
-							throw new CompileError("Abstract functions cannot be private");
-						}
-
-						if (isBodyless) {
-							throw new CompileError("Bodyless functions cannot be private");
-						}
-
 						accessor |= ACC_PRIVATE;
 					} else if (key.equals("protected")) {
-						if (usedKeywords.contains("private") || usedKeywords.contains("public")) {
-							throw new CompileError("Cannot have multiple access modifiers");
-						}
-
 						accessor |= ACC_PROTECTED;
 					} else if (key.equals("final")) {
 						accessor |= ACC_FINAL;
 					} else if (key.equals("static")) {
-						if (usedKeywords.contains("abstract")) {
-							throw new CompileError("Abstract functions cannot be static");
-						}
-						if (usedKeywords.contains("this")) {
-							throw new CompileError("Indexer functions cannot be static");
-						}
-						if (isBodyless) {
-							throw new CompileError("Bodyless functions cannot be static");
-						}
-
 						accessor |= ACC_STATIC;
 					} else if (key.equals("sync")) {
 						accessor |= ACC_SYNCHRONIZED;
@@ -118,6 +72,88 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("Unexpected keyword: " + key);
 					}
 					usedKeywords.add(key);
+				}
+			}
+
+			for (String key : usedKeywords) {
+
+				if (key.equals("abstract")) {
+					if (!data.hasModifier(ACC_ABSTRACT)) {
+						throw new CompileError("Cannot have abstract functions in a non-abstract class");
+					}
+
+					if (usedKeywords.contains("static")) {
+						throw new CompileError("Abstract functions cannot be static");
+					}
+
+					if (usedKeywords.contains("private")) {
+						throw new CompileError("Abstract functions cannot be private");
+					}
+
+					if (!isBodyless) {
+						throw new CompileError("Abstract functions cannot have a body");
+					}
+
+					accessor |= ACC_ABSTRACT;
+				} else if (key.equals("public")) {
+					if (usedKeywords.contains("private") || usedKeywords.contains("protected")) {
+						throw new CompileError("Cannot have multiple access modifiers");
+					}
+
+					accessor |= ACC_PUBLIC;
+				} else if (key.equals("private")) {
+					if (usedKeywords.contains("public") || usedKeywords.contains("protected")) {
+						throw new CompileError("Cannot have multiple access modifiers");
+					}
+
+					if (isBodyless) {
+						throw new CompileError("Bodyless functions cannot be private");
+					}
+
+					accessor |= ACC_PRIVATE;
+				} else if (key.equals("protected")) {
+					if (usedKeywords.contains("private") || usedKeywords.contains("public")) {
+						throw new CompileError("Cannot have multiple access modifiers");
+					}
+
+					accessor |= ACC_PROTECTED;
+				} else if (key.equals("final")) {
+					accessor |= ACC_FINAL;
+				} else if (key.equals("static")) {
+					if (usedKeywords.contains("this")) {
+						throw new CompileError("Indexer functions cannot be static");
+					}
+					if (isBodyless) {
+						throw new CompileError("Bodyless functions cannot be static");
+					}
+
+					accessor |= ACC_STATIC;
+				} else if (key.equals("sync")) {
+					accessor |= ACC_SYNCHRONIZED;
+				} else if (key.equals("this")) {
+					index = true;
+
+					if (usedKeywords.contains("operator")) {
+						throw new CompileError("Operator overloads cannot be indexer functions");
+					}
+				} else if (key.equals("override")) {
+					override = true;
+
+					if (isBodyless) {
+						throw new CompileError("Bodyless functions cannot be overrides for functions from a parent");
+					}
+				} else if (key.equals("iter")) {
+					iter = true;
+
+					if (usedKeywords.contains("operator")) {
+						throw new CompileError("Operator overloads cannot be iterator functions");
+					}
+				} else if (key.equals("operator")) {
+					operator = true;
+
+					if (!usedKeywords.contains("static")) {
+						throw new CompileError("Operator overloads must be static");
+					}
 				}
 			}
 
@@ -262,10 +298,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			if (operator) {
-				if (parameters.size() != 2 || !parameters.get(0).getType().equals(data.getClassName())
-						|| !parameters.get(0).getType().equals(data.getClassName())) {
+				if (parameters.size() != 2 || !parameters.get(0).getType().equals(data.getClassName())) {
 					throw new CompileError(
-							"Operator overloads have 2 parameters, which have the type of the declaring class");
+							"Operator overloads have 2 parameters, where the first one has the type of the declaring class");
 				}
 			}
 
