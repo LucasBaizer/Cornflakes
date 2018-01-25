@@ -55,9 +55,9 @@ public class StaticInitializerCompiler extends Compiler {
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
 					if (!Types.isSuitable(datum.getType().getTypeSignature(),
-							compiler.getReferenceType().getTypeSignature())) {
+							compiler.getResultType().getTypeSignature())) {
 						throw new CompileError(
-								compiler.getReferenceType() + " is not assignable to " + datum.getType());
+								compiler.getResultType() + " is not assignable to " + datum.getType());
 					}
 
 					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(),

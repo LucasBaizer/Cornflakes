@@ -185,7 +185,7 @@ public class GenericBlockCompiler implements GenericCompiler {
 				this.data.addSyntheticVariable();
 
 				try {
-					DefinitiveType type = exp.getReferenceType();
+					DefinitiveType type = exp.getResultType();
 					if (type.isPrimitive()) {
 						throw new CompileError("Cannot for-each over a primitive type");
 					}

@@ -104,12 +104,12 @@ public class CompileUtils {
 				ExpressionCompiler ref = new ExpressionCompiler(true, methodData);
 				ref.compile(data, m, block, givenValue, new String[] { givenValue });
 
-				if ((valueType = ref.getReferenceType().getTypeSignature()) == null) {
+				if ((valueType = ref.getResultType().getTypeSignature()) == null) {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
 				}
 
 				generics = ref.getGenericTypes();
-				isRef = !ref.isPrimitiveReference();
+				isRef = !ref.isPrimitiveResult();
 			} else {
 				value = Types.parseLiteral(valueType, givenValue);
 			}
@@ -138,7 +138,7 @@ public class CompileUtils {
 				} else {
 					ExpressionCompiler compiler = new ExpressionCompiler(false, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
-					valueType = compiler.getReferenceType().getTypeSignature();
+					valueType = compiler.getResultType().getTypeSignature();
 				}
 				boolean math = false;
 				ExpressionCompiler compiler = null;
@@ -146,10 +146,10 @@ public class CompileUtils {
 				if (!isMember && valueType == null) {
 					compiler = new ExpressionCompiler(true, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
-					valueType = compiler.getReferenceType().getTypeSignature();
+					valueType = compiler.getResultType().getTypeSignature();
 					math = compiler.isMath();
 					generics = compiler.getGenericTypes();
-					isRef = !compiler.isPrimitiveReference();
+					isRef = !compiler.isPrimitiveResult();
 				}
 
 				if (valueType != null) {

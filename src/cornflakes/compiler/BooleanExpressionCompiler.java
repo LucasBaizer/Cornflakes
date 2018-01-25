@@ -88,7 +88,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				ref.setSource(this);
 				ref.compile(data, m, block, bool, new String[] { bool });
 
-				if (ref.getReferenceType() == null || !ref.getReferenceType().equals("Z")) {
+				if (ref.getResultType() == null || !ref.getResultType().equals("Z")) {
 					invalid(new CompileError("The given reference is not a boolean"));
 				}
 			}
@@ -207,7 +207,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			ExpressionCompiler ref = new ExpressionCompiler(this.write, this.data);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
-			return ref.getReferenceType().getTypeSignature();
+			return ref.getResultType().getTypeSignature();
 		}
 	}
 

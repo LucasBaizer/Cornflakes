@@ -114,14 +114,14 @@ public class GenericStatementCompiler implements GenericCompiler {
 					ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 					compiler.compile(data, m, block, par, new String[] { par });
 
-					if (!Types.isSuitable(this.data.getReturnType(), compiler.getReferenceType())) {
+					if (!Types.isSuitable(this.data.getReturnType(), compiler.getResultType())) {
 						throw new CompileError("A return value of type "
 								+ Types.beautify(this.data.getReturnType().getTypeName())
 								+ " is expected, but one of type "
-								+ Types.beautify(compiler.getReferenceType().getTypeSignature()) + " was given");
+								+ Types.beautify(compiler.getResultType().getTypeSignature()) + " was given");
 					}
 
-					int op = Types.getOpcode(Types.RETURN, compiler.getReferenceType().getTypeName());
+					int op = Types.getOpcode(Types.RETURN, compiler.getResultType().getTypeName());
 					m.visitInsn(op);
 				}
 			} else {
@@ -147,7 +147,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			ExpressionCompiler ref = new ExpressionCompiler(true, this.data);
 			ref.compile(data, m, block, split[1], new String[] { split[1] });
 
-			DefinitiveType signature = ref.getReferenceType();
+			DefinitiveType signature = ref.getResultType();
 			if (signature.isPrimitive()) {
 				throw new CompileError("Only types which are subclasses of java.lang.Throwable can be thrown");
 			}
@@ -279,7 +279,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					return;
 				}
 
-				String refName = compiler.getReferenceName();
+				String refName = compiler.getResultName();
 				FieldData field = compiler.getField();
 
 				String regex = "(.+?)\\[(.+?)\\]";
@@ -304,7 +304,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 						try {
 							if (typeClass.is("java.util.List") || type.getTypeSignature().startsWith("[")) {
-								if (!exp.getReferenceType().equals("I")) {
+								if (!exp.getResultType().equals("I")) {
 									throw new CompileError("Arrays can only be indexed by integers");
 								}
 							} else if (type.equals("Lcornflakes/lang/Tuple")) {
@@ -416,8 +416,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 			ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
 			compiler1.compile(data, m, block, value, new String[] { value });
 
-			if (!array && !Types.isSuitable(field.getType(), compiler1.getReferenceType())) {
-				throw new CompileError(compiler1.getReferenceType() + " is not assignable to " + field.getType());
+			if (!array && !Types.isSuitable(field.getType(), compiler1.getResultType())) {
+				throw new CompileError(compiler1.getResultType() + " is not assignable to " + field.getType());
 			}
 		}
 	}
@@ -428,8 +428,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 			m.visitVarInsn(store, ((LocalData) field).getIndex());
 		} else if (field instanceof FieldData) {
 			m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
-					compiler.getReferenceOwner().getClassName(), refName,
-					compiler.getReferenceType().getAbsoluteTypeSignature());
+					compiler.getResultOwner().getClassName(), refName,
+					compiler.getResultType().getAbsoluteTypeSignature());
 		}
 	}
 

@@ -214,8 +214,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					ExpressionCompiler compiler = new ExpressionCompiler(true, this.methodData);
 					compiler.compile(data, m, block, raw, new String[] { raw });
 
-					if (!Types.isSuitable(datum.getType(), compiler.getReferenceType())) {
-						throw new CompileError(Types.beautify(compiler.getReferenceType().getTypeName())
+					if (!Types.isSuitable(datum.getType(), compiler.getResultType())) {
+						throw new CompileError(Types.beautify(compiler.getResultType().getTypeName())
 								+ " is not assignable to " + Types.beautify(datum.getType().getTypeName()));
 					}
 

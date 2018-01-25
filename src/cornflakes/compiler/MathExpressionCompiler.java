@@ -104,8 +104,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 									m.visitVarInsn(Types.getOpcode(Types.STORE, type), local.getIndex());
 								} else {
 									m.visitFieldInsn(ref.getField().hasModifier(ACC_STATIC) ? PUTSTATIC : PUTFIELD,
-											ref.getReferenceOwner().getClassName(), ref.getReferenceName(),
-											ref.getReferenceType().getTypeSignature());
+											ref.getResultOwner().getClassName(), ref.getResultName(),
+											ref.getResultType().getTypeSignature());
 								}
 							}
 						}
@@ -297,7 +297,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			ref.setAllowBoolean(this.bool);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
-			return ref.getReferenceType();
+			return ref.getResultType();
 		}
 	}
 
