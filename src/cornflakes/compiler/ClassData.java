@@ -136,8 +136,8 @@ public class ClassData {
 		}
 	}
 
-	public MethodData getOperatorOverload(int op) throws ClassNotFoundException {
-		return getAllMethods(getOperatorOverloadFunction(op))[0];
+	public MethodData[] getOperatorOverloads(int op) throws ClassNotFoundException {
+		return getAllMethods(getOperatorOverloadFunction(op));
 	}
 
 	public boolean hasOperatorOverload(int op) throws ClassNotFoundException {

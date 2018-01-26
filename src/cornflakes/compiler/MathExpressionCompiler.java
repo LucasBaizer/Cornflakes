@@ -252,14 +252,21 @@ public class MathExpressionCompiler implements GenericCompiler {
 								"Operator not overloaded for class " + Types.beautify(type.getClassName())));
 					}
 
-					MethodData overload = type.getOperatorOverload(this.type);
-					if (!Types.isSuitable(overload.getParameters().get(1).getType(), rightType)) {
-						invalid(new CompileError("Overload does not accept parameter of type "
-								+ Types.beautify(rightType.getTypeName())));
+					MethodData[] overloads = type.getOperatorOverloads(this.type);
+					boolean wrote = true;
+					for (MethodData overload : overloads) {
+						if (!Types.isSuitable(overload.getParameters().get(1).getType(), rightType)) {
+							continue;
+						}
+						wrote = true;
+						if (write) {
+							m.visitMethodInsn(INVOKESTATIC, type.getClassName(), overload.getName(),
+									overload.getSignature(), false);
+						}
 					}
-					if (write) {
-						m.visitMethodInsn(INVOKESTATIC, type.getClassName(), overload.getName(),
-								overload.getSignature(), false);
+					if (!wrote) {
+						invalid(new CompileError(
+								"No overload accepts parameter of type " + Types.beautify(rightType.getTypeName())));
 					}
 				} catch (ClassNotFoundException e) {
 					throw new CompileError(e);

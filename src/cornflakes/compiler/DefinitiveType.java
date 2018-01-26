@@ -23,10 +23,6 @@ public class DefinitiveType {
 	}
 
 	public static DefinitiveType object(String name) {
-		return uninitializedObject(name);
-	}
-
-	public static DefinitiveType uninitializedObject(String name) {
 		if (name == null) {
 			throw new CompileError("Invalid object");
 		}

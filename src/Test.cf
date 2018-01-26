@@ -3,3 +3,6 @@ public class Test
 
 public static func test() {
 }
+
+public static func test(x: i32) {
+}

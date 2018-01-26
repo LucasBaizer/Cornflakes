@@ -76,7 +76,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			for (String key : usedKeywords) {
-
 				if (key.equals("abstract")) {
 					if (!data.hasModifier(ACC_ABSTRACT)) {
 						throw new CompileError("Cannot have abstract functions in a non-abstract class");
@@ -177,10 +176,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 			Strings.handleLetterString(methodName, Strings.VARIABLE_NAME);
 
-			if (data.hasMethod(methodName)) {
-				throw new CompileError("Duplicate function: " + methodName);
-			}
-
 			String returnType = "V";
 			if (withoutBracket.contains("->")) {
 				String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
@@ -194,7 +189,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 				if (iter) {
 					if (!(returnType.equals("Ljava/util/Iterator;")
-							|| returnType.equals("Lcornflakes/lang/YieldIterator;"))) {
+							|| returnType.equals("Lcornflakes/lang/FunctionalIterator;"))) {
 						throw new CompileError(
 								"Iterator functions do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
 					}
@@ -308,6 +303,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			methodData.setReturnType(DefinitiveType.assume(returnType));
 			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
+			try {
+				if (data.hasMethodBySignature(methodName, methodData.getSignature())) {
+					throw new CompileError("Duplicate function: " + methodName);
+				}
+			} catch (ClassNotFoundException e1) {
+				throw new CompileError(e1);
+			}
 			if (iter) {
 				methodData.setIterator(-3);
 			}

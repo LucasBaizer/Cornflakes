@@ -53,7 +53,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 				exp.compile(data, m, block, str, new String[] { str });
 			}
 
-			m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/YieldIterator", "yield", "(Ljava/lang/Object;)V", false);
+			m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/FunctionalIterator", "add",
+					"(Ljava/lang/Object;)Lcornflakes/lang/FunctionalIterator;", false);
 		} else if (body.startsWith("return")) {
 			type = RETURN;
 
@@ -115,10 +116,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 					compiler.compile(data, m, block, par, new String[] { par });
 
 					if (!Types.isSuitable(this.data.getReturnType(), compiler.getResultType())) {
-						throw new CompileError("A return value of type "
-								+ Types.beautify(this.data.getReturnType().getTypeName())
-								+ " is expected, but one of type "
-								+ Types.beautify(compiler.getResultType().getTypeSignature()) + " was given");
+						throw new CompileError(
+								"A return value of type " + Types.beautify(this.data.getReturnType().getTypeName())
+										+ " is expected, but one of type "
+										+ Types.beautify(compiler.getResultType().getTypeSignature()) + " was given");
 					}
 
 					int op = Types.getOpcode(Types.RETURN, compiler.getResultType().getTypeName());

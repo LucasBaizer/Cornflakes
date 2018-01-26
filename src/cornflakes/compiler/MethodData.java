@@ -47,7 +47,7 @@ public class MethodData implements Accessible {
 				}
 			} else {
 				mData.addParameter(new ParameterData(mData, param.getName(),
-						DefinitiveType.uninitializedObject(Types.getTypeSignature(param.getType())),
+						DefinitiveType.object(Types.getTypeSignature(param.getType())),
 						param.getModifiers()));
 			}
 		}
