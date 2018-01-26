@@ -80,12 +80,12 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				throw new CompileError("Duplicate method: " + methodName);
 			}
 
-			String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.indexOf(')'))
+			String params = withoutBracket.substring(withoutBracket.indexOf('(') + 1, withoutBracket.lastIndexOf(')'))
 					.trim();
 			List<ParameterData> parameters = new ArrayList<>();
 			methodData = new ConstructorData(data, -1);
 			if (!params.isEmpty()) {
-				String[] split = params.split(",");
+				String[] split = Strings.splitParameters(params);
 				for (String par : split) {
 					par = Strings.normalizeSpaces(par);
 
@@ -108,10 +108,14 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 						}
 					}
 
-					String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
-							: data.resolveClass(type).getTypeSignature();
-					parameters.add(new ParameterData(this.methodData, name,
-							DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
+					if (Types.isTupleDefinition(type)) {
+						parameters.add(new ParameterData(this.methodData, name, DefinitiveType.assume(type), 0));
+					} else {
+						String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
+								: data.resolveClass(type).getTypeSignature();
+						parameters.add(
+								new ParameterData(this.methodData, name, DefinitiveType.assume(resolvedType), 0));
+					}
 				}
 			}
 

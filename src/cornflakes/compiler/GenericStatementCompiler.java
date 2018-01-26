@@ -418,7 +418,8 @@ public class GenericStatementCompiler implements GenericCompiler {
 			compiler1.compile(data, m, block, value, new String[] { value });
 
 			if (!array && !Types.isSuitable(field.getType(), compiler1.getResultType())) {
-				throw new CompileError(compiler1.getResultType() + " is not assignable to " + field.getType());
+				throw new CompileError(Types.beautify(compiler1.getResultType().getTypeName())
+						+ " is not assignable to " + Types.beautify(field.getType().getTypeName()));
 			}
 		}
 	}
