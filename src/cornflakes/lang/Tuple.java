@@ -7,15 +7,15 @@ import java.util.Iterator;
 public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	private static final long serialVersionUID = 3065105932170095516L;
 
-	private static final int OBJECT = 0;
-	private static final int I32 = 1;
-	private static final int I64 = 2;
-	private static final int I16 = 3;
-	private static final int I8 = 4;
-	private static final int F32 = 5;
-	private static final int F64 = 6;
-	private static final int BOOL = 7;
-	private static final int CHAR = 8;
+	public static final int OBJECT = 0;
+	public static final int I32 = 1;
+	public static final int I64 = 2;
+	public static final int I16 = 3;
+	public static final int I8 = 4;
+	public static final int F32 = 5;
+	public static final int F64 = 6;
+	public static final int BOOL = 7;
+	public static final int CHAR = 8;
 
 	private int length;
 	private Object[] items;
@@ -29,64 +29,64 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	private long[] i64Items;
 	private int[] types;
 
-	public Tuple(int length) {
+	public Tuple(int length, int[] types) {
 		this.length = length;
+		this.types = types;
 
-		items = new Object[length];
-		i32Items = new int[length];
-		i64Items = new long[length];
-		f32Items = new float[length];
-		f64Items = new double[length];
-		i8Items = new byte[length];
-		i16Items = new short[length];
-		charItems = new char[length];
-		boolItems = new boolean[length];
-		types = new int[length];
+		if (types[OBJECT] > 0)
+			items = new Object[types[OBJECT]];
+		if (types[I32] > 0)
+			i32Items = new int[types[I32]];
+		if (types[I64] > 0)
+			i64Items = new long[types[I64]];
+		if (types[F32] > 0)
+			f32Items = new float[types[F32]];
+		if (types[F64] > 0)
+			f64Items = new double[types[F64]];
+		if (types[I8] > 0)
+			i8Items = new byte[types[I8]];
+		if (types[I16] > 0)
+			i16Items = new short[types[I16]];
+		if (types[CHAR] > 0)
+			charItems = new char[types[CHAR]];
+		if (types[BOOL] > 0)
+			boolItems = new boolean[types[BOOL]];
 	}
 
 	public void item(int index, Object item) {
 		items[index] = item;
-		types[index] = OBJECT;
 	}
 
 	public void item(int index, int item) {
 		i32Items[index] = item;
-		types[index] = I32;
 	}
 
 	public void item(int index, float item) {
 		f32Items[index] = item;
-		types[index] = F32;
 	}
 
 	public void item(int index, double item) {
 		f64Items[index] = item;
-		types[index] = F64;
 	}
 
 	public void item(int index, byte item) {
 		i8Items[index] = item;
-		types[index] = I8;
 	}
 
 	public void item(int index, short item) {
 		i16Items[index] = item;
-		types[index] = I16;
 	}
 
 	public void item(int index, char item) {
 		charItems[index] = item;
-		types[index] = CHAR;
 	}
 
 	public void item(int index, long item) {
 		i64Items[index] = item;
-		types[index] = I64;
 	}
 
 	public void item(int index, boolean item) {
 		boolItems[index] = item;
-		types[index] = BOOL;
 	}
 
 	public int getLength() {
@@ -131,7 +131,7 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 
 	@Override
 	public Tuple clone() {
-		Tuple x = new Tuple(this.items.length);
+		Tuple x = new Tuple(length, Arrays.copyOf(types, length));
 		x.items = Arrays.copyOf(items, length);
 		x.i8Items = Arrays.copyOf(i8Items, length);
 		x.i16Items = Arrays.copyOf(i16Items, length);

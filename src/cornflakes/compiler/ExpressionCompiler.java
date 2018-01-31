@@ -7,6 +7,8 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
+import cornflakes.lang.Tuple;
+
 public class ExpressionCompiler implements GenericCompiler {
 	public static final int LOCAL_VARIABLE = 0;
 	public static final int MEMBER_VARIABLE = 1;
@@ -115,8 +117,47 @@ public class ExpressionCompiler implements GenericCompiler {
 				m.visitTypeInsn(NEW, "cornflakes/lang/Tuple");
 				m.visitInsn(DUP);
 				m.visitLdcInsn(tuple.length);
-				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I)V", false);
+				m.visitLdcInsn(tuple.length);
+				m.visitIntInsn(NEWARRAY, T_INT);
+				int idx2 = 16385 + this.data.getSyntheticVariables();
+				m.visitLocalVariable("_tuple_init_typearr_" + idx2, "[I", null, block.getStartLabel(),
+						block.getEndLabel(), idx2);
+				m.visitVarInsn(ASTORE, idx2);
+
+				for (int i = 0; i < tuple.length; i++) {
+					m.visitVarInsn(ALOAD, idx2);
+					m.visitLdcInsn(i);
+
+					String type = Types.getType(tuple[i].trim(), null);
+					int t = -1;
+					if (type == null || type.equals("string")) {
+						t = Tuple.OBJECT;
+					} else {
+						if (type.equals("i8")) {
+							t = Tuple.I8;
+						} else if (type.equals("i16")) {
+							t = Tuple.I16;
+						} else if (type.equals("i32")) {
+							t = Tuple.I32;
+						} else if (type.equals("i64")) {
+							t = Tuple.I64;
+						} else if (type.equals("f32")) {
+							t = Tuple.F32;
+						} else if (type.equals("f64")) {
+							t = Tuple.F64;
+						} else if (type.equals("bool")) {
+							t = Tuple.BOOL;
+						} else if (type.equals("char")) {
+							t = Tuple.CHAR;
+						}
+					}
+
+					m.visitLdcInsn(t);
+				}
+
+				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I[I)V", false);
 				m.visitVarInsn(ASTORE, idx);
+				this.data.addSyntheticVariable();
 				this.data.addSyntheticVariable();
 			}
 
@@ -808,7 +849,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			MethodData method = null;
 
 			String[] split = Strings.splitParameters(pars);
-			
+
 			for (MethodData met : methods) {
 				if (met.getParameters().size() == split.length) {
 					int idx = 0;
@@ -934,7 +975,7 @@ public class ExpressionCompiler implements GenericCompiler {
 						} else {
 							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
 							compiler.compile(this, data, data, m, block, par, new String[] { par });
-							
+
 							if (!Types.isSuitable(paramType, compiler.getResultType())) {
 								success = false;
 								break;
