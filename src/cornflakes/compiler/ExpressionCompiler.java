@@ -614,10 +614,10 @@ public class ExpressionCompiler implements GenericCompiler {
 				if (!(!loadVariableReference && isLast)) {
 					if (field.hasModifier(ACC_STATIC)) {
 						m.visitFieldInsn(GETSTATIC, containerData.getClassName(), body,
-								field.getType().getTypeSignature());
+								field.getType().getAbsoluteTypeSignature());
 					} else {
 						m.visitFieldInsn(GETFIELD, containerData.getClassName(), body,
-								field.getType().getTypeSignature());
+								field.getType().getAbsoluteTypeSignature());
 					}
 
 					if (this.data != null)

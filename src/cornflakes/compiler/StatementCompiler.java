@@ -161,7 +161,7 @@ public class StatementCompiler extends Compiler {
 			FieldData fdata = new FieldData(data, variableName, variableType, accessor);
 			if ((accessor & ACC_STATIC) == ACC_STATIC) {
 				if (!valueType.isNull() && (valueType.equals("I") || valueType.equals("J") || valueType.equals("F")
-						|| valueType.equals("string"))) {
+						|| valueType.equals("D") || valueType.equals("string"))) {
 					useValue = true;
 				} else {
 					fdata.setProposedData(value);
