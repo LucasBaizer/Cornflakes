@@ -27,66 +27,77 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	private char[] charItems;
 	private boolean[] boolItems;
 	private long[] i64Items;
+	private int[] typeCount;
 	private int[] types;
 
 	public Tuple(int length, int[] types) {
 		this.length = length;
-		this.types = types;
+		this.typeCount = types;
+		this.types = new int[length];
 
 		if (types[OBJECT] > 0)
-			items = new Object[types[OBJECT]];
+			items = new Object[length];
 		if (types[I32] > 0)
-			i32Items = new int[types[I32]];
+			i32Items = new int[length];
 		if (types[I64] > 0)
-			i64Items = new long[types[I64]];
+			i64Items = new long[length];
 		if (types[F32] > 0)
-			f32Items = new float[types[F32]];
+			f32Items = new float[length];
 		if (types[F64] > 0)
-			f64Items = new double[types[F64]];
+			f64Items = new double[length];
 		if (types[I8] > 0)
-			i8Items = new byte[types[I8]];
+			i8Items = new byte[length];
 		if (types[I16] > 0)
-			i16Items = new short[types[I16]];
+			i16Items = new short[length];
 		if (types[CHAR] > 0)
-			charItems = new char[types[CHAR]];
+			charItems = new char[length];
 		if (types[BOOL] > 0)
-			boolItems = new boolean[types[BOOL]];
+			boolItems = new boolean[length];
 	}
 
 	public void item(int index, Object item) {
 		items[index] = item;
+		types[index] = OBJECT;
 	}
 
 	public void item(int index, int item) {
 		i32Items[index] = item;
+		types[index] = I32;
 	}
 
 	public void item(int index, float item) {
 		f32Items[index] = item;
+		types[index] = F32;
 	}
 
 	public void item(int index, double item) {
 		f64Items[index] = item;
+		types[index] = F64;
 	}
 
 	public void item(int index, byte item) {
 		i8Items[index] = item;
+		types[index] = I8;
 	}
 
 	public void item(int index, short item) {
 		i16Items[index] = item;
+		types[index] = I16;
 	}
 
 	public void item(int index, char item) {
 		charItems[index] = item;
+		types[index] = CHAR;
 	}
 
 	public void item(int index, long item) {
 		i64Items[index] = item;
+		types[index] = I64;
 	}
 
 	public void item(int index, boolean item) {
 		boolItems[index] = item;
+		types[index] = BOOL;
 	}
 
 	public int getLength() {
@@ -131,16 +142,16 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 
 	@Override
 	public Tuple clone() {
-		Tuple x = new Tuple(length, Arrays.copyOf(types, length));
-		x.items = Arrays.copyOf(items, length);
-		x.i8Items = Arrays.copyOf(i8Items, length);
-		x.i16Items = Arrays.copyOf(i16Items, length);
-		x.i32Items = Arrays.copyOf(i32Items, length);
-		x.i64Items = Arrays.copyOf(i64Items, length);
-		x.f32Items = Arrays.copyOf(f32Items, length);
-		x.f64Items = Arrays.copyOf(f64Items, length);
-		x.boolItems = Arrays.copyOf(boolItems, length);
-		x.charItems = Arrays.copyOf(charItems, length);
+		Tuple x = new Tuple(length, Arrays.copyOf(typeCount, length));
+		x.items = items == null ? null : Arrays.copyOf(items, length);
+		x.i8Items = i8Items == null ? null : Arrays.copyOf(i8Items, length);
+		x.i16Items = i16Items == null ? null : Arrays.copyOf(i16Items, length);
+		x.i32Items = i32Items == null ? null : Arrays.copyOf(i32Items, length);
+		x.i64Items = i64Items == null ? null : Arrays.copyOf(i64Items, length);
+		x.f32Items = f32Items == null ? null : Arrays.copyOf(f32Items, length);
+		x.f64Items = f64Items == null ? null : Arrays.copyOf(f64Items, length);
+		x.boolItems = boolItems == null ? null : Arrays.copyOf(boolItems, length);
+		x.charItems = charItems == null ? null : Arrays.copyOf(charItems, length);
 
 		return x;
 	}
@@ -190,7 +201,7 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	public Object[] toArray() {
 		Object[] array = new Object[length];
 		for (int i = 0; i < length; i++) {
-			switch (types[i]) {
+			switch (typeCount[i]) {
 				case OBJECT:
 					array[i] = items[i];
 					break;
@@ -243,7 +254,7 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 		result = prime * result + Arrays.hashCode(i64Items);
 		result = prime * result + Arrays.hashCode(i8Items);
 		result = prime * result + Arrays.hashCode(items);
-		result = prime * result + Arrays.hashCode(types);
+		result = prime * result + Arrays.hashCode(typeCount);
 		return result;
 	}
 
@@ -289,7 +300,7 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 		if (!Arrays.equals(items, other.items)) {
 			return false;
 		}
-		if (!Arrays.equals(types, other.types)) {
+		if (!Arrays.equals(typeCount, other.typeCount)) {
 			return false;
 		}
 		return true;

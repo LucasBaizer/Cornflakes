@@ -117,7 +117,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				m.visitTypeInsn(NEW, "cornflakes/lang/Tuple");
 				m.visitInsn(DUP);
 				m.visitLdcInsn(tuple.length);
-				m.visitLdcInsn(tuple.length);
+				m.visitLdcInsn(9);
 				m.visitIntInsn(NEWARRAY, T_INT);
 				int idx2 = 16385 + this.data.getSyntheticVariables();
 				m.visitLocalVariable("_tuple_init_typearr_" + idx2, "[I", null, block.getStartLabel(),
@@ -126,7 +126,6 @@ public class ExpressionCompiler implements GenericCompiler {
 
 				for (int i = 0; i < tuple.length; i++) {
 					m.visitVarInsn(ALOAD, idx2);
-					m.visitLdcInsn(i);
 
 					String type = Types.getType(tuple[i].trim(), null);
 					int t = -1;
@@ -151,10 +150,19 @@ public class ExpressionCompiler implements GenericCompiler {
 							t = Tuple.CHAR;
 						}
 					}
-
+					
 					m.visitLdcInsn(t);
+					
+					m.visitVarInsn(ALOAD, idx2); // get the value of array[index] + 1
+					m.visitLdcInsn(t);
+					m.visitInsn(IALOAD);
+					m.visitLdcInsn(1);
+					m.visitInsn(IADD);
+					
+					m.visitInsn(IASTORE);
 				}
 
+				m.visitVarInsn(ALOAD, idx2);
 				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I[I)V", false);
 				m.visitVarInsn(ASTORE, idx);
 				this.data.addSyntheticVariable();

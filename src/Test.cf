@@ -2,5 +2,7 @@ package cornflakes.lang
 public class Test
 
 public static func test() {
-	var x: (i32, i32) = (5, 5)
+	var x = ("hello", 5)
+	
+	println!(x)
 }
