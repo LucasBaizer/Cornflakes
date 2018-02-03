@@ -7,6 +7,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
 
+/**
+ * An immutable iterator.
+ */
 public class FunctionalIterator<T> implements Iterator<T> {
 	private List<T> list = new ArrayList<>();
 
@@ -16,6 +19,10 @@ public class FunctionalIterator<T> implements Iterator<T> {
 	@SafeVarargs
 	public FunctionalIterator(T... items) {
 		list = new ArrayList<>(Arrays.asList(items));
+	}
+
+	public FunctionalIterator(Iterable<T> itr) {
+		this(itr.iterator());
 	}
 
 	public FunctionalIterator(Iterator<T> itr) {
@@ -40,7 +47,7 @@ public class FunctionalIterator<T> implements Iterator<T> {
 
 	public FunctionalIterator<T> add(T obj) {
 		list.add(obj);
-		
+
 		return this;
 	}
 
@@ -51,7 +58,7 @@ public class FunctionalIterator<T> implements Iterator<T> {
 	public FunctionalIterator<T> skip(int amount) {
 		FunctionalIterator<T> copy = copy();
 		for (int i = 0; i < amount; i++) {
-			checkEmpty();
+			checkEmpty(copy.list);
 			copy.list.remove(0);
 		}
 		return copy;
@@ -64,7 +71,7 @@ public class FunctionalIterator<T> implements Iterator<T> {
 	public FunctionalIterator<T> before(int amount) {
 		FunctionalIterator<T> copy = copy();
 		for (int i = 0; i < amount; i++) {
-			checkEmpty();
+			checkEmpty(copy.list);
 			copy.list.remove(copy.list.size() - 1);
 		}
 		return copy;
@@ -73,20 +80,20 @@ public class FunctionalIterator<T> implements Iterator<T> {
 	public FunctionalIterator<T> reverse() {
 		FunctionalIterator<T> copy = copy();
 		for (int i = copy.list.size() - 1; i >= 0; i--) {
-			checkEmpty();
+			checkEmpty(copy.list);
 			copy.list.remove(0);
 		}
 		return copy;
 	}
 
 	public T first() {
-		checkEmpty();
+		checkEmpty(list);
 
 		return list.get(0);
 	}
 
 	public T last() {
-		checkEmpty();
+		checkEmpty(list);
 
 		return list.get(list.size() - 1);
 	}
@@ -112,8 +119,8 @@ public class FunctionalIterator<T> implements Iterator<T> {
 	}
 
 	public FunctionalIterator<T> zip(FunctionalIterator<T> other) {
-		checkEmpty();
-		other.checkEmpty();
+		checkEmpty(list);
+		other.checkEmpty(other.list);
 
 		if (this.getLength() != other.getLength()) {
 			throw new IteratorException("Cannot zip iterators of inequal length");
@@ -132,11 +139,11 @@ public class FunctionalIterator<T> implements Iterator<T> {
 
 	private FunctionalIterator<T> copy() {
 		FunctionalIterator<T> iter = new FunctionalIterator<>();
-		list = new ArrayList<>(this.list);
+		iter.list = new ArrayList<>(this.list);
 		return iter;
 	}
 
-	private void checkEmpty() {
+	private void checkEmpty(List<T> list) {
 		if (list.size() == 0) {
 			throw new IteratorException("Iterator is empty");
 		}

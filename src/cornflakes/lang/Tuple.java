@@ -201,7 +201,7 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	public Object[] toArray() {
 		Object[] array = new Object[length];
 		for (int i = 0; i < length; i++) {
-			switch (typeCount[i]) {
+			switch (types[i]) {
 				case OBJECT:
 					array[i] = items[i];
 					break;

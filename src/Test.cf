@@ -2,7 +2,4 @@ package cornflakes.lang
 public class Test
 
 public static func test() {
-	var x = ("hello", 5)
-	
-	println!(x)
 }

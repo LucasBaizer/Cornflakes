@@ -386,6 +386,12 @@ public class ExpressionCompiler implements GenericCompiler {
 							String theNew = name + part.substring(part.indexOf('(')).trim();
 							ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
 							compiler.compile(data, m, block, theNew, new String[] { theNew });
+							
+							resultType = compiler.getResultType();
+							resultName = compiler.getResultName();
+							resultOwner = compiler.getResultOwner();
+							expressionType = compiler.getExpressionType();
+							
 							next = true;
 						}
 

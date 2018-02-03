@@ -132,7 +132,9 @@ public class ClassData {
 			use("java.lang.Character", "char");
 			use("java.lang.System");
 			use("cornflakes.lang.Tuple");
+			use("cornflakes.lang.FunctionalIterator");
 			useMacro("println", "System.out.println");
+			useMacro("iter", "FunctionalIterator");
 		}
 	}
 
