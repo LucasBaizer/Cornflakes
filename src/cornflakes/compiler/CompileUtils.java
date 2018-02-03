@@ -126,7 +126,7 @@ public class CompileUtils {
 					variableType = Types.getTypeSignature(variableType);
 				}
 			}
-
+			
 			String[] set = body.split("=", 2);
 			if (set.length > 1) {
 				String givenValue = set[1].trim();
@@ -136,10 +136,11 @@ public class CompileUtils {
 				if (rawType != null) {
 					valueType = Types.getTypeSignature(rawType);
 				} else {
-					ExpressionCompiler compiler = new ExpressionCompiler(false, methodData);
+					ExpressionCompiler compiler = new ExpressionCompiler(!isMember, methodData);
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getResultType().getTypeSignature();
 				}
+				
 				boolean math = false;
 				ExpressionCompiler compiler = null;
 
@@ -164,7 +165,7 @@ public class CompileUtils {
 						&& rawType != null) {
 					value = Types.parseLiteral(valueType, givenValue);
 				}
-
+				
 				if (isMember && value == null) {
 					value = givenValue;
 				}

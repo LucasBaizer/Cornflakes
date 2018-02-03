@@ -55,7 +55,13 @@ public class ExpressionCompiler implements GenericCompiler {
 	private void compile(ExpressionCompiler last, ClassData containerData, ClassData data, MethodVisitor m, Block block,
 			String body, String[] lines) throws ClassNotFoundException {
 		if (body.equals("null")) {
-			m.visitInsn(ACONST_NULL);
+			if (write)
+				m.visitInsn(ACONST_NULL);
+
+			resultType = null;
+			resultOwner = null;
+			resultName = null;
+			expressionType = NULL;
 			return;
 		}
 
@@ -150,15 +156,15 @@ public class ExpressionCompiler implements GenericCompiler {
 							t = Tuple.CHAR;
 						}
 					}
-					
+
 					m.visitLdcInsn(t);
-					
+
 					m.visitVarInsn(ALOAD, idx2); // get the value of array[index] + 1
 					m.visitLdcInsn(t);
 					m.visitInsn(IALOAD);
 					m.visitLdcInsn(1);
 					m.visitInsn(IADD);
-					
+
 					m.visitInsn(IASTORE);
 				}
 
@@ -386,12 +392,12 @@ public class ExpressionCompiler implements GenericCompiler {
 							String theNew = name + part.substring(part.indexOf('(')).trim();
 							ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
 							compiler.compile(data, m, block, theNew, new String[] { theNew });
-							
+
 							resultType = compiler.getResultType();
 							resultName = compiler.getResultName();
 							resultOwner = compiler.getResultOwner();
 							expressionType = compiler.getExpressionType();
-							
+
 							next = true;
 						}
 

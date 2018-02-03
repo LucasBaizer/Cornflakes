@@ -1,0 +1,11 @@
+package cornflakes.lang
+public class MainServer
+
+use org.jnetwork.{Server, UDPServer}
+
+public static func main(args: string[]) {
+	var server: Server = UDPServer(1337, null)
+	
+	server.start()
+	server.waitUntilClose()
+}
