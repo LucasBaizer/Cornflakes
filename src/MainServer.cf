@@ -1,11 +1,14 @@
-package cornflakes.lang
+package game.server
 public class MainServer
 
 use org.jnetwork.{Server, UDPServer}
 
+use java.util.ArrayList
+
 public static func main(args: string[]) {
-	var server: Server = UDPServer(1337, null)
+	const server: Server = UDPServer(1337, UDPCallback())
 	
 	server.start()
 	server.waitUntilClose()
+	server.close()
 }

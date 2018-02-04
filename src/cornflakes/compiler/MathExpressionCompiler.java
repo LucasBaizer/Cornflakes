@@ -161,11 +161,11 @@ public class MathExpressionCompiler implements GenericCompiler {
 			resultType = DefinitiveType.primitive("D");
 		}
 
-		if (leftType.equals("Ljava/lang/String;") && rightType.equals("Ljava/lang/String;")) {
+		if (leftType.equals("Ljava/lang/String;") || rightType.equals("Ljava/lang/String;")) {
 			if (write) {
 				this.data.ics();
 				m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "combine",
-						"(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;", false);
+						"(" + leftType + rightType + ")Ljava/lang/String;", false);
 			}
 			resultType = DefinitiveType.object("Ljava/lang/String;");
 			return;
@@ -302,6 +302,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			ref = new ExpressionCompiler(this.write, this.data);
 			ref.setAllowMath(false);
 			ref.setAllowBoolean(this.bool);
+			
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
 			return ref.getResultType();

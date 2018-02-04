@@ -314,28 +314,28 @@ public class Types implements Opcodes {
 		switch (type) {
 			case "I":
 			case "i32":
-				return "Ljava/lang/Integer";
+				return "java/lang/Integer";
 			case "S":
 			case "i16":
-				return "Ljava/lang/Short";
+				return "java/lang/Short";
 			case "J":
 			case "i64":
-				return "Ljava/lang/Long";
+				return "java/lang/Long";
 			case "B":
 			case "i8":
-				return "Ljava/lang/Byte";
+				return "java/lang/Byte";
 			case "Z":
 			case "bool":
-				return "Ljava/lang/Boolean";
+				return "java/lang/Boolean";
 			case "F":
 			case "f32":
-				return "Ljava/lang/Float";
+				return "java/lang/Float";
 			case "D":
 			case "f64":
-				return "Ljava/lang/Double";
+				return "java/lang/Double";
 			case "C":
 			case "char":
-				return "Ljava/lang/Character";
+				return "java/lang/Character";
 			default:
 				throw new CompileError("Unknown type: " + type);
 		}
@@ -348,7 +348,7 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isSuitable(DefinitiveType target, DefinitiveType test) {
-		if(test == null || test.isNull()) {
+		if (test == null || test.isNull()) {
 			return true;
 		}
 		if (target.isObject() && test.isObject()) {
@@ -368,13 +368,21 @@ public class Types implements Opcodes {
 
 		boolean tInt = target.equals("i32") || target.equals("I") || target.equals("int");
 		boolean tShort = target.equals("i16") || target.equals("S") || target.equals("short");
+		boolean tByte = target.equals("i8") || target.equals("B") || target.equals("byte");
+		boolean tChar = target.equals("char") || target.equals("C");
+		boolean sInt = test.equals("i32") || test.equals("I") || test.equals("int");
 		boolean sShort = test.equals("i16") || test.equals("S") || test.equals("short");
 		boolean sByte = test.equals("i8") || test.equals("B") || test.equals("byte");
 		boolean sChar = test.equals("char") || test.equals("C");
+
 		if (tInt) {
 			return sShort || sByte || sChar;
 		} else if (tShort) {
 			return sByte || sChar;
+		} else if (tByte) {
+			return sChar;
+		} else if (tChar) {
+			return sInt || sShort || sByte;
 		}
 
 		target = unpadSignature(target);
@@ -395,15 +403,17 @@ public class Types implements Opcodes {
 		} else if (type.equals("bool") || type.equals("Z")) {
 			return Boolean.parseBoolean(val);
 		} else if (type.equals("char") || type.equals("C")) {
-			return val.charAt(1);
+			return (int) val.charAt(1);
 		} else if (type.equals("f32") || type.equals("F")) {
 			return Float.parseFloat(val);
 		} else if (type.equals("f64") || type.equals("D")) {
 			return Double.parseDouble(val);
 		} else if (type.equals("i8") || type.equals("B")) {
-			return Byte.parseByte(val);
+			Byte.parseByte(val);
+			return Integer.parseInt(val);
 		} else if (type.equals("i16") || type.equals("S")) {
-			return Short.parseShort(val);
+			Short.parseShort(val);
+			return Integer.parseInt(val);
 		} else if (type.equals("i32") || type.equals("I")) {
 			return Integer.parseInt(val);
 		} else if (type.equals("i64") || type.equals("L")) {
@@ -475,11 +485,12 @@ public class Types implements Opcodes {
 			return "string";
 		}
 
+		boolean frac = false;
 		for (char l : x.toCharArray()) {
 			if (!INTEGER.contains(Character.toString(l))) {
 				if (l == '.') {
 					if (Strings.countOccurrences(x, ".") == 1) {
-						if(context == null) {
+						if (context == null) {
 							return "f32";
 						}
 						if (context.equals("f32") || context.equals("F")) {
@@ -487,7 +498,10 @@ public class Types implements Opcodes {
 						} else if (context.equals("f64") || context.equals("D")) {
 							return "f64";
 						} else if (context != null && !context.isEmpty()) {
-							throw new CompileError("A non-fractional type was expected, but one was given");
+							if (frac) {
+								return null;
+							}
+							frac = true;
 						} else {
 							return "f32";
 						}

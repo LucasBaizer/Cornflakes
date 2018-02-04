@@ -21,6 +21,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	public static final int TYPEOF = 8;
 	public static final int CAST = 9;
 	public static final int TUPLE = 9;
+	public static final int LITERAL = 10;
 
 	private MethodData data;
 	private boolean write;
@@ -68,6 +69,7 @@ public class ExpressionCompiler implements GenericCompiler {
 		int end = body.length();
 		int opens = 0;
 		int brack = 0;
+		boolean quote = false;
 		for (int i = 0; i < body.length(); i++) {
 			char c = body.charAt(i);
 			if (c == '(') {
@@ -78,8 +80,9 @@ public class ExpressionCompiler implements GenericCompiler {
 				brack++;
 			} else if (c == ']') {
 				brack--;
-			}
-			if (opens == 0 && brack == 0) {
+			} else if (c == '"') {
+				quote = !quote;
+			} else if (opens == 0 && brack == 0 && !quote) {
 				if (c == '.') {
 					if (!(body.charAt(i + 1) >= '0' && body.charAt(i + 1) <= '9')) {
 						end = i;
@@ -91,7 +94,38 @@ public class ExpressionCompiler implements GenericCompiler {
 		String part = body.substring(0, end).trim();
 
 		boolean next = false;
-		if (part.equals("this")) {
+
+		String pType = Types.getType(part, null);
+		if (pType != null) {
+			String finalType = Types.getTypeSignature(pType);
+			Object literal = Types.parseLiteral(pType, part);
+
+			if (pType.equals("string")) {
+				if (write)
+					m.visitLdcInsn(literal);
+			} else {
+				String wrapper = Types.getWrapperType(pType);
+				finalType = Types.padSignature(wrapper);
+
+				if (write) {
+					if (pType.equals("bool")) {
+						m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+					} else {
+						m.visitTypeInsn(NEW, wrapper);
+						m.visitInsn(DUP);
+						m.visitLdcInsn(literal);
+						m.visitMethodInsn(INVOKESPECIAL, wrapper, "<init>", "(" + Types.getTypeSignature(pType) + ")V",
+								false);
+					}
+				}
+			}
+
+			resultName = part;
+			resultType = DefinitiveType.assume(finalType);
+			resultOwner = resultType.getObjectType();
+			expressionType = LITERAL;
+			next = true;
+		} else if (part.equals("this")) {
 			if (this.data.hasModifier(ACC_STATIC)) {
 				throw new CompileError("Cannot access this from a static context");
 			}
@@ -159,7 +193,8 @@ public class ExpressionCompiler implements GenericCompiler {
 
 					m.visitLdcInsn(t);
 
-					m.visitVarInsn(ALOAD, idx2); // get the value of array[index] + 1
+					m.visitVarInsn(ALOAD, idx2); // get the value of
+													// array[index] + 1
 					m.visitLdcInsn(t);
 					m.visitInsn(IALOAD);
 					m.visitLdcInsn(1);
@@ -366,13 +401,24 @@ public class ExpressionCompiler implements GenericCompiler {
 			next = true;
 		} else {
 			boolean match = part.matches("^([a-zA-Z0-9!_]*?)\\(.*?\\)");
+			if (!match) {
+				match = part.matches("^([a-zA-Z0-9!_]*?)<.*?>\\(.*?\\)");
+			}
 			if (allowImplicitGetters) {
 				String test = "get" + Strings.capitalize(part);
-				if (containerData.getAllMethods(test).length > 0) {
-					if (containerData != data || !data.hasField(test)) {
+
+				boolean testb = containerData.getAllMethods(test).length > 0;
+				if (!testb) {
+					test = part;
+					testb = containerData.getAllMethods(test).length > 0;
+				}
+
+				if (testb) {
+					if (containerData != data
+							|| (!data.hasField(part) && !(this.data != null && this.data.hasLocal(part, block)))) {
 						compileMethodCall(last, containerData, data, m, block, test + "()", false);
 						if (resultType.equals("V")) {
-							throw new CompileError("Cannot reference void-returning getters");
+							throw new CompileError("Cannot reference void-returning function with variable syntax");
 						}
 						next = true;
 					}
@@ -438,7 +484,8 @@ public class ExpressionCompiler implements GenericCompiler {
 											if (Strings.contains(name, "<")) {
 												name = name.substring(0, name.indexOf('<'));
 											}
-											resolved = data.resolveClass(name);
+
+											resolved = data.resolveClass(name, false);
 										} catch (CompileError e) {
 											throw new CompileError("Undefined function: " + name);
 										}
@@ -461,7 +508,7 @@ public class ExpressionCompiler implements GenericCompiler {
 						throw new CompileError("Method name cannot be empty");
 					}
 				} else {
-					if (part.equals("length") && resultType.getTypeName().startsWith("[")) {
+					if (part.equals("length") && resultType != null && resultType.getTypeName().startsWith("[")) {
 						if (this.write) {
 							m.visitInsn(ARRAYLENGTH);
 							if (this.data != null) {
@@ -616,13 +663,13 @@ public class ExpressionCompiler implements GenericCompiler {
 				throw new CompileError("Field is not accessible from this context");
 			}
 			if (write) {
-				if (this.data != null) {
+				if (this.data != null && !field.hasModifier(ACC_STATIC)) {
 					if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
 							&& containerData.getClassName().equals(data.getClassName())) {
 						m.visitVarInsn(ALOAD, 0);
 						this.data.ics();
 					} else {
-						if (this.data.hasModifier(ACC_STATIC) && !field.hasModifier(ACC_STATIC)
+						if (this.data.hasModifier(ACC_STATIC)
 								&& containerData.getClassName().equals(data.getClassName())
 								&& (last == null || (last.getExpressionType() != ExpressionCompiler.LOCAL_VARIABLE
 										&& last.getExpressionType() != ExpressionCompiler.MEMBER_VARIABLE))) {
@@ -714,6 +761,9 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			if (this.write && !(!loadVariableReference && isLast)) {
 				try {
+					if (typeClass == null) {
+						throw new CompileError("Primitive types cannot be indexed");
+					}
 					if (typeClass.isGetIndexedClass()) {
 						m.visitMethodInsn(INVOKEVIRTUAL, typeClass.getClassName(), "_get_index_",
 								indexer.getSignature(), false);
@@ -770,9 +820,13 @@ public class ExpressionCompiler implements GenericCompiler {
 	private void compileConstructorCall(ClassData containerData, ClassData data, MethodVisitor m, Block block,
 			String body, String clazz) throws ClassNotFoundException {
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
+
 		if (Strings.hasMatching(body, '<', '>')) {
 			String generic = body.substring(body.indexOf('<') + 1, body.lastIndexOf('>')).trim();
-			String[] params = generic.split(",");
+
+			pars = body.substring(body.indexOf('(', body.lastIndexOf('>')) + 1, body.lastIndexOf(')')).trim();
+
+			String[] params = Strings.splitParameters(generic);
 			if (params.length != containerData.getGenerics().length) {
 				throw new CompileError(Types.beautify(containerData.getClassName()) + " expects "
 						+ containerData.getGenerics().length + " generic parameter"
@@ -824,9 +878,10 @@ public class ExpressionCompiler implements GenericCompiler {
 				if (x < 0) {
 					throw new CompileError("Array literal indexes must be greater than or equal to 0");
 				}
-				m.visitLdcInsn(x);
+				if (write)
+					m.visitLdcInsn(x);
 			} catch (Exception e) {
-				ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
+				ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
 				compiler.compile(data, m, block, size, new String[] { size });
 
 				if (!compiler.getResultType().equals("I")) {
@@ -834,30 +889,32 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 			}
 
-			if (Types.isPrimitive(resolved)) {
-				int val;
-				if (resolved.equals("I")) {
-					val = T_INT;
-				} else if (resolved.equals("J")) {
-					val = T_LONG;
-				} else if (resolved.equals("S")) {
-					val = T_SHORT;
-				} else if (resolved.equals("B")) {
-					val = T_BYTE;
-				} else if (resolved.equals("Z")) {
-					val = T_BOOLEAN;
-				} else if (resolved.equals("F")) {
-					val = T_FLOAT;
-				} else if (resolved.equals("D")) {
-					val = T_DOUBLE;
-				} else if (resolved.equals("C")) {
-					val = T_CHAR;
+			if (write) {
+				if (Types.isPrimitive(resolved)) {
+					int val;
+					if (resolved.equals("I")) {
+						val = T_INT;
+					} else if (resolved.equals("J")) {
+						val = T_LONG;
+					} else if (resolved.equals("S")) {
+						val = T_SHORT;
+					} else if (resolved.equals("B")) {
+						val = T_BYTE;
+					} else if (resolved.equals("Z")) {
+						val = T_BOOLEAN;
+					} else if (resolved.equals("F")) {
+						val = T_FLOAT;
+					} else if (resolved.equals("D")) {
+						val = T_DOUBLE;
+					} else if (resolved.equals("C")) {
+						val = T_CHAR;
+					} else {
+						throw new CompileError("Invalid primitive");
+					}
+					m.visitIntInsn(NEWARRAY, val);
 				} else {
-					throw new CompileError("Invalid primitive");
+					m.visitTypeInsn(ANEWARRAY, resolved.getAbsoluteTypeName());
 				}
-				m.visitIntInsn(NEWARRAY, val);
-			} else {
-				m.visitTypeInsn(ANEWARRAY, resolved.getAbsoluteTypeName());
 			}
 
 			resultType = DefinitiveType.assume("[" + resolved.getTypeSignature());
@@ -869,7 +926,6 @@ public class ExpressionCompiler implements GenericCompiler {
 			MethodData method = null;
 
 			String[] split = Strings.splitParameters(pars);
-
 			for (MethodData met : methods) {
 				if (met.getParameters().size() == split.length) {
 					int idx = 0;
@@ -983,8 +1039,8 @@ public class ExpressionCompiler implements GenericCompiler {
 					int idx = 0;
 					boolean success = true;
 					for (String par : split) {
-						String type = Types.getType(par, met.getReturnType().getTypeSignature());
 						ParameterData parData = met.getParameters().get(idx);
+						String type = Types.getType(par, parData.getType().getTypeSignature());
 						DefinitiveType paramType = parData.getType();
 
 						if (type != null) {
@@ -1034,9 +1090,9 @@ public class ExpressionCompiler implements GenericCompiler {
 					this.data.ics();
 			}
 
-			for (String par : split) {
-				String type = Types.getType(par,
-						this.data == null ? "" : this.data.getReturnType().getTypeSignature().toLowerCase());
+			for (int i = 0; i < split.length; i++) {
+				String par = split[i];
+				String type = Types.getType(par, method.getParameters().get(i).getType().getTypeSignature());
 
 				if (type != null) {
 					if (write) {
@@ -1070,9 +1126,16 @@ public class ExpressionCompiler implements GenericCompiler {
 						}
 					}
 				} else {
-					if (containerData.getClassName().equals(data.getClassName()) && resultType == null) {
-						if ((this.data.getModifiers() & ACC_STATIC) == ACC_STATIC) {
+					if (this.data != null && this.data.hasModifier(ACC_STATIC)) {
+						if (containerData.getClassName().equals(data.getClassName()) && resultType == null) {
 							throw new CompileError("Cannot access instance method from a static context");
+						}
+
+						if (!method.hasModifier(ACC_STATIC)) {
+							if (containerData != method.getContext() || resultType == null) {
+								throw new CompileError(
+										"Cannot access instance method " + method.getName() + " from a static context");
+							}
 						}
 					}
 					if (write) {

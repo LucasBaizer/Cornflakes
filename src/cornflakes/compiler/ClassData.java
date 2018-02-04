@@ -127,14 +127,18 @@ public class ClassData {
 			use("java.lang.Integer", "i32");
 			use("java.lang.Double", "f64");
 			use("java.lang.Float", "f32");
+			use("java.lang.Long", "i64");
 			use("java.lang.Byte", "i8");
 			use("java.lang.Short", "i16");
 			use("java.lang.Character", "char");
 			use("java.lang.System");
+			use("java.lang.Thread");
 			use("cornflakes.lang.Tuple");
 			use("cornflakes.lang.FunctionalIterator");
+			use("cornflakes.lang.I32Range");
 			useMacro("println", "System.out.println");
 			useMacro("iter", "FunctionalIterator");
+			useMacro("range", "I32Range");
 		}
 	}
 
@@ -194,7 +198,8 @@ public class ClassData {
 
 		if (prim) {
 			if (Types.isPrimitive(name)) {
-				return DefinitiveType.primitive(Types.getTypeSignature(Types.getClassFromPrimitive(name)));
+				String sig = Types.getTypeSignature(Types.getClassFromPrimitive(name));
+				return arrayType ? DefinitiveType.object("[" + sig) : DefinitiveType.primitive(sig);
 			}
 		}
 
@@ -204,7 +209,7 @@ public class ClassData {
 			return DefinitiveType.object(ClassData.forName(name));
 		} catch (ClassNotFoundException e) {
 			for (Entry<String, String> use : this.use.entrySet()) {
-				if (use.getKey().equals(name) || use.equals(name.replace('.', '/'))
+				if (use.getKey().equals(name) || use.getValue().equals(name.replace('.', '/'))
 						|| use.getValue().endsWith("/" + name)) {
 					return DefinitiveType.assume(
 							arrayType ? "[L" + use.getValue().replace('.', '/') : use.getValue().replace('.', '/'));

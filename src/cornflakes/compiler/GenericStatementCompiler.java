@@ -162,7 +162,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}
-		} else if (body.startsWith("var") || body.startsWith("const")) {
+		} else if (body.startsWith("var ") || body.startsWith("const ")) {
 			type = VAR;
 
 			body = Strings.normalizeSpaces(body);
@@ -378,7 +378,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 			}
 
 			if (ref) {
-				new ExpressionCompiler(true, this.data).compile(data, m, block, body, lines);
+				ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
+				compiler.setAllowImplicitGetters(false);
+				compiler.compile(data, m, block, body, lines);
 			}
 		}
 	}
@@ -425,6 +427,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 	}
 
 	private void storeVariable(FieldData field, String refName, ExpressionCompiler compiler, MethodVisitor m) {
+		if (field.hasModifier(ACC_FINAL)) {
+			throw new CompileError("Cannot assign a value to a const after initialization");
+		}
+
 		if (field instanceof LocalData) {
 			int store = Types.getOpcode(Types.STORE, field.getType().getTypeSignature());
 			m.visitVarInsn(store, ((LocalData) field).getIndex());

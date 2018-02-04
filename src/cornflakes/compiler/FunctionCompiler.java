@@ -303,16 +303,6 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			methodData.setReturnType(DefinitiveType.assume(returnType));
 			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
-			try {
-				if (data.hasMethodBySignature(methodName, methodData.getSignature())) {
-					throw new CompileError("Duplicate function: " + methodName);
-				}
-			} catch (ClassNotFoundException e1) {
-				throw new CompileError(e1);
-			}
-			if (iter) {
-				methodData.setIterator(-3);
-			}
 
 			try {
 				boolean hasAny = data.hasMethodBySignature(methodName, methodData.getSignature());
@@ -327,8 +317,16 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						throw new CompileError("There is no superclass function named " + methodName);
 					}
 				}
+				if (!override && hasAny) {
+					if (data.hasMethodBySignature(methodName, methodData.getSignature())) {
+						throw new CompileError("Duplicate function: " + methodName);
+					}
+				}
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
+			}
+			if (iter) {
+				methodData.setIterator(-3);
 			}
 
 			data.addMethod(methodData);

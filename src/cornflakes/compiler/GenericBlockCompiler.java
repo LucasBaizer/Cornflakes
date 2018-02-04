@@ -168,12 +168,17 @@ public class GenericBlockCompiler implements GenericCompiler {
 				ExpressionCompiler exp = new ExpressionCompiler(false, this.data);
 				exp.compile(data, m, currentBlock, itr, new String[] { itr });
 
+				String x = "Ljava/lang/Object;";
+				if (exp.getResultType().equals("Lcornflakes/lang/I32Range;")) {
+					x = "I";
+				}
+
 				int idx = this.data.getLocalVariables();
-				LocalData objData = new LocalData(var, DefinitiveType.assume("Ljava/lang/Object;"), currentBlock, idx,
-						0);
+				LocalData objData = new LocalData(var, DefinitiveType.assume(x), currentBlock, idx, 0);
 				this.data.addLocal(objData);
-				m.visitLocalVariable(objData.getName(), objData.getType().getAbsoluteTypeSignature(), null, start,
-						currentBlock.getEndLabel(), idx);
+				
+				String y = objData.getType().getAbsoluteTypeSignature();
+				m.visitLocalVariable(objData.getName(), y, null, start, currentBlock.getEndLabel(), idx);
 				this.data.addLocalVariable();
 
 				int itrIdx = 16384 + this.data.getSyntheticVariables();
@@ -227,7 +232,10 @@ public class GenericBlockCompiler implements GenericCompiler {
 				m.visitVarInsn(ALOAD, itrIdx);
 				m.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "next", "()Ljava/lang/Object;", true);
 				this.data.ics();
-				m.visitVarInsn(Types.getOpcode(Types.STORE, "Ljava/lang/Object;"), idx);
+				if (y.equals("I")) {
+					m.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "intValue", "()I", false);
+				}
+				m.visitVarInsn(Types.getOpcode(Types.STORE, y), idx);
 
 				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
 						Strings.accumulate(newBlock));

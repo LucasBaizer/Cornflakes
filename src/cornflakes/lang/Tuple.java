@@ -1,5 +1,8 @@
 package cornflakes.lang;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -17,41 +20,41 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	public static final int BOOL = 7;
 	public static final int CHAR = 8;
 
-	private int length;
-	private Object[] items;
-	private int[] i32Items;
-	private float[] f32Items;
-	private double[] f64Items;
-	private byte[] i8Items;
-	private short[] i16Items;
-	private char[] charItems;
-	private boolean[] boolItems;
-	private long[] i64Items;
-	private int[] typeCount;
-	private int[] types;
+	private transient int length;
+	private transient Object[] items;
+	private transient int[] i32Items;
+	private transient float[] f32Items;
+	private transient double[] f64Items;
+	private transient byte[] i8Items;
+	private transient short[] i16Items;
+	private transient char[] charItems;
+	private transient boolean[] boolItems;
+	private transient long[] i64Items;
+	private transient int[] typeCount;
+	private transient int[] types;
 
-	public Tuple(int length, int[] types) {
+	public Tuple(int length, int[] typeCount) {
 		this.length = length;
-		this.typeCount = types;
+		this.typeCount = typeCount;
 		this.types = new int[length];
 
-		if (types[OBJECT] > 0)
+		if (typeCount[OBJECT] > 0)
 			items = new Object[length];
-		if (types[I32] > 0)
+		if (typeCount[I32] > 0)
 			i32Items = new int[length];
-		if (types[I64] > 0)
+		if (typeCount[I64] > 0)
 			i64Items = new long[length];
-		if (types[F32] > 0)
+		if (typeCount[F32] > 0)
 			f32Items = new float[length];
-		if (types[F64] > 0)
+		if (typeCount[F64] > 0)
 			f64Items = new double[length];
-		if (types[I8] > 0)
+		if (typeCount[I8] > 0)
 			i8Items = new byte[length];
-		if (types[I16] > 0)
+		if (typeCount[I16] > 0)
 			i16Items = new short[length];
-		if (types[CHAR] > 0)
+		if (typeCount[CHAR] > 0)
 			charItems = new char[length];
-		if (types[BOOL] > 0)
+		if (typeCount[BOOL] > 0)
 			boolItems = new boolean[length];
 	}
 
@@ -304,5 +307,59 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 			return false;
 		}
 		return true;
+	}
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.defaultWriteObject();
+
+		out.writeInt(length);
+		out.writeObject(typeCount);
+		out.writeObject(types);
+
+		if (typeCount[OBJECT] > 0)
+			out.writeObject(items);
+		if (typeCount[I32] > 0)
+			out.writeObject(i32Items);
+		if (typeCount[I64] > 0)
+			out.writeObject(i64Items);
+		if (typeCount[F32] > 0)
+			out.writeObject(f32Items);
+		if (typeCount[F64] > 0)
+			out.writeObject(f64Items);
+		if (typeCount[I8] > 0)
+			out.writeObject(i8Items);
+		if (typeCount[I16] > 0)
+			out.writeObject(i16Items);
+		if (typeCount[CHAR] > 0)
+			out.writeObject(charItems);
+		if (typeCount[BOOL] > 0)
+			out.writeObject(boolItems);
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		length = in.readInt();
+		typeCount = (int[]) in.readObject();
+		types = (int[]) in.readObject();
+
+		if (typeCount[OBJECT] > 0)
+			items = (Object[]) in.readObject();
+		if (typeCount[I32] > 0)
+			i32Items = (int[]) in.readObject();
+		if (typeCount[I64] > 0)
+			i64Items = (long[]) in.readObject();
+		if (typeCount[F32] > 0)
+			f32Items = (float[]) in.readObject();
+		if (typeCount[F64] > 0)
+			f64Items = (double[]) in.readObject();
+		if (typeCount[I8] > 0)
+			i8Items = (byte[]) in.readObject();
+		if (typeCount[I16] > 0)
+			i16Items = (short[]) in.readObject();
+		if (typeCount[CHAR] > 0)
+			charItems = (char[]) in.readObject();
+		if (typeCount[BOOL] > 0)
+			boolItems = (boolean[]) in.readObject();
 	}
 }

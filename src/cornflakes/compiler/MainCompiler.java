@@ -13,6 +13,8 @@ public class MainCompiler implements Opcodes {
 	public static void main(String[] args) throws Exception {
 		long time = System.currentTimeMillis();
 
+		args = new String[] { "src" };
+
 		List<ClassData> list = new ArrayList<>();
 		for (File file : new File(args[0]).listFiles()) {
 			if (file.isFile()) {

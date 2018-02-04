@@ -36,33 +36,34 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	@Override
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		String[] split = null;
-		if (Strings.contains(body, "==")) {
+
+		if (Strings.contains(body, "and")) {
+			split = Strings.split(body, "and");
+			ifType = AND;
+		} else if (Strings.contains(body, "or")) {
+			split = Strings.split(body, "or");
+			ifType = OR;
+		} else if (Strings.contains(body, "==")) {
 			split = Strings.split(body, "==");
 			ifType = EQUAL;
 		} else if (Strings.contains(body, "!=")) {
 			split = Strings.split(body, "!=");
 			ifType = NOT_EQUAL;
-		} else if (Strings.contains(body, ">")) {
-			split = Strings.split(body, ">");
-			ifType = GREATER_THAN;
-		} else if (Strings.contains(body, "<")) {
-			split = Strings.split(body, "<");
-			ifType = LESS_THAN;
 		} else if (Strings.contains(body, ">=")) {
 			split = Strings.split(body, ">=");
 			ifType = GREATER_THAN_OR_EQUAL;
 		} else if (Strings.contains(body, "<=")) {
 			split = Strings.split(body, "<=");
 			ifType = LESS_THAN_OR_EQUAL;
+		} else if (Strings.contains(body, ">")) {
+			split = Strings.split(body, ">");
+			ifType = GREATER_THAN;
+		} else if (Strings.contains(body, "<")) {
+			split = Strings.split(body, "<");
+			ifType = LESS_THAN;
 		} else if (Strings.contains(body, "is")) {
 			split = Strings.split(body, "is");
 			ifType = IS;
-		} else if (Strings.contains(body, "and")) {
-			split = Strings.split(body, "and");
-			ifType = AND;
-		} else if (Strings.contains(body, "or")) {
-			split = Strings.split(body, "or");
-			ifType = OR;
 		}
 
 		String left = null;
