@@ -45,6 +45,8 @@ public class ClassData {
 	public static ClassData forName(String name) throws ClassNotFoundException {
 		if (Types.isTupleDefinition(name)) {
 			return new TupleClassData(name);
+		} else if (Types.isPointer(name)) {
+			return PointerClassData.from(name);
 		} else {
 			name = Strings.transformClassName(Types.unpadSignature(name));
 
@@ -135,10 +137,12 @@ public class ClassData {
 			use("java.lang.Thread");
 			use("cornflakes.lang.Tuple");
 			use("cornflakes.lang.FunctionalIterator");
+			use("cornflakes.lang.Range");
 			use("cornflakes.lang.I32Range");
+			use("cornflakes.lang.F32Range");
 			useMacro("println", "System.out.println");
 			useMacro("iter", "FunctionalIterator");
-			useMacro("range", "I32Range");
+			useMacro("range", "Range.from");
 		}
 	}
 
@@ -220,7 +224,11 @@ public class ClassData {
 	}
 
 	public boolean isTuple() {
-		return className.equals("cornflakes/lang/Tuple");
+		return this instanceof TupleClassData;
+	}
+
+	public boolean isPointer() {
+		return this instanceof PointerClassData;
 	}
 
 	public String getClassName() {

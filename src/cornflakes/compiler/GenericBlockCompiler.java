@@ -171,12 +171,14 @@ public class GenericBlockCompiler implements GenericCompiler {
 				String x = "Ljava/lang/Object;";
 				if (exp.getResultType().equals("Lcornflakes/lang/I32Range;")) {
 					x = "I";
+				} else if (exp.getResultType().equals("Lcornflakes/lang/F32Range;")) {
+					x = "F";
 				}
 
 				int idx = this.data.getLocalVariables();
 				LocalData objData = new LocalData(var, DefinitiveType.assume(x), currentBlock, idx, 0);
 				this.data.addLocal(objData);
-				
+
 				String y = objData.getType().getAbsoluteTypeSignature();
 				m.visitLocalVariable(objData.getName(), y, null, start, currentBlock.getEndLabel(), idx);
 				this.data.addLocalVariable();

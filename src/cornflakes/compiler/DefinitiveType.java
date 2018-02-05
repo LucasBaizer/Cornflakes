@@ -86,6 +86,10 @@ public class DefinitiveType {
 	public boolean isTuple() {
 		return isObject() && !isNull() && this.data instanceof TupleClassData;
 	}
+	
+	public boolean isPointer() {
+		return isObject() && !isNull() && this.data instanceof PointerClassData;
+	}
 
 	public ClassData getObjectType() {
 		if (!init) {

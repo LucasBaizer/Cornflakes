@@ -2,7 +2,7 @@ package cornflakes.lang;
 
 import java.util.Iterator;
 
-public class I32Range implements Iterable<Integer> {
+public class I32Range extends Range implements Iterable<Integer> {
 	private int min;
 	private int max;
 	private int increment;

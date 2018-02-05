@@ -204,7 +204,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 				if (push == LDC) {
 					m.visitLdcInsn(value);
 					this.data.ics();
-				} else if (value != null) {
+				} else {
 					String toString = value.toString();
 					if (toString.equals("true") || toString.equals("false")) {
 						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
@@ -214,6 +214,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 				}
 
+				if (variableType.isPointer()) {
+					m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
+							"(" + valueType.getAbsoluteTypeSignature() + ")Lcornflakes/lang/Pointer;", false);
+				}
 				m.visitVarInsn(store, idx);
 			} else {
 				if (valueType == null || valueType.isNull()) {
@@ -231,6 +235,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 
 					this.data.ics();
+				}
+				if (variableType.isPointer()) {
+					m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
+							"(" + valueType.getAbsoluteTypeSignature() + ")Lcornflakes/lang/Pointer;", false);
 				}
 				m.visitVarInsn(Types.getOpcode(Types.STORE, variableType.getTypeSignature()), idx);
 			}
@@ -333,7 +341,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 					}
 
-					pushValue(value, field, compiler, refName, m, block, data, true);
+					pushValue(value, field, compiler, refName, m, block, data, true, true);
 
 					try {
 						if (typeClass.isSetIndexedClass()) {
@@ -371,8 +379,24 @@ public class GenericStatementCompiler implements GenericCompiler {
 					if (field != null) {
 						ref = false;
 
-						pushValue(value, field, compiler, refName, m, block, data, false);
-						storeVariable(field, refName, compiler, m);
+						if (field.getType().isPointer()) {
+							if (field instanceof LocalData) {
+								m.visitVarInsn(ALOAD, ((LocalData) field).getIndex());
+							} else if (field instanceof FieldData) {
+								m.visitFieldInsn(field.hasModifier(ACC_STATIC) ? GETSTATIC : GETFIELD,
+										field.getContext().getClassName(), refName,
+										field.getType().getAbsoluteTypeSignature());
+							}
+
+							pushValue(value, field, compiler, refName, m, block, data, false, false);
+							m.visitMethodInsn(INVOKEVIRTUAL, field.getType().getAbsoluteTypeName(), "setValue",
+									"(" + ((PointerClassData) field.getType().getObjectType()).getValueType()
+											.getAbsoluteTypeSignature() + ")V",
+									false);
+						} else {
+							pushValue(value, field, compiler, refName, m, block, data, false, true);
+							storeVariable(field, refName, compiler, m);
+						}
 					}
 				}
 			}
@@ -386,10 +410,11 @@ public class GenericStatementCompiler implements GenericCompiler {
 	}
 
 	private void pushValue(String value, FieldData field, ExpressionCompiler compiler, String refName, MethodVisitor m,
-			Block block, ClassData data, boolean array) {
+			Block block, ClassData data, boolean array, boolean check) {
 		String valueType = Types.getType(value, field.getType().getTypeSignature());
 		if (valueType != null) {
-			if (!array && !Types.isSuitable(field.getType().getTypeSignature(), Types.getTypeSignature(valueType))) {
+			if (check && !array
+					&& !Types.isSuitable(field.getType().getTypeSignature(), Types.getTypeSignature(valueType))) {
 				throw new CompileError(Types.beautify(valueType) + " is not assignable to "
 						+ Types.beautify(field.getType().getTypeSignature()));
 			}
@@ -419,7 +444,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
 			compiler1.compile(data, m, block, value, new String[] { value });
 
-			if (!array && !Types.isSuitable(field.getType(), compiler1.getResultType())) {
+			if (check && !array && !Types.isSuitable(field.getType(), compiler1.getResultType())) {
 				throw new CompileError(Types.beautify(compiler1.getResultType().getTypeName())
 						+ " is not assignable to " + Types.beautify(field.getType().getTypeName()));
 			}

@@ -521,23 +521,30 @@ public class ExpressionCompiler implements GenericCompiler {
 						next = true;
 					} else {
 						boolean arr = part.contains("[");
-						String varPart = part.substring(0, !arr ? part.length() : part.indexOf('['));
+						boolean ptr = false;
+						String varPart = part.substring(0, !arr ? part.length() : part.indexOf('[')).trim();
 						String arrayIndex = null;
 						if (arr) {
 							arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
 						}
+
+						if (varPart.startsWith("*")) {
+							varPart = varPart.substring(1).trim();
+							ptr = true;
+						}
+
 						if (!thisType && this.data != null && this.data.hasLocal(varPart, block)) {
 							compileVariableReference(last, 1, containerData, data, m, block, varPart, arrayIndex,
-									end == body.length());
+									end == body.length(), ptr);
 							next = true;
 						} else {
 							if (data.hasField(varPart)) {
 								compileVariableReference(last, 0, data, data, m, block, varPart, arrayIndex,
-										end == body.length());
+										end == body.length(), ptr);
 								next = true;
 							} else if (!thisType && containerData.hasField(varPart)) {
 								compileVariableReference(last, 0, containerData, data, m, block, varPart, arrayIndex,
-										end == body.length());
+										end == body.length(), ptr);
 								next = true;
 							} else {
 								boolean math = true;
@@ -655,7 +662,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	}
 
 	private void compileVariableReference(ExpressionCompiler last, int source, ClassData containerData, ClassData data,
-			MethodVisitor m, Block block, String body, String arrayIndex, boolean isLast) {
+			MethodVisitor m, Block block, String body, String arrayIndex, boolean isLast, boolean isDeref) {
 		FieldData field = null;
 		if (source == 0) {
 			field = containerData.getField(body);
@@ -715,6 +722,21 @@ public class ExpressionCompiler implements GenericCompiler {
 		}
 
 		DefinitiveType type = field.getType();
+
+		if (isDeref) {
+			if (!type.isPointer()) {
+				throw new CompileError("Cannot dereference a type which is not a pseudopointer");
+			}
+
+			PointerClassData ptrClass = (PointerClassData) type.getObjectType();
+			if (this.write && this.data != null) {
+				m.visitMethodInsn(INVOKEVIRTUAL, type.getAbsoluteTypeName(), "getValue",
+						"()" + ptrClass.getValueType().getAbsoluteTypeSignature(), false);
+			}
+
+			type = ptrClass.getValueType();
+		}
+
 		ClassData typeClass = type.getObjectType();
 		MethodData indexer = typeClass != null && typeClass.isGetIndexedClass() ? typeClass.getMethods("_get_index_")[0]
 				: null;
@@ -1033,6 +1055,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			MethodData[] methods = superCall ? ClassData.forName(containerData.getParentName()).getConstructors()
 					: containerData.getAllMethods(before);
 			MethodData method = null;
+			List<MethodData> possibleMethods = new ArrayList<>();
 
 			for (MethodData met : methods) {
 				if (met.getParameters().size() == split.length) {
@@ -1061,14 +1084,75 @@ public class ExpressionCompiler implements GenericCompiler {
 					}
 
 					if (success) {
-						method = met;
-						break;
+						if (!possibleMethods.contains(met)) {
+							possibleMethods.add(met);
+						}
 					}
 				}
 			}
 
-			if (method == null) {
+			if (possibleMethods.size() == 0) {
 				throw new CompileError("No overload for method " + before + " takes the given parameters");
+			}
+
+			if (possibleMethods.size() == 1) {
+				method = possibleMethods.get(0);
+			} else {
+				int best = 0;
+				MethodData bestMethod = null;
+				for (MethodData m1 : possibleMethods) {
+					for (MethodData m2 : possibleMethods) {
+						int pts1 = 0;
+						int pts2 = 0;
+						if (!m1.equals(m2)) {
+							for (int i = 0; i < m1.getParameters().size(); i++) {
+								ParameterData par1 = m1.getParameters().get(i);
+								ParameterData par2 = m2.getParameters().get(i);
+
+								for (String par : split) {
+									String type = Types.getType(par, null);
+
+									if (type != null) {
+										type = Types.getTypeSignature(type);
+										if (par1.getType().getTypeSignature().equals(type)
+												&& !par2.getType().getTypeSignature().equals(type)) {
+											pts1++;
+										} else if (!par1.getType().getTypeSignature().equals(type)
+												&& par2.getType().getTypeSignature().equals(type)) {
+											pts2++;
+										}
+									} else {
+										ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
+										compiler.compile(this, data, data, m, block, par, new String[] { par });
+										type = compiler.getResultType().getTypeSignature();
+
+										if (par1.getType().getTypeSignature().equals(type)
+												&& !par2.getType().getTypeSignature().equals(type)) {
+											pts1++;
+										} else if (!par1.getType().getTypeSignature().equals(type)
+												&& par2.getType().getTypeSignature().equals(type)) {
+											pts2++;
+										}
+									}
+								}
+							}
+						}
+
+						if (pts1 > pts2 && pts1 > best) {
+							bestMethod = m1;
+							best = pts1;
+						} else if (pts2 > pts1 && pts2 > best) {
+							bestMethod = m2;
+							best = pts2;
+						} else {
+							if (bestMethod == null) {
+								bestMethod = m1;
+							}
+						}
+					}
+				}
+
+				method = bestMethod;
 			}
 
 			if (!method.isAccessible(data)) {
@@ -1132,7 +1216,7 @@ public class ExpressionCompiler implements GenericCompiler {
 						}
 
 						if (!method.hasModifier(ACC_STATIC)) {
-							if (containerData != method.getContext() || resultType == null) {
+							if (containerData != method.getContext() && resultType == null) {
 								throw new CompileError(
 										"Cannot access instance method " + method.getName() + " from a static context");
 							}

@@ -142,6 +142,26 @@ public class Types implements Opcodes {
 				&& Strings.countOccurrences(def, ")") == 1;
 	}
 
+	public static boolean isPointer(String def) {
+		if (def.endsWith("*"))
+			return true;
+
+		switch (def) {
+			case "cornflakes/lang/I8Pointer":
+			case "cornflakes/lang/I16Pointer":
+			case "cornflakes/lang/I32Pointer":
+			case "cornflakes/lang/I64Pointer":
+			case "cornflakes/lang/F32Pointer":
+			case "cornflakes/lang/F64Pointer":
+			case "cornflakes/lang/BoolPointer":
+			case "cornflakes/lang/CharPointer":
+			case "cornflakes/lang/ObjectPointer":
+				return true;
+		}
+
+		return false;
+	}
+
 	public static int getOpcode(int op, String type) {
 		if (type == null) {
 			if (op == STORE) {
@@ -336,6 +356,8 @@ public class Types implements Opcodes {
 			case "C":
 			case "char":
 				return "java/lang/Character";
+			case "i32*":
+				return "cornflakes/lang/I32Pointer";
 			default:
 				throw new CompileError("Unknown type: " + type);
 		}

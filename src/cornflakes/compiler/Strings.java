@@ -16,7 +16,7 @@ public class Strings {
 	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
 	public static final char[] VARIABLE_NAME = combineExceptions(NUMBERS, new char[] { '_' });
 	public static final char[] SLASH = new char[] { '/' };
-	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE, new char[] { '(', ')', ',', '/', '[', ']' });
+	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE, new char[] { '(', ')', ',', '/', '[', ']', '*' });
 
 	public static boolean contains(String x, String value) {
 		return Pattern.compile(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)").matcher(x).find();

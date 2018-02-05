@@ -126,7 +126,7 @@ public class CompileUtils {
 					variableType = Types.getTypeSignature(variableType);
 				}
 			}
-			
+
 			String[] set = body.split("=", 2);
 			if (set.length > 1) {
 				String givenValue = set[1].trim();
@@ -140,7 +140,7 @@ public class CompileUtils {
 					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
 					valueType = compiler.getResultType().getTypeSignature();
 				}
-				
+
 				boolean math = false;
 				ExpressionCompiler compiler = null;
 
@@ -154,9 +154,11 @@ public class CompileUtils {
 				}
 
 				if (valueType != null) {
-					if (!Types.isSuitable(variableType, valueType)) {
-						throw new CompileError(
-								Types.beautify(valueType) + " is not assignable to " + Types.beautify(variableType));
+					if (!Types.isPointer(Types.unpadSignature(variableType))) {
+						if (!Types.isSuitable(variableType, valueType)) {
+							throw new CompileError(Types.beautify(valueType) + " is not assignable to "
+									+ Types.beautify(variableType));
+						}
 					}
 				}
 
@@ -165,7 +167,7 @@ public class CompileUtils {
 						&& rawType != null) {
 					value = Types.parseLiteral(valueType, givenValue);
 				}
-				
+
 				if (isMember && value == null) {
 					value = givenValue;
 				}

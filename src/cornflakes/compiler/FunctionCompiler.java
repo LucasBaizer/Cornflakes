@@ -244,7 +244,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 								: data.resolveClass(type).getTypeSignature();
 						parameters.add(new ParameterData(this.methodData, name,
-								DefinitiveType.assume(Types.padSignature(resolvedType)), 0));
+								DefinitiveType.assume(Types.padSignature(resolvedType)), ACC_FINAL));
 					}
 				} else {
 					throw new CompileError("Indexer functions have 1 parameter");
@@ -281,12 +281,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						}
 
 						if (Types.isTupleDefinition(type)) {
-							parameters.add(new ParameterData(this.methodData, name, DefinitiveType.assume(type), 0));
+							parameters.add(
+									new ParameterData(this.methodData, name, DefinitiveType.assume(type), ACC_FINAL));
 						} else {
 							String resolvedType = Types.isPrimitive(type) ? Types.getTypeSignature(type)
 									: data.resolveClass(type).getTypeSignature();
-							parameters.add(
-									new ParameterData(this.methodData, name, DefinitiveType.assume(resolvedType), 0));
+							parameters.add(new ParameterData(this.methodData, name, DefinitiveType.assume(resolvedType),
+									ACC_FINAL));
 						}
 					}
 				}
