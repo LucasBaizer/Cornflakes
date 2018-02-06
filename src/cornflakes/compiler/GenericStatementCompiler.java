@@ -214,10 +214,6 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 				}
 
-				if (variableType.isPointer()) {
-					m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
-							"(" + valueType.getAbsoluteTypeSignature() + ")Lcornflakes/lang/Pointer;", false);
-				}
 				m.visitVarInsn(store, idx);
 			} else {
 				if (valueType == null || valueType.isNull()) {
@@ -236,10 +232,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 					this.data.ics();
 				}
-				if (variableType.isPointer()) {
-					m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
-							"(" + valueType.getAbsoluteTypeSignature() + ")Lcornflakes/lang/Pointer;", false);
-				}
+				
 				m.visitVarInsn(Types.getOpcode(Types.STORE, variableType.getTypeSignature()), idx);
 			}
 

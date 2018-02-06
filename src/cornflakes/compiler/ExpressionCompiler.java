@@ -92,37 +92,59 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 		}
 		String part = body.substring(0, end).trim();
+		boolean isPtrRef = false;
+		if (part.startsWith("&")) {
+			part = part.substring(1).trim();
+			isPtrRef = true;
+		}
 
 		boolean next = false;
-
 		String pType = Types.getType(part, null);
 		if (pType != null) {
 			String finalType = Types.getTypeSignature(pType);
 			Object literal = Types.parseLiteral(pType, part);
 
 			if (pType.equals("string")) {
-				if (write)
+				if (write) {
 					m.visitLdcInsn(literal);
+				}
+				
+				resultType = DefinitiveType.object("Ljava/lang/String;");
+				resultOwner = resultType.getObjectType();
 			} else {
 				String wrapper = Types.getWrapperType(pType);
 				finalType = Types.padSignature(wrapper);
 
-				if (write) {
-					if (pType.equals("bool")) {
-						m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
-					} else {
+				if (isPtrRef && end == body.length()) {
+					if (write) {
+						if (pType.equals("bool")) {
+							m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+						} else {
+							m.visitLdcInsn(literal);
+						}
+					}
+
+					resultType = DefinitiveType.primitive(pType);
+					resultOwner = null;
+				} else {
+					if (write) {
 						m.visitTypeInsn(NEW, wrapper);
 						m.visitInsn(DUP);
-						m.visitLdcInsn(literal);
+						if (pType.equals("bool")) {
+							m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+						} else {
+							m.visitLdcInsn(literal);
+						}
 						m.visitMethodInsn(INVOKESPECIAL, wrapper, "<init>", "(" + Types.getTypeSignature(pType) + ")V",
 								false);
 					}
+
+					resultType = DefinitiveType.assume(finalType);
+					resultOwner = resultType.getObjectType();
 				}
 			}
 
 			resultName = part;
-			resultType = DefinitiveType.assume(finalType);
-			resultOwner = resultType.getObjectType();
 			expressionType = LITERAL;
 			next = true;
 		} else if (part.equals("this")) {
@@ -607,6 +629,21 @@ public class ExpressionCompiler implements GenericCompiler {
 		}
 
 		if (next) {
+			if (isPtrRef) {
+				String oldTypeName = resultType.getTypeName();
+				if (Types.isPrimitive(oldTypeName)) {
+					oldTypeName = Types.primitiveToCornflakes(oldTypeName);
+				}
+				resultType = DefinitiveType.object(ClassData.forName(oldTypeName + "*"));
+
+				if (this.write) {
+					String type = Types.isPrimitive(oldTypeName) ? Types.getTypeSignature(oldTypeName)
+							: "Ljava/lang/Object;";
+					m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
+							"(" + type + ")Lcornflakes/lang/Pointer;", false);
+				}
+			}
+
 			if (end != body.length()) {
 				String newBody = body.substring(end + 1, body.length()).trim();
 

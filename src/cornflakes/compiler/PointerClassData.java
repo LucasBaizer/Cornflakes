@@ -51,7 +51,7 @@ public abstract class PointerClassData extends ClassData {
 			if (this.getClass() == test.getClass()) {
 				return true;
 			}
-			return Types.isSuitable(type, ptr.type);
+			return Types.isSuitable(getValueType(), ptr.getValueType());
 		}
 		return false;
 	}

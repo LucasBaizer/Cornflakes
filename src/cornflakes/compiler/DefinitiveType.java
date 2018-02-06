@@ -39,6 +39,7 @@ public class DefinitiveType {
 	public static DefinitiveType object(ClassData name) {
 		DefinitiveType type = new DefinitiveType();
 		type.data = name;
+		type.type = name.getClassName();
 		return type;
 	}
 

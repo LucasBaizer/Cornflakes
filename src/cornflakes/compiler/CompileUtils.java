@@ -154,11 +154,9 @@ public class CompileUtils {
 				}
 
 				if (valueType != null) {
-					if (!Types.isPointer(Types.unpadSignature(variableType))) {
-						if (!Types.isSuitable(variableType, valueType)) {
-							throw new CompileError(Types.beautify(valueType) + " is not assignable to "
-									+ Types.beautify(variableType));
-						}
+					if (!Types.isSuitable(variableType, valueType)) {
+						throw new CompileError(
+								Types.beautify(valueType) + " is not assignable to " + Types.beautify(variableType));
 					}
 				}
 
