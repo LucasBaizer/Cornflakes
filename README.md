@@ -35,7 +35,7 @@ Documentation for the Cornflakes standard library can be found on the JavaDoc lo
 
 # Contributing
 If you're reading this and are interested in contributing to the project, I would love to check out (pun intended) your PR's.
-The Cornflakes tokenizer is quite limiting due to its simplicity (see [this class](src/cornflakes/compiler/GenericBlockCompiler)).
+The Cornflakes tokenizer is quite limiting due to its simplicity (see [this class](src/cornflakes/compiler/GenericBlockCompiler.java)).
 It currently does not support some nice features (and necessities), such as parentheses in mathematical and boolean expressions.
 It also prevents the declaration of lambdas and anonymous classes, both useful additions. Creating the parsing methodology for this
 without rewriting much else would be ideal. I will get around to this once most language features are added, though.
