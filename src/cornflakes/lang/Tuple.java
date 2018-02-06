@@ -7,6 +7,11 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 
+/**
+ * The wrapper class for any Cornflakes tuple.
+ * 
+ * @author Lucas Baizer
+ */
 public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	private static final long serialVersionUID = 3065105932170095516L;
 
@@ -33,6 +38,14 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 	private transient int[] typeCount;
 	private transient int[] types;
 
+	/**
+	 * Creates a new tuple with a given length and typecount.
+	 * 
+	 * @param length
+	 *            The length
+	 * @param typeCount
+	 *            The typecount
+	 */
 	public Tuple(int length, int[] typeCount) {
 		this.length = length;
 		this.typeCount = typeCount;
@@ -58,91 +71,232 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 			boolItems = new boolean[length];
 	}
 
+	/**
+	 * Sets an Object item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The Object
+	 */
 	public void item(int index, Object item) {
 		items[index] = item;
 		types[index] = OBJECT;
 	}
 
+	/**
+	 * Sets an int item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The int
+	 */
 	public void item(int index, int item) {
 		i32Items[index] = item;
 		types[index] = I32;
 	}
 
+	/**
+	 * Sets a float item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The float
+	 */
 	public void item(int index, float item) {
 		f32Items[index] = item;
 		types[index] = F32;
 	}
 
+	/**
+	 * Sets a double item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The double
+	 */
 	public void item(int index, double item) {
 		f64Items[index] = item;
 		types[index] = F64;
 	}
 
+	/**
+	 * Sets a byte item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The byte
+	 */
 	public void item(int index, byte item) {
 		i8Items[index] = item;
 		types[index] = I8;
 	}
 
+	/**
+	 * Sets a short item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The short
+	 */
 	public void item(int index, short item) {
 		i16Items[index] = item;
 		types[index] = I16;
 	}
 
+	/**
+	 * Sets a char item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The char
+	 */
 	public void item(int index, char item) {
 		charItems[index] = item;
 		types[index] = CHAR;
 	}
 
+	/**
+	 * Sets a long item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The long
+	 */
 	public void item(int index, long item) {
 		i64Items[index] = item;
 		types[index] = I64;
 	}
 
+	/**
+	 * Sets a boolean item at an index
+	 * 
+	 * @param index
+	 *            The index
+	 * @param item
+	 *            The boolean
+	 */
 	public void item(int index, boolean item) {
 		boolItems[index] = item;
 		types[index] = BOOL;
 	}
 
+	/**
+	 * @return the amount of items in the tuple
+	 */
 	public int getLength() {
 		return length;
 	}
 
+	/**
+	 * Returns an Object at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The Object
+	 */
 	public Object item(int index) {
 		return items[index];
 	}
 
+	/**
+	 * Returns an int at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The int
+	 */
 	public int i32Item(int index) {
 		return i32Items[index];
 	}
 
+	/**
+	 * Returns a float at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The float
+	 */
 	public float f32Item(int index) {
 		return f32Items[index];
 	}
 
+	/**
+	 * Returns a double at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The double
+	 */
 	public double f64Item(int index) {
 		return f64Items[index];
 	}
 
+	/**
+	 * Returns a short at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The short
+	 */
 	public short i16Item(int index) {
 		return i16Items[index];
 	}
 
+	/**
+	 * Returns a byte at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The byte
+	 */
 	public byte i8Item(int index) {
 		return i8Items[index];
 	}
 
+	/**
+	 * Returns a long at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The long
+	 */
 	public long i64Item(int index) {
 		return i64Items[index];
 	}
 
+	/**
+	 * Returns a boolean at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The boolean
+	 */
 	public boolean boolItem(int index) {
 		return boolItems[index];
 	}
 
+	/**
+	 * Returns a char at a given index
+	 * 
+	 * @param index
+	 *            The index
+	 * @return The char
+	 */
 	public char charItem(int index) {
 		return charItems[index];
 	}
 
+	/**
+	 * @return A clone of the current tuple
+	 */
 	@Override
 	public Tuple clone() {
 		Tuple x = new Tuple(length, Arrays.copyOf(typeCount, length));
@@ -159,6 +313,10 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 		return x;
 	}
 
+	/**
+	 * @return A string representation of the values in the tuple, surrounded by
+	 *         parentheses and separated by commas
+	 */
 	@Override
 	public String toString() {
 		String str = "(";
@@ -201,6 +359,9 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 		return str + ")";
 	}
 
+	/**
+	 * @return An array representing, in order, all the values in the tuple
+	 */
 	public Object[] toArray() {
 		Object[] array = new Object[length];
 		for (int i = 0; i < length; i++) {
@@ -238,6 +399,11 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 		return array;
 	}
 
+	/**
+	 * @return a {@link cornflakes.lang.FunctionalIterator FunctionalIterator}
+	 *         which has the initial value of this tuple
+	 *         {@link cornflakes.lang.Tuple#toArray() as an array}.
+	 */
 	@Override
 	public Iterator<Object> iterator() {
 		return new FunctionalIterator<>(this.toArray());
@@ -261,6 +427,15 @@ public final class Tuple implements Serializable, Iterable<Object>, Cloneable {
 		return result;
 	}
 
+	/**
+	 * Gets if two tuples are equal.
+	 * 
+	 * @return <code>true</code> if the given object is a tuple, if the
+	 *         {@link cornflakes.lang.Tuple#getLength() length} of this tuple is
+	 *         equal to the length of the other tuple, and if all the values in
+	 *         this tuple are equal to the values in other tuple, otherwise
+	 *         <code>false</code>
+	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
