@@ -31,7 +31,7 @@ On top of this, it has several more features. These features include, but are no
 
 # Documentation
 Documentation for Cornflakes syntax can be found on the repository's [wiki page](https://github.com/LucasBaizer/Cornflakes/wiki).
-Documentation for the Cornflakes standard library can be found on the JavaDoc located at the [github.io page](https://lucasbaizer.github.io/Cornflakes/)
+Documentation for the Cornflakes standard library can be found on the JavaDoc located at the [github.io page](https://lucasbaizer.github.io/Cornflakes/).
 
 # Contributing
 If you're reading this and are interested in contributing to the project, I would love to check out (pun intended) your PR's.
