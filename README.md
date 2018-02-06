@@ -4,7 +4,7 @@ A powerful yet simple JVM language with a compiler written in Java.
 # Why is it called Cornflakes?
 While I was writing the basics for the compiler, I took a moment to think about what I should name the language.
 I had this song stuck in my head, written by comedian and rapper [Michael Dapaah, or Big Shaq](https://en.wikipedia.org/wiki/Michael_Dapaah),
-entitled _Man's Not Hot_.  I had this one line stuck in my head especially,
+entitled [_Man's Not Hot_](https://en.wikipedia.org/wiki/Man%27s_Not_Hot).  I had this one line stuck in my head especially,
 
 > Movin' that cornflakes, Rice Krispies
 
