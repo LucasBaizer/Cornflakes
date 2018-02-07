@@ -7,13 +7,13 @@ public class ConstructorBlock extends Block {
 		super(start, slabel, elabel);
 	}
 
-	private boolean calledSuper;
+	private boolean calledConstructor;
 
-	public boolean hasCalledSuper() {
-		return calledSuper;
+	public boolean hasCalledConstructor() {
+		return calledConstructor;
 	}
 
-	public void setCalledSuper(boolean calledSuper) {
-		this.calledSuper = calledSuper;
+	public void setCalledConstructor(boolean calledConstructor) {
+		this.calledConstructor = calledConstructor;
 	}
 }

@@ -61,7 +61,7 @@ public class FunctionalIterator<T> implements Iterator<T> {
 	/**
 	 * Creates a new iterator given a <code>Collection</code> object.
 	 * 
-	 * @param itr
+	 * @param col
 	 *            The object of which to copy to elements of
 	 */
 	public FunctionalIterator(Collection<T> col) {

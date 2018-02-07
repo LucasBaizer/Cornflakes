@@ -151,7 +151,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
 			gbc.compile(data, m, block, innerBody, inner2);
 
-			if (!block.hasCalledSuper()) {
+			if (!block.hasCalledConstructor()) {
 				throw new CompileError("Super must be called exactly one time before the constructor ends");
 			}
 

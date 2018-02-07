@@ -1,24 +1,19 @@
 package cornflakes.compiler;
 
+import static cornflakes.compiler.Operator.*;
+
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class BooleanExpressionCompiler implements GenericCompiler {
-	private static final int EQUAL = 0;
-	private static final int NOT_EQUAL = 1;
-	private static final int GREATER_THAN = 2;
-	private static final int LESS_THAN = 3;
-	private static final int GREATER_THAN_OR_EQUAL = 4;
-	private static final int LESS_THAN_OR_EQUAL = 5;
-	private static final int IS = 6;
-	private static final int AND = 7;
-	private static final int OR = 8;
+	private static final int IS = 15;
 
 	private int ifType = -1;
 	private MethodData data;
 	private Label end;
 	private boolean write;
 	private boolean valid = true;
+	private boolean requireBranch = true;
 
 	public BooleanExpressionCompiler(MethodData data, Label end, boolean val) {
 		this.data = data;
@@ -37,11 +32,11 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
 		String[] split = null;
 
-		if (Strings.contains(body, "and")) {
-			split = Strings.split(body, "and");
+		if (Strings.contains(body, "&&")) {
+			split = Strings.split(body, "&&");
 			ifType = AND;
-		} else if (Strings.contains(body, "or")) {
-			split = Strings.split(body, "or");
+		} else if (Strings.contains(body, "||")) {
+			split = Strings.split(body, "||");
 			ifType = OR;
 		} else if (Strings.contains(body, "==")) {
 			split = Strings.split(body, "==");
@@ -102,13 +97,13 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			left = split[0].trim();
 			right = split[1].trim();
 
-			String leftType = pushToStack(left, data, m, block);
-			String rightType = null;
+			DefinitiveType leftType = pushToStack(left, data, m, block);
+			DefinitiveType rightType = null;
 			if (ifType != IS) {
 				rightType = pushToStack(right, data, m, block);
 			}
 
-			if (Types.isNumeric(leftType) && Types.isNumeric(rightType)) {
+			if (leftType.isPrimitive() && rightType.isPrimitive()) {
 				int op = 0;
 				int stack = this.data.getCurrentStack();
 				if (ifType == EQUAL) {
@@ -148,6 +143,39 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
 				}
 
+				if (!aleft) {
+					if (leftType.equals("java/lang/String") && rightType.equals("java/lang/String")) {
+						if (write) {
+							m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "equal",
+									"(Ljava/lang/String;Ljava/lang/String;)Z", false);
+						}
+						requireBranch = false;
+						return;
+					} else {
+						try {
+							ClassData type = leftType.getObjectType();
+
+							if (type.hasOperatorOverload(this.ifType)) {
+								MethodData[] overloads = type.getOperatorOverloads(this.ifType);
+								for (MethodData overload : overloads) {
+									if (!Types.isSuitable(overload.getParameters().get(1).getType(), rightType)) {
+										continue;
+									}
+
+									if (write) {
+										m.visitMethodInsn(INVOKESTATIC, type.getClassName(), overload.getName(),
+												overload.getSignature(), false);
+									}
+									requireBranch = false;
+									return;
+								}
+							}
+						} catch (ClassNotFoundException e) {
+							invalid(new CompileError(e));
+						}
+					}
+				}
+
 				int op = 0;
 				if (ifType == EQUAL) {
 					op = IF_ACMPNE;
@@ -159,8 +187,8 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				if (ifType == IS) {
 					if (write) {
 						m.visitTypeInsn(INSTANCEOF, data.resolveClass(right).getAbsoluteTypeName());
-						m.visitJumpInsn(IFEQ, end);
 					}
+					requireBranch = false;
 				} else {
 					if (write) {
 						m.visitJumpInsn(op, end);
@@ -170,7 +198,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		}
 	}
 
-	private String pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
+	private DefinitiveType pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
 		String type = Types.getType(term, "");
 		if (type != null) {
 			if (type.equals("bool")) {
@@ -203,12 +231,12 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				}
 			}
 
-			return type;
+			return DefinitiveType.assume(type);
 		} else {
 			ExpressionCompiler ref = new ExpressionCompiler(this.write, this.data);
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
-			return ref.getResultType().getTypeSignature();
+			return ref.getResultType();
 		}
 	}
 
@@ -222,5 +250,13 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 
 	public void setEnd(Label label) {
 		this.end = label;
+	}
+
+	public boolean isRequireBranch() {
+		return requireBranch;
+	}
+
+	public void setRequireBranch(boolean requireBranch) {
+		this.requireBranch = requireBranch;
 	}
 }

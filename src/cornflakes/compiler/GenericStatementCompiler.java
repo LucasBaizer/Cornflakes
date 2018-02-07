@@ -247,9 +247,9 @@ public class GenericStatementCompiler implements GenericCompiler {
 		} else {
 			boolean ref = true;
 
-			if (body.contains("=")) {
+			if (Strings.contains(body, " = ")) {
 				type = SET_VAR;
-				String[] split = body.split("=", 2);
+				String[] split = Strings.split(body, " = ", 2);
 				String name = split[0].trim();
 				String value = split[1].trim();
 

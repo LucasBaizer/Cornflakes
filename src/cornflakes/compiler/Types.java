@@ -371,7 +371,7 @@ public class Types implements Opcodes {
 
 	public static boolean isSuitable(DefinitiveType target, DefinitiveType test) {
 		if (test == null || test.isNull()) {
-			return true;
+			return target.isObject();
 		}
 		if (target.isObject() && test.isObject()) {
 			return target.getObjectType().isAssignableFrom(test.getObjectType());

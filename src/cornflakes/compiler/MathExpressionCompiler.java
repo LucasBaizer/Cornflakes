@@ -1,6 +1,6 @@
 package cornflakes.compiler;
 
-import static cornflakes.compiler.MathOperator.*;
+import static cornflakes.compiler.Operator.*;
 
 import org.objectweb.asm.MethodVisitor;
 
@@ -118,7 +118,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 		String[] split = null;
 		if (Strings.contains(body, "&")) {
 			split = Strings.split(body, "&", 2);
-			type = AND;
+			type = BITWISE_AND;
 		} else if (Strings.contains(body, "+")) {
 			split = Strings.split(body, "+", 2);
 			type = ADD;
@@ -136,7 +136,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			type = XOR;
 		} else if (Strings.contains(body, "|")) {
 			split = Strings.split(body, "|", 2);
-			type = OR;
+			type = BITWISE_OR;
 		} else {
 			invalid(new CompileError("Expecting mathematical operator"));
 			return;
@@ -221,9 +221,9 @@ public class MathExpressionCompiler implements GenericCompiler {
 				}
 				if (this.write)
 					this.data.dcs();
-			} else if (type == AND) {
+			} else if (type == BITWISE_AND) {
 				op = isLong ? LAND : IAND;
-			} else if (type == OR) {
+			} else if (type == BITWISE_OR) {
 				op = isLong ? LOR : IOR;
 			} else if (type == XOR) {
 				op = isLong ? LXOR : IXOR;
@@ -236,13 +236,13 @@ public class MathExpressionCompiler implements GenericCompiler {
 			if (type.getClassName().equals("java/math/BigInteger")) {
 				if (write) {
 					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigInteger",
-							MathOperator.getOperatorOverloadName(this.type),
+							Operator.getOperatorOverloadName(this.type),
 							"(Ljava/math/BigInteger;)Ljava/math/BigInteger;", false);
 				}
 			} else if (type.getClassName().equals("java/math/BigDecimal")) {
 				if (write) {
 					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal",
-							MathOperator.getOperatorOverloadName(this.type),
+							Operator.getOperatorOverloadName(this.type),
 							"(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
 				}
 			} else {
@@ -302,7 +302,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			ref = new ExpressionCompiler(this.write, this.data);
 			ref.setAllowMath(false);
 			ref.setAllowBoolean(this.bool);
-			
+
 			ref.compile(data, m, thisBlock, term, new String[] { term });
 
 			return ref.getResultType();

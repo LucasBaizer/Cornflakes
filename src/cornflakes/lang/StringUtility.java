@@ -11,6 +11,20 @@ public final class StringUtility {
 	}
 
 	/**
+	 * Gets if two string are equal.
+	 * 
+	 * @param x
+	 *            The first string
+	 * @param y
+	 *            The second string
+	 * 
+	 * @return <code>true</code> if the strings are equal, otherwise false
+	 */
+	public static boolean equal(String x, String y) {
+		return x.equals(y);
+	}
+
+	/**
 	 * Combines a string and another string
 	 * 
 	 * @param x

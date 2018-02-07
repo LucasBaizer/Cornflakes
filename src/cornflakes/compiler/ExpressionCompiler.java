@@ -59,7 +59,7 @@ public class ExpressionCompiler implements GenericCompiler {
 			if (write)
 				m.visitInsn(ACONST_NULL);
 
-			resultType = null;
+			resultType = DefinitiveType.primitive("null");
 			resultOwner = null;
 			resultName = null;
 			expressionType = NULL;
@@ -108,7 +108,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				if (write) {
 					m.visitLdcInsn(literal);
 				}
-				
+
 				resultType = DefinitiveType.object("Ljava/lang/String;");
 				resultOwner = resultType.getObjectType();
 			} else {
@@ -153,8 +153,8 @@ public class ExpressionCompiler implements GenericCompiler {
 			}
 			if (block instanceof ConstructorBlock) {
 				ConstructorBlock cblock = (ConstructorBlock) block;
-				if (!cblock.hasCalledSuper()) {
-					throw new CompileError("Cannot reference this until super has been called");
+				if (!cblock.hasCalledConstructor()) {
+					throw new CompileError("Cannot reference this until either super or this has been called");
 				}
 			}
 			if (write) {
@@ -438,7 +438,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				if (testb) {
 					if (containerData != data
 							|| (!data.hasField(part) && !(this.data != null && this.data.hasLocal(part, block)))) {
-						compileMethodCall(last, containerData, data, m, block, test + "()", false);
+						compileMethodCall(last, containerData, data, m, block, test + "()", 0);
 						if (resultType.equals("V")) {
 							throw new CompileError("Cannot reference void-returning function with variable syntax");
 						}
@@ -470,32 +470,35 @@ public class ExpressionCompiler implements GenericCompiler {
 						}
 
 						if (!next) {
-							boolean superCall = false;
+							int callType = 0;
+							boolean altCall = false;
 							if (this.data instanceof ConstructorData) {
-								if (name.equals("super")) {
-									if (((ConstructorBlock) block).hasCalledSuper()) {
-										throw new CompileError("Cannot call super more than once");
+								if (name.equals("super") || name.equals("this")) {
+									if (((ConstructorBlock) block).hasCalledConstructor()) {
+										throw new CompileError("Cannot call super or this more than once");
 									}
-									superCall = true;
+									altCall = true;
+
+									callType = name.equals("super") ? 1 : 2;
 								}
 							} else {
-								if (name.equals("super")) {
-									throw new CompileError("Cannot call super outside of a constructor");
+								if (name.equals("super") || name.equals("this")) {
+									throw new CompileError("Cannot call super or this outside of a constructor");
 								}
 							}
 
 							ClassData toUse = thisType ? data : containerData;
 
-							if (superCall || toUse.hasMethod(name)) {
-								compileMethodCall(last, toUse, data, m, block, part, superCall);
+							if (altCall || toUse.hasMethod(name)) {
+								compileMethodCall(last, toUse, data, m, block, part, callType);
 								next = true;
 							} else if (name.equals("typeof")) {
-								compileMethodCall(last, toUse, data, m, block, part, superCall);
+								compileMethodCall(last, toUse, data, m, block, part, callType);
 								next = true;
 							} else {
 								MethodData[] methods = toUse.getAllMethods(name);
 								if (methods.length > 0) {
-									compileMethodCall(last, toUse, data, m, block, part, superCall);
+									compileMethodCall(last, toUse, data, m, block, part, callType);
 									next = true;
 								}
 
@@ -583,12 +586,14 @@ public class ExpressionCompiler implements GenericCompiler {
 										compiler.setEnd(iconst);
 
 										compiler.compile(data, m, block, part, new String[] { part });
-										m.visitInsn(ICONST_1);
-										m.visitFrame(F_SAME, this.data.getLocalVariables(), null,
-												this.data.getCurrentStack(), null);
-										m.visitJumpInsn(GOTO, label);
-										m.visitLabel(iconst);
-										m.visitInsn(ICONST_0);
+										if (compiler.isRequireBranch()) {
+											m.visitInsn(ICONST_1);
+											m.visitFrame(F_SAME, this.data.getLocalVariables(), null,
+													this.data.getCurrentStack(), null);
+											m.visitJumpInsn(GOTO, label);
+											m.visitLabel(iconst);
+											m.visitInsn(ICONST_0);
+										}
 
 										m.visitLabel(label);
 
@@ -1069,7 +1074,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	}
 
 	private void compileMethodCall(ExpressionCompiler last, ClassData containerData, ClassData data, MethodVisitor m,
-			Block block, String body, boolean superCall) throws ClassNotFoundException {
+			Block block, String body, int callType) throws ClassNotFoundException {
 		String before = body.substring(0, body.indexOf('(')).trim();
 		String pars = body.substring(body.indexOf('(') + 1, body.lastIndexOf(')')).trim();
 		String[] split = Strings.splitParameters(pars);
@@ -1089,8 +1094,15 @@ public class ExpressionCompiler implements GenericCompiler {
 			resultName = "typeof";
 			resultOwner = containerData;
 		} else {
-			MethodData[] methods = superCall ? ClassData.forName(containerData.getParentName()).getConstructors()
-					: containerData.getAllMethods(before);
+			MethodData[] methods = null;
+			if (callType == 0) {
+				methods = containerData.getAllMethods(before);
+			} else if (callType == 1) {
+				methods = ClassData.forName(containerData.getParentName()).getConstructors();
+			} else if (callType == 2) {
+				methods = containerData.getConstructors();
+			}
+
 			MethodData method = null;
 			List<MethodData> possibleMethods = new ArrayList<>();
 
@@ -1196,7 +1208,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				throw new CompileError("Method is not accessible from this context");
 			}
 
-			if (!superCall) {
+			if (callType == 0) {
 				if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
 						&& containerData.getClassName().equals(data.getClassName()) && write) {
 					m.visitVarInsn(ALOAD, 0);
@@ -1228,11 +1240,19 @@ public class ExpressionCompiler implements GenericCompiler {
 				}
 			}
 
-			if (superCall) {
-				((ConstructorBlock) block).setCalledSuper(true);
+			if (callType == 1) {
+				((ConstructorBlock) block).setCalledConstructor(true);
 				m.visitMethodInsn(INVOKESPECIAL, containerData.getParentName(), "<init>", method.getSignature(), false);
 
 				resultType = DefinitiveType.object(Types.getTypeSignature(containerData.getParentName()));
+				expressionType = CONSTRUCTOR;
+				resultName = "<init>";
+				resultOwner = containerData;
+			} else if (callType == 2) {
+				((ConstructorBlock) block).setCalledConstructor(true);
+				m.visitMethodInsn(INVOKESPECIAL, containerData.getClassName(), "<init>", method.getSignature(), false);
+
+				resultType = DefinitiveType.object(containerData.getClassName());
 				expressionType = CONSTRUCTOR;
 				resultName = "<init>";
 				resultOwner = containerData;

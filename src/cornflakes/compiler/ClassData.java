@@ -1,6 +1,6 @@
 package cornflakes.compiler;
 
-import static cornflakes.compiler.MathOperator.*;
+import static cornflakes.compiler.Operator.*;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;

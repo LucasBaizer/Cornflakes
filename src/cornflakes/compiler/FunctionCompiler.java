@@ -130,26 +130,18 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				} else if (key.equals("sync")) {
 					accessor |= ACC_SYNCHRONIZED;
 				} else if (key.equals("this")) {
-					index = true;
-
 					if (usedKeywords.contains("operator")) {
 						throw new CompileError("Operator overloads cannot be indexer functions");
 					}
 				} else if (key.equals("override")) {
-					override = true;
-
 					if (isBodyless) {
 						throw new CompileError("Bodyless functions cannot be overrides for functions from a parent");
 					}
 				} else if (key.equals("iter")) {
-					iter = true;
-
 					if (usedKeywords.contains("operator")) {
 						throw new CompileError("Operator overloads cannot be iterator functions");
 					}
 				} else if (key.equals("operator")) {
-					operator = true;
-
 					if (!usedKeywords.contains("static")) {
 						throw new CompileError("Operator overloads must be static");
 					}
@@ -171,8 +163,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			String methodName = withoutBracket.substring(0, withoutBracket.indexOf(index ? '[' : '(')).trim();
+			int operatorType = -1;
 			if (operator) {
-				methodName = MathOperator.getOperatorOverloadFunction(MathOperator.toOp(methodName));
+				operatorType = Operator.toOp(methodName);
+				methodName = Operator.getOperatorOverloadFunction(operatorType);
 			}
 			Strings.handleLetterString(methodName, Strings.VARIABLE_NAME);
 
@@ -194,16 +188,23 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 								"Iterator functions do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
 					}
 				} else if (operator) {
-					if (!returnType.equals(Types.padSignature(data.getClassName()))) {
-						throw new CompileError(
-								"Operator overloads do not need a specified type; if one is supplied, it should be the type of the declaring class");
+					if (Operator.isMathOperator(operatorType)) {
+						if (!returnType.equals(Types.padSignature(data.getClassName()))) {
+							throw new CompileError(
+									"Mathematical operator overloads do not need a specified type; if one is supplied, it should be the type of the declaring class");
+						}
+					} else if (Operator.isBooleanOperator(operatorType)) {
+						if (!returnType.equals("Z")) {
+							throw new CompileError(
+									"Boolean operator overloads do not need a specified type; if one is supplied, it should be of type bool");
+						}
 					}
 				}
 			} else {
 				if (iter) {
 					returnType = "Lcornflakes/lang/YieldIterator;";
 				} else if (operator) {
-					returnType = Types.padSignature(data.getClassName());
+					returnType = Operator.isMathOperator(operatorType) ? Types.padSignature(data.getClassName()) : "Z";
 				}
 			}
 
