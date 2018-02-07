@@ -14,39 +14,38 @@ public class GenericBodyCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Block block, Line[] lines) {
+		Line body = Strings.accumulate(lines);
+
 		int cursor = 0;
 		while (cursor < body.length()) {
 			int idx = body.indexOf(System.lineSeparator(), cursor);
 			if (idx == -1) {
 				idx = body.length();
 			}
-			String line = body.substring(cursor, idx);
-			if (line == null) {
-				break;
-			}
+			Line line = body.substring(cursor, idx);
 			line = Strings.normalizeSpaces(line);
 
 			if (line.endsWith("{")) {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
-				String newBlock = body.substring(cursor, close).trim();
-				String next = body.substring(close);
-				String[] blockLines = Strings.accumulate(newBlock);
-				List<String[]> list = new ArrayList<>();
+				Line newBlock = body.substring(cursor, close).trim();
+				Line next = body.substring(close);
+				Line[] blockLines = Strings.accumulate(newBlock);
+				List<Line[]> list = new ArrayList<>();
 				list.add(blockLines);
 
 				while (next.trim().startsWith("else")) {
 					int spaces = next.trim().length() - next.length();
-					String[] acc = Strings.accumulate(next);
+					Line[] acc = Strings.accumulate(next);
 					int old = close;
 					close = Strings.findClosing(body.toCharArray(), '{', '}', close + acc[0].length() + spaces) + 1;
-					String sub = body.substring(old, close);
+					Line sub = body.substring(old, close);
 					list.add(Strings.accumulate(sub));
-					newBlock += sub;
+					newBlock.append(sub);
 					next = body.substring(close);
 				}
 
-				new GenericBlockCompiler(this.data, list).compile(data, m, block, newBlock, blockLines);
+				new GenericBlockCompiler(this.data, list).compile(data, m, block, blockLines);
 
 				cursor = close;
 				while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) {
@@ -54,7 +53,7 @@ public class GenericBodyCompiler implements GenericCompiler {
 				}
 			} else {
 				GenericStatementCompiler gsc = new GenericStatementCompiler(this.data);
-				gsc.compile(data, m, block, line, new String[] { line });
+				gsc.compile(data, m, block, new Line[] { line });
 
 				if (gsc.getType() == GenericStatementCompiler.RETURN) {
 					returns = true;

@@ -78,7 +78,9 @@ public class CompileUtils {
 	}
 
 	public static VariableDeclaration declareVariable(MethodData methodData, ClassData data, MethodVisitor m,
-			Block block, String body, String[] split) {
+			Block block, Line line, Line[] split) {
+		String body = line.getLine();
+
 		String variableType = null;
 		Object value = null;
 		String valueType = null;
@@ -102,7 +104,7 @@ public class CompileUtils {
 			valueType = Types.getType(givenValue, "");
 			if (valueType == null) {
 				ExpressionCompiler ref = new ExpressionCompiler(true, methodData);
-				ref.compile(data, m, block, givenValue, new String[] { givenValue });
+				ref.compile(data, m, block, new Line[] { line.derive(givenValue) });
 
 				if ((valueType = ref.getResultType().getTypeSignature()) == null) {
 					throw new CompileError("A type for the variable could not be assumed; one must be assigned");
@@ -116,7 +118,7 @@ public class CompileUtils {
 
 			variableType = Types.getTypeSignature(valueType);
 		} else {
-			String[] spaces = split[1].trim().split("=");
+			String[] spaces = Line.toString(split[1].trim().split("="));
 			variableType = spaces[0].trim();
 
 			if (!Types.isTupleDefinition(variableType)) {
@@ -137,7 +139,7 @@ public class CompileUtils {
 					valueType = Types.getTypeSignature(rawType);
 				} else {
 					ExpressionCompiler compiler = new ExpressionCompiler(!isMember, methodData);
-					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
+					compiler.compile(data, m, block, new Line[] { line.derive(givenValue) });
 					valueType = compiler.getResultType().getTypeSignature();
 				}
 
@@ -146,7 +148,7 @@ public class CompileUtils {
 
 				if (!isMember && valueType == null) {
 					compiler = new ExpressionCompiler(true, methodData);
-					compiler.compile(data, m, block, givenValue, new String[] { givenValue });
+					compiler.compile(data, m, block, new Line[] { line.derive(givenValue) });
 					valueType = compiler.getResultType().getTypeSignature();
 					math = compiler.isMath();
 					generics = compiler.getGenericTypes();

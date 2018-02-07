@@ -29,8 +29,9 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
-		String[] split = null;
+	public void compile(ClassData data, MethodVisitor m, Block block, Line[] lines) {
+		Line[] split = null;
+		Line body = lines[0];
 
 		if (Strings.contains(body, "&&")) {
 			split = Strings.split(body, "&&");
@@ -65,7 +66,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		String right = null;
 
 		if (split == null) {
-			String bool = body;
+			String bool = body.getLine();
 
 			String type = Types.getType(bool, "");
 			if (type != null) {
@@ -82,7 +83,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				ref.setAllowBoolean(false);
 				ref.setAllowMath(false);
 				ref.setSource(this);
-				ref.compile(data, m, block, bool, new String[] { bool });
+				ref.compile(data, m, block, new Line[] { body.derive(bool) });
 
 				if (ref.getResultType() == null || !ref.getResultType().equals("Z")) {
 					invalid(new CompileError("The given reference is not a boolean"));
@@ -94,13 +95,13 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				m.visitJumpInsn(IFEQ, end);
 			}
 		} else {
-			left = split[0].trim();
-			right = split[1].trim();
+			left = split[0].trim().getLine();
+			right = split[1].trim().getLine();
 
-			DefinitiveType leftType = pushToStack(left, data, m, block);
+			DefinitiveType leftType = pushToStack(body, left, data, m, block);
 			DefinitiveType rightType = null;
 			if (ifType != IS) {
-				rightType = pushToStack(right, data, m, block);
+				rightType = pushToStack(body, right, data, m, block);
 			}
 
 			if (leftType.isPrimitive() && rightType.isPrimitive()) {
@@ -198,7 +199,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		}
 	}
 
-	private DefinitiveType pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
+	private DefinitiveType pushToStack(Line line, String term, ClassData data, MethodVisitor m, Block thisBlock) {
 		String type = Types.getType(term, "");
 		if (type != null) {
 			if (type.equals("bool")) {
@@ -234,7 +235,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 			return DefinitiveType.assume(type);
 		} else {
 			ExpressionCompiler ref = new ExpressionCompiler(this.write, this.data);
-			ref.compile(data, m, thisBlock, term, new String[] { term });
+			ref.compile(data, m, thisBlock, new Line[] { line.derive(term) });
 
 			return ref.getResultType();
 		}

@@ -8,15 +8,15 @@ import org.objectweb.asm.MethodVisitor;
 
 public class GenericBlockCompiler implements GenericCompiler {
 	private MethodData data;
-	private List<String[]> lines = new ArrayList<>();
+	private List<Line[]> lines = new ArrayList<>();
 
-	public GenericBlockCompiler(MethodData data, List<String[]> lines) {
+	public GenericBlockCompiler(MethodData data, List<Line[]> lines) {
 		this.data = data;
 		this.lines = lines;
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Block block, String rawbody, String[] rawlines) {
+	public void compile(ClassData data, MethodVisitor m, Block block, Line[] rawlines) {
 		Label start = new Label();
 
 		this.data.addBlock();
@@ -24,17 +24,16 @@ public class GenericBlockCompiler implements GenericCompiler {
 		m.visitLabel(start);
 		m.visitLineNumber(this.data.getBlocks(), start);
 
-		String firstLine = Strings.normalizeSpaces(lines.get(0)[0]);
-		String condition = firstLine.substring(0, firstLine.lastIndexOf('{')).trim();
+		Line firstLine = Strings.normalizeSpaces(lines.get(0)[0]);
+		Line condition = firstLine.substring(0, firstLine.lastIndexOf('{')).trim();
 
 		if (condition.isEmpty()) {
 			Block thisBlock = new Block(block.getStart() + 1, start, null);
 			block.addBlock(thisBlock);
-			String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
-			String newBlock = Strings.accumulate(newLines).trim();
+			Line[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
 
 			thisBlock.setEndLabel(block.getEndLabel());
-			new GenericBodyCompiler(this.data).compile(data, m, thisBlock, newBlock, Strings.accumulate(newBlock));
+			new GenericBodyCompiler(this.data).compile(data, m, thisBlock, newLines);
 		} else {
 			if (condition.startsWith("if ")) {
 				boolean hasElse = false;
@@ -49,27 +48,27 @@ public class GenericBlockCompiler implements GenericCompiler {
 
 					firstLine = Strings.normalizeSpaces(lines.get(i)[0]);
 					condition = firstLine.substring(0, firstLine.lastIndexOf('{')).trim();
-					String[] newLines = Strings.before(Strings.after(lines.get(i), 1), 1);
-					String newBlock = Strings.accumulate(newLines).trim();
+					Line[] newLines = Strings.before(Strings.after(lines.get(i), 1), 1);
 
 					int val = 2;
 					if (condition.startsWith("else")) {
 						val = 4;
 					}
-					String parse = condition.substring(val).trim();
+					Line parse = condition.substring(val).trim();
 					if (!parse.isEmpty()) {
 						if (parse.startsWith("if ")) {
 							parse = parse.substring(2).trim();
 						}
-						new BooleanExpressionCompiler(this.data, theEnd, true).compile(data, m, currentBlock, parse,
-								new String[] { parse });
+						new BooleanExpressionCompiler(this.data, theEnd, true).compile(data, m, currentBlock,
+								new Line[] { parse });
 					} else {
 						if (hasElse) {
 							throw new CompileError("Cannot have multiple else blocks attached to one if chain");
 						}
 						hasElse = true;
 					}
-					new GenericBodyCompiler(this.data).compile(data, m, block, newBlock, Strings.accumulate(newBlock));
+
+					new GenericBodyCompiler(this.data).compile(data, m, block, newLines);
 					m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 					m.visitJumpInsn(GOTO, finalEnd);
 
@@ -84,9 +83,8 @@ public class GenericBlockCompiler implements GenericCompiler {
 				Label outOfLoop = new Label();
 				currentBlock.setEndLabel(outOfLoop);
 
-				String parse = condition.substring(5).trim();
-				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
-				String newBlock = Strings.accumulate(newLines).trim();
+				Line parse = condition.substring(5).trim();
+				Line[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
 
 				Label afterGoto = new Label();
 				Label after = new Label();
@@ -95,11 +93,10 @@ public class GenericBlockCompiler implements GenericCompiler {
 				m.visitJumpInsn(GOTO, after);
 
 				m.visitLabel(afterGoto);
-				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
-						Strings.accumulate(newBlock));
+				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newLines);
 				m.visitLabel(after);
-				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, currentBlock, parse,
-						new String[] { parse });
+				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, currentBlock,
+						new Line[] { parse });
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, afterGoto);
@@ -111,37 +108,34 @@ public class GenericBlockCompiler implements GenericCompiler {
 				Label outOfLoop = new Label();
 				currentBlock.setEndLabel(outOfLoop);
 
-				String parse = condition.substring(4).trim();
-				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
-				String newBlock = Strings.accumulate(newLines).trim();
+				Line parse = condition.substring(4).trim();
+				Line[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
 
 				Label afterGoto = new Label();
 				Label after = new Label();
 
-				String[] spl = parse.split(";");
+				Line[] spl = parse.split(";");
 				if (spl.length != 3) {
 					throw new CompileError("For-loop format should be 'declaration; condition; modification;'");
 				}
-				String declaration = spl[0].trim();
-				String conditionBool = spl[1].trim();
-				String increment = spl[2].trim();
+				Line declaration = spl[0].trim();
+				Line conditionBool = spl[1].trim();
+				Line increment = spl[2].trim();
 
-				new GenericStatementCompiler(this.data).compile(data, m, currentBlock, declaration,
-						new String[] { declaration });
+				new GenericStatementCompiler(this.data).compile(data, m, currentBlock, new Line[] { declaration });
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, after);
 
 				m.visitLabel(afterGoto);
 
-				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
-						Strings.accumulate(newBlock));
-				new MathExpressionCompiler(this.data, false, true).compile(data, m, currentBlock, increment,
-						new String[] { increment });
+				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newLines);
+				new MathExpressionCompiler(this.data, false, true).compile(data, m, currentBlock,
+						new Line[] { increment });
 
 				m.visitLabel(after);
-				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, currentBlock, conditionBool,
-						new String[] { conditionBool });
+				new BooleanExpressionCompiler(this.data, outOfLoop, true).compile(data, m, currentBlock,
+						new Line[] { conditionBool });
 
 				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 				m.visitJumpInsn(GOTO, afterGoto);
@@ -153,20 +147,19 @@ public class GenericBlockCompiler implements GenericCompiler {
 				Label outOfLoop = new Label();
 				currentBlock.setEndLabel(outOfLoop);
 
-				String parse = condition.substring(8).trim();
-				String[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
-				String newBlock = Strings.accumulate(newLines).trim();
+				Line parse = condition.substring(8).trim();
+				Line[] newLines = Strings.before(Strings.after(lines.get(0), 1), 1);
 
-				String[] parseSplit = Strings.split(parse, " in ");
+				Line[] parseSplit = Strings.split(parse, " in ");
 				if (parseSplit.length != 2) {
 					throw new CompileError("Foreach-loop format should be 'variable in iterator/iterable'");
 				}
 
-				String var = parseSplit[0].trim();
-				String itr = parseSplit[1].trim();
+				Line var = parseSplit[0].trim();
+				Line itr = parseSplit[1].trim();
 
 				ExpressionCompiler exp = new ExpressionCompiler(false, this.data);
-				exp.compile(data, m, currentBlock, itr, new String[] { itr });
+				exp.compile(data, m, currentBlock, new Line[] { itr });
 
 				String x = "Ljava/lang/Object;";
 				if (exp.getResultType().equals("Lcornflakes/lang/I32Range;")) {
@@ -176,7 +169,7 @@ public class GenericBlockCompiler implements GenericCompiler {
 				}
 
 				int idx = this.data.getLocalVariables();
-				LocalData objData = new LocalData(var, DefinitiveType.assume(x), currentBlock, idx, 0);
+				LocalData objData = new LocalData(var.getLine(), DefinitiveType.assume(x), currentBlock, idx, 0);
 				this.data.addLocal(objData);
 
 				String y = objData.getType().getAbsoluteTypeSignature();
@@ -202,16 +195,16 @@ public class GenericBlockCompiler implements GenericCompiler {
 						m.visitInsn(DUP);
 
 						exp.setWrite(true);
-						exp.compile(data, m, currentBlock, itr, new String[] { itr });
+						exp.compile(data, m, currentBlock, new Line[] { itr });
 
 						m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/ArrayIterator", "<init>",
 								"([Ljava/lang/Object;)V", false);
 					} else if (type.getObjectType().is("java.util.Iterator")) {
 						exp.setWrite(true);
-						exp.compile(data, m, currentBlock, itr, new String[] { itr });
+						exp.compile(data, m, currentBlock, new Line[] { itr });
 					} else if (type.getObjectType().is("java.lang.Iterable") || type.isTuple()) {
 						exp.setWrite(true);
-						exp.compile(data, m, currentBlock, itr, new String[] { itr });
+						exp.compile(data, m, currentBlock, new Line[] { itr });
 
 						m.visitMethodInsn(INVOKEINTERFACE, "java/lang/Iterable", "iterator", "()Ljava/util/Iterator;",
 								true);
@@ -239,8 +232,7 @@ public class GenericBlockCompiler implements GenericCompiler {
 				}
 				m.visitVarInsn(Types.getOpcode(Types.STORE, y), idx);
 
-				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newBlock,
-						Strings.accumulate(newBlock));
+				new GenericBodyCompiler(this.data).compile(data, m, currentBlock, newLines);
 				m.visitLabel(after);
 				m.visitVarInsn(ALOAD, itrIdx);
 				m.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true);

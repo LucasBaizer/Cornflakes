@@ -14,15 +14,15 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 	private int accessor;
 	private ClassData data;
 	private ClassWriter cw;
-	private String body;
-	private String[] lines;
+	private Line body;
+	private Line[] lines;
 
 	public ConstructorCompiler(boolean write) {
 		this.write = write;
 	}
 
 	@Override
-	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+	public void compile(ClassData data, ClassWriter cw, Line body, Line[] lines) {
 		if (!write) {
 			Compiler.addPostCompiler(data.getClassName(), this);
 
@@ -31,7 +31,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 			this.body = body;
 			this.lines = lines;
 
-			String keywords = lines[0].substring(0, lines[0].indexOf("constructor")).trim();
+			String keywords = lines[0].substring(0, lines[0].indexOf("constructor")).trim().getLine();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
 				String[] split = keywords.split(" ");
@@ -69,7 +69,8 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			String after = lines[0].substring(lines[0].indexOf("constructor") + "constructor".length()).trim();
+			String after = lines[0].substring(lines[0].indexOf("constructor") + "constructor".length()).trim()
+					.getLine();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
 			Strings.handleMatching(withoutBracket, '(', ')');
 
@@ -145,11 +146,9 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 
 			assignDefaults(m, data, this.methodData, block);
 
-			String[] inner = Strings.before(Strings.after(lines, 1), 1);
-			String innerBody = Strings.accumulate(inner).trim();
-			String[] inner2 = Strings.accumulate(innerBody);
+			Line[] inner = Strings.before(Strings.after(lines, 1), 1);
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			gbc.compile(data, m, block, innerBody, inner2);
+			gbc.compile(data, m, block, inner);
 
 			if (!block.hasCalledConstructor()) {
 				throw new CompileError("Super must be called exactly one time before the constructor ends");
@@ -217,7 +216,7 @@ public class ConstructorCompiler extends Compiler implements PostCompiler {
 					String raw = (String) datum.getProposedData();
 
 					ExpressionCompiler compiler = new ExpressionCompiler(true, this.methodData);
-					compiler.compile(data, m, block, raw, new String[] { raw });
+					compiler.compile(data, m, block, new Line[] { body.derive(raw) });
 
 					if (!Types.isSuitable(datum.getType(), compiler.getResultType())) {
 						throw new CompileError(Types.beautify(compiler.getResultType().getTypeName())

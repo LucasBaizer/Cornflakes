@@ -27,7 +27,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Block block, Line[] lines) {
+		Line body = lines[0];
 		if (body.length() >= 3) {
 			int start = -1;
 			for (int x = 0; x < body.length(); x++) {
@@ -40,7 +41,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 				char first = body.charAt(start);
 				if (first == '+' || first == '-') {
 					if (body.charAt(start + 1) == first) {
-						String type = pushToStack(body.substring(0, start), data, m, block).getTypeSignature();
+						String type = pushToStack(body, body.substring(0, start).getLine(), data, m, block)
+								.getTypeSignature();
 
 						boolean isLong = type.equals("J");
 						boolean isInt = type.equals("I");
@@ -115,7 +117,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			}
 		}
 
-		String[] split = null;
+		Line[] split = null;
 		if (Strings.contains(body, "&")) {
 			split = Strings.split(body, "&", 2);
 			type = BITWISE_AND;
@@ -142,11 +144,11 @@ public class MathExpressionCompiler implements GenericCompiler {
 			return;
 		}
 
-		String left = split[0].trim();
-		String right = split[1].trim();
+		Line left = split[0].trim();
+		Line right = split[1].trim();
 
-		DefinitiveType leftType = pushToStack(left, data, m, block);
-		DefinitiveType rightType = pushToStack(right, data, m, block);
+		DefinitiveType leftType = pushToStack(left, left.getLine(), data, m, block);
+		DefinitiveType rightType = pushToStack(right, right.getLine(), data, m, block);
 		boolean isLong = leftType.equals("J") || rightType.equals("J");
 		boolean isInt = leftType.equals("I") || rightType.equals("I");
 		boolean isFloat = leftType.equals("F") || rightType.equals("F");
@@ -277,7 +279,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 		}
 	}
 
-	private DefinitiveType pushToStack(String term, ClassData data, MethodVisitor m, Block thisBlock) {
+	private DefinitiveType pushToStack(Line line, String term, ClassData data, MethodVisitor m, Block thisBlock) {
 		String type = Types.getType(term, "");
 		if (type != null) {
 			int oc = Types.getOpcode(Types.PUSH, type);
@@ -303,7 +305,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 			ref.setAllowMath(false);
 			ref.setAllowBoolean(this.bool);
 
-			ref.compile(data, m, thisBlock, term, new String[] { term });
+			ref.compile(data, m, thisBlock, new Line[] { line.derive(term) });
 
 			return ref.getResultType();
 		}

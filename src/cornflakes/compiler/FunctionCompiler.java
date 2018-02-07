@@ -14,8 +14,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	private int accessor;
 	private ClassData data;
 	private ClassWriter cw;
-	private String body;
-	private String[] lines;
+	private Line body;
+	private Line[] lines;
 	private boolean isBodyless;
 
 	public FunctionCompiler(boolean write, boolean bodyless) {
@@ -24,20 +24,20 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+	public void compile(ClassData data, ClassWriter cw, Line line, Line[] lines) {
 		if (!write) {
 			Compiler.addPostCompiler(data.getClassName(), this);
 
 			this.data = data;
 			this.cw = cw;
-			this.body = body;
+			this.body = line;
 			this.lines = lines;
 
 			boolean override = false;
 			boolean index = false;
 			boolean iter = false;
 			boolean operator = false;
-			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim();
+			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim().getLine();
 			List<String> usedKeywords = new ArrayList<>();
 			if (!keywords.isEmpty()) {
 				String[] split = keywords.split(" ");
@@ -154,7 +154,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			String after = lines[0].substring(lines[0].indexOf("func") + "func".length()).trim();
+			String after = lines[0].substring(lines[0].indexOf("func") + "func".length()).trim().getLine();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
 			if (index) {
 				Strings.handleMatching(withoutBracket, '[', ']');
@@ -336,13 +336,11 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			MethodVisitor m = cw.visitMethod(accessor, methodData.getName(), methodData.getSignature(), null, null);
 			m.visitCode();
 
-			int line = 0;
-
 			Label start = new Label();
 			Label post = new Label();
 
 			m.visitLabel(start);
-			m.visitLineNumber(line++, start);
+			m.visitLineNumber(this.body.getNumber(), start);
 
 			Block block = new Block(0, start, post);
 			this.methodData.setBlock(block);
@@ -372,12 +370,10 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				m.visitVarInsn(ASTORE, itrIdx);
 			}
 
-			String[] inner = Strings.before(Strings.after(lines, 1), 1);
-			String innerBody = Strings.accumulate(inner).trim();
-			String[] inner2 = Strings.accumulate(innerBody);
+			Line[] inner = Strings.before(Strings.after(lines, 1), 1);
 
 			GenericBodyCompiler gbc = new GenericBodyCompiler(methodData);
-			gbc.compile(data, m, block, innerBody, inner2);
+			gbc.compile(data, m, block, inner);
 
 			if (!gbc.returns()) {
 				if (!block.doesThrow()) {

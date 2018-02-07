@@ -22,7 +22,10 @@ public class GenericStatementCompiler implements GenericCompiler {
 	}
 
 	@Override
-	public void compile(ClassData data, MethodVisitor m, Block block, String body, String[] lines) {
+	public void compile(ClassData data, MethodVisitor m, Block block, Line[] lines) {
+		Line line = lines[0];
+		String body = line.getLine();
+
 		if (body.startsWith("yield")) {
 			type = YIELD;
 
@@ -50,7 +53,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 				this.data.ics();
 			} else {
 				ExpressionCompiler exp = new ExpressionCompiler(true, this.data);
-				exp.compile(data, m, block, str, new String[] { str });
+				exp.compile(data, m, block, new Line[] { line.derive(str) });
 			}
 
 			m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/FunctionalIterator", "add",
@@ -113,7 +116,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					}
 				} else {
 					ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
-					compiler.compile(data, m, block, par, new String[] { par });
+					compiler.compile(data, m, block, new Line[] { line.derive(par) });
 
 					if (!Types.isSuitable(this.data.getReturnType(), compiler.getResultType())) {
 						throw new CompileError(
@@ -146,7 +149,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			}
 
 			ExpressionCompiler ref = new ExpressionCompiler(true, this.data);
-			ref.compile(data, m, block, split[1], new String[] { split[1] });
+			ref.compile(data, m, block, new Line[] { line.derive(split[1]) });
 
 			DefinitiveType signature = ref.getResultType();
 			if (signature.isPrimitive()) {
@@ -167,19 +170,19 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			body = Strings.normalizeSpaces(body);
 
-			String[] split = body.split(":");
-			String[] look = split.length == 1 ? body.split(" ") : split[0].split(" ");
+			Line[] split = line.split(":");
+			Line[] look = split.length == 1 ? line.split(" ") : split[0].split(" ");
 			if (look.length == 1) {
 				throw new CompileError("Expecting variable name");
 			}
 
-			String variableName = look[1].trim();
+			String variableName = look[1].trim().getLine();
 
 			if (this.data.hasLocal(variableName, block)) {
 				throw new CompileError("Duplicate variable: " + variableName);
 			}
 
-			VariableDeclaration decl = CompileUtils.declareVariable(this.data, data, m, block, body, split);
+			VariableDeclaration decl = CompileUtils.declareVariable(this.data, data, m, block, line, split);
 			Object value = decl.getValue();
 			DefinitiveType valueType = decl.getValueType();
 			DefinitiveType variableType = decl.getVariableType();
@@ -232,7 +235,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 					this.data.ics();
 				}
-				
+
 				m.visitVarInsn(Types.getOpcode(Types.STORE, variableType.getTypeSignature()), idx);
 			}
 
@@ -258,7 +261,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					compiler = new ExpressionCompiler(true, this.data);
 					compiler.setLoadVariableReference(false);
 					compiler.setAllowImplicitGetters(false);
-					compiler.compile(data, m, block, name, new String[] { name });
+					compiler.compile(data, m, block, new Line[] { line.derive(name) });
 				} catch (CompileError e) {
 					compiler = new ExpressionCompiler(true, this.data);
 					compiler.setLoadVariableReference(false);
@@ -273,7 +276,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 					String end = total == null ? to : total + "." + to;
 
 					try {
-						compiler.compile(data, m, block, end, new String[] { end });
+						compiler.compile(data, m, block, new Line[] { line.derive(end) });
 					} catch (CompileError e2) {
 						throw e;
 					}
@@ -298,11 +301,11 @@ public class GenericStatementCompiler implements GenericCompiler {
 							? typeClass.getMethods("_set_index_")[0] : null;
 
 					ExpressionCompiler array = new ExpressionCompiler(true, this.data);
-					array.compile(data, m, block, arrayName, new String[] { arrayName });
+					array.compile(data, m, block, new Line[] { line.derive(arrayName) });
 
 					if (idxType == null) {
 						ExpressionCompiler exp = new ExpressionCompiler(true, this.data);
-						exp.compile(data, m, block, arrayIndex, new String[] { arrayIndex });
+						exp.compile(data, m, block, new Line[] { line.derive(arrayIndex) });
 
 						try {
 							if (typeClass.is("java.util.List") || type.getTypeSignature().startsWith("[")) {
@@ -334,7 +337,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 						}
 					}
 
-					pushValue(value, field, compiler, refName, m, block, data, true, true);
+					pushValue(line, value, field, compiler, refName, m, block, data, true, true);
 
 					try {
 						if (typeClass.isSetIndexedClass()) {
@@ -381,13 +384,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 										field.getType().getAbsoluteTypeSignature());
 							}
 
-							pushValue(value, field, compiler, refName, m, block, data, false, false);
+							pushValue(line, value, field, compiler, refName, m, block, data, false, false);
 							m.visitMethodInsn(INVOKEVIRTUAL, field.getType().getAbsoluteTypeName(), "setValue",
 									"(" + ((PointerClassData) field.getType().getObjectType()).getValueType()
 											.getAbsoluteTypeSignature() + ")V",
 									false);
 						} else {
-							pushValue(value, field, compiler, refName, m, block, data, false, true);
+							pushValue(line, value, field, compiler, refName, m, block, data, false, true);
 							storeVariable(field, refName, compiler, m);
 						}
 					}
@@ -397,13 +400,13 @@ public class GenericStatementCompiler implements GenericCompiler {
 			if (ref) {
 				ExpressionCompiler compiler = new ExpressionCompiler(true, this.data);
 				compiler.setAllowImplicitGetters(false);
-				compiler.compile(data, m, block, body, lines);
+				compiler.compile(data, m, block, lines);
 			}
 		}
 	}
 
-	private void pushValue(String value, FieldData field, ExpressionCompiler compiler, String refName, MethodVisitor m,
-			Block block, ClassData data, boolean array, boolean check) {
+	private void pushValue(Line line, String value, FieldData field, ExpressionCompiler compiler, String refName,
+			MethodVisitor m, Block block, ClassData data, boolean array, boolean check) {
 		String valueType = Types.getType(value, field.getType().getTypeSignature());
 		if (valueType != null) {
 			if (check && !array
@@ -435,7 +438,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 			this.data.ics();
 		} else {
 			ExpressionCompiler compiler1 = new ExpressionCompiler(true, this.data);
-			compiler1.compile(data, m, block, value, new String[] { value });
+			compiler1.compile(data, m, block, new Line[] { line.derive(value) });
 
 			if (check && !array && !Types.isSuitable(field.getType(), compiler1.getResultType())) {
 				throw new CompileError(Types.beautify(compiler1.getResultType().getTypeName())

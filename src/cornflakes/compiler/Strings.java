@@ -16,7 +16,12 @@ public class Strings {
 	public static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
 	public static final char[] VARIABLE_NAME = combineExceptions(NUMBERS, new char[] { '_' });
 	public static final char[] SLASH = new char[] { '/' };
-	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE, new char[] { '(', ')', ',', '/', '[', ']', '*' });
+	public static final char[] TYPE = combineExceptions(NUMBERS, PERIOD, SPACE,
+			new char[] { '(', ')', ',', '/', '[', ']', '*' });
+
+	public static boolean contains(Line x, String value) {
+		return contains(x.getLine(), value);
+	}
 
 	public static boolean contains(String x, String value) {
 		return Pattern.compile(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)").matcher(x).find();
@@ -26,15 +31,23 @@ public class Strings {
 		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 	}
 
+	public static Line[] split(Line x, String value) {
+		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+	}
+
+	public static Line[] split(Line x, String value, int max) {
+		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", max);
+	}
+
 	public static String[] split(String x, String value, int max) {
 		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", max);
 	}
 
 	public static String[] splitParameters(String x) {
-		if(x.isEmpty()) {
+		if (x.isEmpty()) {
 			return new String[0];
 		}
-		
+
 		int par = 0;
 		List<String> list = new ArrayList<>();
 		int start = 0;
@@ -106,6 +119,10 @@ public class Strings {
 		return isLetterString(null, test, true, exceptions);
 	}
 
+	public static Line normalizeSpaces(Line line) {
+		return line.derive(normalizeSpaces(line.getLine()));
+	}
+
 	public static String normalizeSpaces(String str) {
 		return str.replaceAll("\\s+(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", " ").trim();
 	}
@@ -120,11 +137,47 @@ public class Strings {
 		return arr2;
 	}
 
+	public static Line[] after(Line[] arr, int index) {
+		Line[] arr2 = new Line[arr.length - index];
+		System.arraycopy(arr, index, arr2, 0, arr2.length);
+		return arr2;
+	}
+
+	public static Line[] before(Line[] arr, int before) {
+		Line[] arr2 = new Line[arr.length - before];
+		System.arraycopy(arr, 0, arr2, 0, arr2.length);
+		return arr2;
+	}
+
 	public static String[] before(String[] arr, int before) {
 		String[] arr2 = new String[arr.length - before];
 		System.arraycopy(arr, 0, arr2, 0, arr2.length);
 		return arr2;
 	}
+
+	public static Line accumulate(Line[] arr) {
+		if(arr.length == 0) {
+			return new Line(-1, "");
+		}
+		String x = "";
+		for (Line y : arr) {
+			x += y.getLine() + System.lineSeparator();
+		}
+		return new Line(arr[0].getNumber(), x.trim());
+	}
+
+	public static Line[] accumulate(Line line) {
+		return accumulate(line, line.getNumber());
+	}
+	
+	public static Line[] accumulate(Line line, int num) {
+		List<Line> list = new ArrayList<>(Arrays.asList(line.split(System.lineSeparator())));
+		for (int i = 0; i < list.size(); i++) {
+			list.get(i).setNumber(num + i);
+		}
+		return list.toArray(new Line[list.size()]);
+	}
+
 
 	public static String[] accumulate(String line) {
 		List<String> list = new ArrayList<>(Arrays.asList(line.split(System.lineSeparator())));

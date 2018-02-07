@@ -1,7 +1,7 @@
 package cornflakes.compiler;
 
 import java.awt.Dimension;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,17 +15,24 @@ public abstract class Compiler implements Opcodes {
 
 	public static Dimension dim = new Dimension(5, 5);
 
-	public abstract void compile(ClassData data, ClassWriter cw, String body, String[] lines);
+	public abstract void compile(ClassData data, ClassWriter cw, Line body, Line[] lines);
 
 	public static ClassData compile(String file, String cls) {
-		List<String> list = Arrays.asList(cls.split(System.lineSeparator())).stream().map((x) -> {
-			String trim = x.trim();
+		List<Line> raw = new ArrayList<>();
+		String[] split = cls.split(System.lineSeparator());
+		for(int i = 0; i < split.length; i++) {
+			raw.add(new Line(i + 1, split[i]));
+		}
+		
+		List<Line> list = raw.stream().map((x) -> {
+			Line trim = x.trim();
 			if (trim.endsWith(";")) {
 				trim = trim.substring(0, trim.length() - 1).trim();
 			}
 			return trim;
 		}).filter((x) -> !x.isEmpty() && !x.startsWith("//")).collect(Collectors.toList());
-		String[] lines = list.toArray(new String[list.size()]);
+		
+		Line[] lines = list.toArray(new Line[list.size()]);
 
 		ClassWriter cw = new ClassWriter(0);
 		ClassData data = new ClassData();

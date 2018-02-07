@@ -6,7 +6,7 @@ import org.objectweb.asm.MethodVisitor;
 
 public class StaticInitializerCompiler extends Compiler {
 	@Override
-	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+	public void compile(ClassData data, ClassWriter cw, Line body, Line[] lines) {
 		boolean create = false;
 
 		for (FieldData datum : data.getFields()) {
@@ -52,12 +52,11 @@ public class StaticInitializerCompiler extends Compiler {
 					String raw = (String) datum.getProposedData();
 
 					ExpressionCompiler compiler = new ExpressionCompiler(true, method);
-					compiler.compile(data, m, block, raw, new String[] { raw });
+					compiler.compile(data, m, block, new Line[] { new Line(-1, raw) });
 
 					if (!Types.isSuitable(datum.getType().getTypeSignature(),
 							compiler.getResultType().getTypeSignature())) {
-						throw new CompileError(
-								compiler.getResultType() + " is not assignable to " + datum.getType());
+						throw new CompileError(compiler.getResultType() + " is not assignable to " + datum.getType());
 					}
 
 					m.visitFieldInsn(PUTSTATIC, data.getClassName(), datum.getName(),

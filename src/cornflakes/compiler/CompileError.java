@@ -10,4 +10,8 @@ public class CompileError extends RuntimeException {
 	public CompileError(Throwable e) {
 		super(e);
 	}
+	
+	public CompileError(String msg, Throwable e) {
+		super(msg, e);
+	}
 }

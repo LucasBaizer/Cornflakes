@@ -10,7 +10,9 @@ import cornflakes.compiler.CompileUtils.VariableDeclaration;
 
 public class StatementCompiler extends Compiler {
 	@Override
-	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+	public void compile(ClassData data, ClassWriter cw, Line line, Line[] lines) {
+		String body = line.getLine();
+
 		if (!body.contains(" ")) {
 			throw new CompileError("Expecting parameter after statement");
 		}
@@ -140,19 +142,19 @@ public class StatementCompiler extends Compiler {
 				}
 			}
 
-			String var = Strings.normalizeSpaces(body.substring(body.indexOf(type) + type.length())).trim();
-			String[] split = var.split(":");
+			Line var = Strings.normalizeSpaces(line.substring(line.indexOf(type) + type.length())).trim();
+			Line[] split = var.split(":");
 			if (split.length == 1) {
 				throw new CompileError("Expecting variable type");
 			}
 
-			String variableName = split[0].trim();
+			String variableName = split[0].trim().getLine();
 
 			if (data.hasField(variableName)) {
 				throw new CompileError("Duplicate variable: " + variableName);
 			}
 
-			VariableDeclaration decl = CompileUtils.declareVariable(null, data, null, null, body, split);
+			VariableDeclaration decl = CompileUtils.declareVariable(null, data, null, null, line, split);
 			Object value = decl.getValue();
 			DefinitiveType valueType = decl.getValueType();
 			DefinitiveType variableType = decl.getVariableType();
@@ -175,7 +177,7 @@ public class StatementCompiler extends Compiler {
 			data.addField(fdata);
 		} else if (Strings.contains(body, " func ")) {
 			FunctionCompiler comp = new FunctionCompiler(true, true);
-			comp.compile(data, cw, body, lines);
+			comp.compile(data, cw, line, lines);
 		} else {
 			throw new CompileError("Unexpected statement: " + cmd);
 		}

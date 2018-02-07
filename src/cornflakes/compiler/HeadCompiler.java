@@ -6,12 +6,12 @@ import java.util.List;
 import org.objectweb.asm.ClassWriter;
 
 public class HeadCompiler extends Compiler implements PostCompiler {
-	private String[] after;
+	private Line[] after;
 	private ClassWriter cw;
 	private ClassData data;
 
 	@Override
-	public void compile(ClassData data, ClassWriter cw, String body, String[] lines) {
+	public void compile(ClassData data, ClassWriter cw, Line body, Line[] lines) {
 		this.cw = cw;
 		this.data = data;
 
@@ -19,7 +19,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 		String simple = "";
 		String parent = "java/lang/Object";
 		String packageName = "";
-		String firstLine = Strings.normalizeSpaces(lines[0]);
+		Line firstLine = Strings.normalizeSpaces(lines[0]);
 		int index = 1;
 
 		if (firstLine.startsWith("package")) {
@@ -27,7 +27,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 				throw new CompileError("Expecting space ' ' between identifiers");
 			}
 
-			className = firstLine.substring(firstLine.indexOf(" ") + 1);
+			className = firstLine.substring(firstLine.indexOf(" ") + 1).getLine();
 			Strings.handleLetterString(className, Strings.PERIOD);
 			className = Strings.transformClassName(className) + "/";
 			packageName = className.substring(0, className.length() - 1);
@@ -41,7 +41,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 		if (!firstLine.contains("class ")) {
 			throw new CompileError("Expecting class definition");
 		} else {
-			String before = firstLine.substring(0, firstLine.indexOf("class")).trim();
+			String before = firstLine.substring(0, firstLine.indexOf("class")).trim().getLine();
 
 			if (!before.isEmpty()) {
 				List<String> usedKeywords = new ArrayList<>();
@@ -76,7 +76,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			String after = firstLine.substring(firstLine.indexOf("class")).trim();
+			String after = firstLine.substring(firstLine.indexOf("class")).trim().getLine();
 			String[] keywordSplit = after.split(" ");
 			className += simple = keywordSplit[1];
 
