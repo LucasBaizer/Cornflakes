@@ -21,20 +21,25 @@ public class BodyCompiler extends Compiler implements PostCompiler {
 
 		int cursor = 0;
 		while (cursor < body.length()) {
-			Line line = body.substring(cursor, body.indexOf(System.lineSeparator(), cursor));
+			int idx = body.indexOf(System.lineSeparator(), cursor);
+			int len = 0;
+			int num = -1;
 
-			if (line == null) {
-				break;
+			for (Line line : lines) {
+				len += line.length();
+				if (len >= idx) {
+					num = line.getNumber();
+					break;
+				}
 			}
+
+			Line line = new Line(num, body.substring(cursor, idx).getLine());
 			line = Strings.normalizeSpaces(line);
 
 			if (line.endsWith("{")) {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
 				Line block = body.substring(cursor, close);
-				Line[] blockLines = Strings.accumulate(block,
-						line.getNumber() + Strings.countOccurrences(
-								body.substring(0, body.indexOf(System.lineSeparator(), cursor)).getLine(),
-								System.lineSeparator()));
+				Line[] blockLines = Strings.accumulate(block, line.getNumber());
 				System.out.println(line + " " + blockLines[0].getNumber());
 				new BlockCompiler().compile(data, cw, block, blockLines);
 
