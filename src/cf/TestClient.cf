@@ -1,0 +1,25 @@
+package game.server
+public class TestClient
+
+use org.jnetwork.{Connection, UDPConnection}
+
+public static func main(args: string[]) {
+	const client: Connection = UDPConnection("localhost", 1337)
+	
+	const data: i8[] = array(i8, 16)
+	
+	data[0] = 16
+	data[1] = Codes.REGISTER_USER
+	data[2] = 5
+	System.arraycopy("lucas".bytes, 0, data, 3, 5)
+	client.write(data)
+	
+	const response: i8[] = array(i8, 64)
+	client.read(response)
+	
+	var length = response[0]
+	var res = response[1]
+	
+	if res == Codes.SUCCESS {
+	}
+}

@@ -8,21 +8,25 @@ public class Operator {
 	public static final int DIVIDE = 4;
 	public static final int XOR = 5;
 	public static final int BITWISE_OR = 6;
-	public static final int AND = 7;
-	public static final int OR = 8;
-	public static final int EQUAL = 9;
-	public static final int NOT_EQUAL = 10;
-	public static final int GREATER_THAN = 11;
-	public static final int GREATER_THAN_OR_EQUAL = 12;
-	public static final int LESS_THAN = 13;
-	public static final int LESS_THAN_OR_EQUAL = 14;
+	public static final int MOD = 7;
+	public static final int LEFT_SHIFT = 8;
+	public static final int RIGHT_SHIFT = 9;
+	public static final int RIGHT_LOGICAL_SHIFT = 11;
+	public static final int AND = 12;
+	public static final int OR = 13;
+	public static final int EQUAL = 14;
+	public static final int NOT_EQUAL = 15;
+	public static final int GREATER_THAN = 16;
+	public static final int GREATER_THAN_OR_EQUAL = 17;
+	public static final int LESS_THAN = 18;
+	public static final int LESS_THAN_OR_EQUAL = 19;
 
 	public static boolean isMathOperator(int op) {
 		return op < AND;
 	}
 
 	public static boolean isBooleanOperator(int op) {
-		return op > BITWISE_OR;
+		return op >= AND;
 	}
 
 	public static int toOp(String str) {
@@ -41,6 +45,14 @@ public class Operator {
 				return XOR;
 			case "|":
 				return BITWISE_OR;
+			case "%":
+				return MOD;
+			case "<<":
+				return LEFT_SHIFT;
+			case ">>":
+				return RIGHT_SHIFT;
+			case ">>>":
+				return RIGHT_LOGICAL_SHIFT;
 			case "&&":
 				return AND;
 			case "||":
@@ -78,6 +90,14 @@ public class Operator {
 				return "^";
 			case BITWISE_OR:
 				return "|";
+			case MOD:
+				return "%";
+			case LEFT_SHIFT:
+				return "<<";
+			case RIGHT_SHIFT:
+				return ">>";
+			case RIGHT_LOGICAL_SHIFT:
+				return ">>>";
 			case AND:
 				return "&&";
 			case OR:
@@ -122,6 +142,18 @@ public class Operator {
 				break;
 			case XOR:
 				ch = "_op_xor";
+				break;
+			case MOD:
+				ch = "_op_mod";
+				break;
+			case LEFT_SHIFT:
+				ch = "_op_lshift";
+				break;
+			case RIGHT_SHIFT:
+				ch = "_op_rshift";
+				break;
+			case RIGHT_LOGICAL_SHIFT:
+				ch = "_op_rlshift";
 				break;
 			case AND:
 				ch = "_op_and";
@@ -177,6 +209,18 @@ public class Operator {
 				break;
 			case XOR:
 				ch = "xor";
+				break;
+			case MOD:
+				ch = "mod";
+				break;
+			case LEFT_SHIFT:
+				ch = "shiftLeft";
+				break;
+			case RIGHT_SHIFT:
+				ch = "shiftRight";
+				break;
+			case RIGHT_LOGICAL_SHIFT:
+				ch = "logicalShiftRight";
 				break;
 			case AND:
 				ch = "and";

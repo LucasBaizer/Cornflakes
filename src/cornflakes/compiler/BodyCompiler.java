@@ -25,8 +25,10 @@ public class BodyCompiler extends Compiler implements PostCompiler {
 			int len = 0;
 			int num = -1;
 
-			for (Line line : lines) {
+			for (int i = 0; i < lines.length; i++) {
+				Line line = lines[i];
 				len += line.length();
+				
 				if (len >= idx) {
 					num = line.getNumber();
 					break;
@@ -38,9 +40,8 @@ public class BodyCompiler extends Compiler implements PostCompiler {
 
 			if (line.endsWith("{")) {
 				int close = Strings.findClosing(body.toCharArray(), '{', '}', cursor + line.length() - 1) + 1;
-				Line block = body.substring(cursor, close);
+				Line block = new Line(num, body.substring(cursor, close).getLine());
 				Line[] blockLines = Strings.accumulate(block, line.getNumber());
-				System.out.println(line + " " + blockLines[0].getNumber());
 				new BlockCompiler().compile(data, cw, block, blockLines);
 
 				cursor = close;

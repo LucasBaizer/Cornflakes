@@ -124,8 +124,8 @@ public class MathExpressionCompiler implements GenericCompiler {
 		} else if (Strings.contains(body, "+")) {
 			split = Strings.split(body, "+", 2);
 			type = ADD;
-		} else if (Strings.contains(body, "-")) {
-			split = Strings.split(body, "-", 2);
+		} else if (Strings.contains(body, "- ")) {
+			split = Strings.split(body, "- ", 2);
 			type = SUBTRACT;
 		} else if (Strings.contains(body, "/")) {
 			split = Strings.split(body, "/", 2);
@@ -139,6 +139,18 @@ public class MathExpressionCompiler implements GenericCompiler {
 		} else if (Strings.contains(body, "|")) {
 			split = Strings.split(body, "|", 2);
 			type = BITWISE_OR;
+		} else if (Strings.contains(body, "%")) {
+			split = Strings.split(body, "%", 2);
+			type = MOD;
+		} else if (Strings.contains(body, ">>>")) {
+			split = Strings.split(body, ">>>", 2);
+			type = RIGHT_LOGICAL_SHIFT;
+		} else if (Strings.contains(body, "<<")) {
+			split = Strings.split(body, "<<", 2);
+			type = LEFT_SHIFT;
+		} else if (Strings.contains(body, ">>")) {
+			split = Strings.split(body, ">>", 2);
+			type = RIGHT_SHIFT;
 		} else {
 			invalid(new CompileError("Expecting mathematical operator"));
 			return;
@@ -223,6 +235,24 @@ public class MathExpressionCompiler implements GenericCompiler {
 				}
 				if (this.write)
 					this.data.dcs();
+			} else if (type == MOD) {
+				if (isDouble) {
+					op = DREM;
+				} else if (isFloat) {
+					op = FREM;
+				} else if (isLong) {
+					op = LREM;
+				} else if (isInt) {
+					op = IREM;
+				}
+				if (this.write)
+					this.data.dcs();
+			} else if (type == LEFT_SHIFT) {
+				op = isLong ? LSHL : ISHL;
+			} else if (type == RIGHT_SHIFT) {
+				op = isLong ? LSHR : ISHR;
+			} else if (type == RIGHT_LOGICAL_SHIFT) {
+				op = isLong ? LUSHR : IUSHR;
 			} else if (type == BITWISE_AND) {
 				op = isLong ? LAND : IAND;
 			} else if (type == BITWISE_OR) {

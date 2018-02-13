@@ -34,31 +34,31 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 		Line body = lines[0];
 
 		if (Strings.contains(body, "&&")) {
-			split = Strings.split(body, "&&");
+			split = Strings.split(body, "&&", 2);
 			ifType = AND;
 		} else if (Strings.contains(body, "||")) {
-			split = Strings.split(body, "||");
+			split = Strings.split(body, "||", 2);
 			ifType = OR;
 		} else if (Strings.contains(body, "==")) {
-			split = Strings.split(body, "==");
+			split = Strings.split(body, "==", 2);
 			ifType = EQUAL;
 		} else if (Strings.contains(body, "!=")) {
-			split = Strings.split(body, "!=");
+			split = Strings.split(body, "!=", 2);
 			ifType = NOT_EQUAL;
 		} else if (Strings.contains(body, ">=")) {
-			split = Strings.split(body, ">=");
+			split = Strings.split(body, ">=", 2);
 			ifType = GREATER_THAN_OR_EQUAL;
 		} else if (Strings.contains(body, "<=")) {
-			split = Strings.split(body, "<=");
+			split = Strings.split(body, "<=", 2);
 			ifType = LESS_THAN_OR_EQUAL;
-		} else if (Strings.contains(body, ">")) {
-			split = Strings.split(body, ">");
+		} else if (Strings.contains(body, ">") && !Strings.contains(body, ">>") && !Strings.contains(body, ">>>")) {
+			split = Strings.split(body, ">", 2);
 			ifType = GREATER_THAN;
-		} else if (Strings.contains(body, "<")) {
-			split = Strings.split(body, "<");
+		} else if (Strings.contains(body, "<") && !Strings.contains(body, "<<")) {
+			split = Strings.split(body, "<", 2);
 			ifType = LESS_THAN;
 		} else if (Strings.contains(body, "is")) {
-			split = Strings.split(body, "is");
+			split = Strings.split(body, "is", 2);
 			ifType = IS;
 		}
 
@@ -95,6 +95,11 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				m.visitJumpInsn(IFEQ, end);
 			}
 		} else {
+			if (ifType == -1) {
+				valid = false;
+				return;
+			}
+
 			left = split[0].trim().getLine();
 			right = split[1].trim().getLine();
 
