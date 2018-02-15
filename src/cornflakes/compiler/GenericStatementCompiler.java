@@ -26,6 +26,32 @@ public class GenericStatementCompiler implements GenericCompiler {
 		Line line = lines[0];
 		String body = line.getLine();
 
+		if (Strings.contains(body, "+=")) {
+			String[] split = Strings.trim(Strings.split(body, "+=", 2));
+			body = split[0] + " = " + split[0] + " + " + split[1];
+		} else if (Strings.contains(body, "-=")) {
+			String[] split = Strings.trim(Strings.split(body, "-=", 2));
+			body = split[0] + " = " + split[0] + " - " + split[1];
+		} else if (Strings.contains(body, "*=")) {
+			String[] split = Strings.trim(Strings.split(body, "-=", 2));
+			body = split[0] + " = " + split[0] + " * " + split[1];
+		} else if (Strings.contains(body, "/=")) {
+			String[] split = Strings.trim(Strings.split(body, "/=", 2));
+			body = split[0] + " = " + split[0] + " / " + split[1];
+		} else if (Strings.contains(body, "&=")) {
+			String[] split = Strings.trim(Strings.split(body, "&=", 2));
+			body = split[0] + " = " + split[0] + " & " + split[1];
+		} else if (Strings.contains(body, "|=")) {
+			String[] split = Strings.trim(Strings.split(body, "|=", 2));
+			body = split[0] + " = " + split[0] + " | " + split[1];
+		} else if (Strings.contains(body, "^=")) {
+			String[] split = Strings.trim(Strings.split(body, "^=", 2));
+			body = split[0] + " = " + split[0] + " ^ " + split[1];
+		} else if (Strings.contains(body, "%=")) {
+			String[] split = Strings.trim(Strings.split(body, "%=", 2));
+			body = split[0] + " = " + split[0] + " % " + split[1];
+		}
+
 		if (body.startsWith("yield")) {
 			type = YIELD;
 

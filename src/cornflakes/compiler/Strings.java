@@ -43,6 +43,14 @@ public class Strings {
 		return x.split(Pattern.quote(value) + "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", max);
 	}
 
+	public static String[] trim(String[] x) {
+		String[] y = new String[x.length];
+		for (int i = 0; i < x.length; i++) {
+			y[i] = x[i].trim();
+		}
+		return y;
+	}
+
 	public static String[] splitParameters(String x) {
 		if (x.isEmpty()) {
 			return new String[0];
@@ -156,7 +164,7 @@ public class Strings {
 	}
 
 	public static Line accumulate(Line[] arr) {
-		if(arr.length == 0) {
+		if (arr.length == 0) {
 			return new Line(-1, "");
 		}
 		String x = "";
@@ -169,7 +177,7 @@ public class Strings {
 	public static Line[] accumulate(Line line) {
 		return accumulate(line, line.getNumber());
 	}
-	
+
 	public static Line[] accumulate(Line line, int num) {
 		List<Line> list = new ArrayList<>(Arrays.asList(line.split(System.lineSeparator())));
 		for (int i = 0; i < list.size(); i++) {
@@ -177,7 +185,6 @@ public class Strings {
 		}
 		return list.toArray(new Line[list.size()]);
 	}
-
 
 	public static String[] accumulate(String line) {
 		List<String> list = new ArrayList<>(Arrays.asList(line.split(System.lineSeparator())));

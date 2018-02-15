@@ -43,6 +43,9 @@ public class MathExpressionCompiler implements GenericCompiler {
 					if (body.charAt(start + 1) == first) {
 						String type = pushToStack(body, body.substring(0, start).getLine(), data, m, block)
 								.getTypeSignature();
+						if (this.write) {
+							m.visitInsn(DUP);
+						}
 
 						boolean isLong = type.equals("J");
 						boolean isInt = type.equals("I");
@@ -101,6 +104,9 @@ public class MathExpressionCompiler implements GenericCompiler {
 							m.visitInsn(op);
 
 							if (ref != null && ref.getField() != null) {
+								if (ref.getField().hasModifier(ACC_FINAL)) {
+									throw new CompileError("Cannot assign a value to a const after initialization");
+								}
 								if (ref.getField() instanceof LocalData) {
 									LocalData local = (LocalData) ref.getField();
 									m.visitVarInsn(Types.getOpcode(Types.STORE, type), local.getIndex());

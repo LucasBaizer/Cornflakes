@@ -58,579 +58,574 @@ public class ExpressionCompiler implements GenericCompiler {
 		Line line = lines[0];
 		String body = line.getLine();
 
-		try {
-			if (body.equals("null")) {
-				if (write)
-					m.visitInsn(ACONST_NULL);
+		if (body.equals("null")) {
+			if (write)
+				m.visitInsn(ACONST_NULL);
 
-				resultType = DefinitiveType.primitive("null");
-				resultOwner = null;
-				resultName = null;
-				expressionType = NULL;
-				return;
-			}
+			resultType = DefinitiveType.primitive("null");
+			resultOwner = null;
+			resultName = null;
+			expressionType = NULL;
+			return;
+		}
 
-			int end = body.length();
-			int opens = 0;
-			int brack = 0;
-			boolean quote = false;
-			for (int i = 0; i < body.length(); i++) {
-				char c = body.charAt(i);
-				if (c == '(') {
-					opens++;
-				} else if (c == ')') {
-					opens--;
-				} else if (c == '[') {
-					brack++;
-				} else if (c == ']') {
-					brack--;
-				} else if (c == '"') {
-					quote = !quote;
-				} else if (opens == 0 && brack == 0 && !quote) {
-					if (c == '.') {
-						if (!(body.charAt(i + 1) >= '0' && body.charAt(i + 1) <= '9')) {
-							end = i;
-							break;
-						}
+		int end = body.length();
+		int opens = 0;
+		int brack = 0;
+		boolean quote = false;
+		for (int i = 0; i < body.length(); i++) {
+			char c = body.charAt(i);
+			if (c == '(') {
+				opens++;
+			} else if (c == ')') {
+				opens--;
+			} else if (c == '[') {
+				brack++;
+			} else if (c == ']') {
+				brack--;
+			} else if (c == '"') {
+				quote = !quote;
+			} else if (opens == 0 && brack == 0 && !quote) {
+				if (c == '.') {
+					if (!(body.charAt(i + 1) >= '0' && body.charAt(i + 1) <= '9')) {
+						end = i;
+						break;
 					}
 				}
 			}
-			String part = body.substring(0, end).trim();
-			boolean isPtrRef = false;
-			if (part.startsWith("&")) {
-				part = part.substring(1).trim();
-				isPtrRef = true;
-			}
+		}
+		String part = body.substring(0, end).trim();
+		boolean isPtrRef = false;
+		if (part.startsWith("&")) {
+			part = part.substring(1).trim();
+			isPtrRef = true;
+		}
 
-			boolean next = false;
-			String pType = Types.getType(part, null);
-			if (pType != null) {
-				String finalType = Types.getTypeSignature(pType);
-				Object literal = Types.parseLiteral(pType, part);
+		boolean next = false;
+		String pType = Types.getType(part, null);
+		if (pType != null) {
+			String finalType = Types.getTypeSignature(pType);
+			Object literal = Types.parseLiteral(pType, part);
 
-				if (pType.equals("string")) {
+			if (pType.equals("string")) {
+				if (write) {
+					m.visitLdcInsn(literal);
+				}
+
+				resultType = DefinitiveType.object("Ljava/lang/String;");
+				resultOwner = resultType.getObjectType();
+			} else {
+				String wrapper = Types.getWrapperType(pType);
+				finalType = Types.padSignature(wrapper);
+
+				if (isPtrRef && end == body.length()) {
 					if (write) {
-						m.visitLdcInsn(literal);
-					}
-
-					resultType = DefinitiveType.object("Ljava/lang/String;");
-					resultOwner = resultType.getObjectType();
-				} else {
-					String wrapper = Types.getWrapperType(pType);
-					finalType = Types.padSignature(wrapper);
-
-					if (isPtrRef && end == body.length()) {
-						if (write) {
-							if (pType.equals("bool")) {
-								m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
-							} else {
-								m.visitLdcInsn(literal);
-							}
-						}
-
-						resultType = DefinitiveType.primitive(pType);
-						resultOwner = null;
-					} else {
-						if (write) {
-							m.visitTypeInsn(NEW, wrapper);
-							m.visitInsn(DUP);
-							if (pType.equals("bool")) {
-								m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
-							} else {
-								m.visitLdcInsn(literal);
-							}
-							m.visitMethodInsn(INVOKESPECIAL, wrapper, "<init>",
-									"(" + Types.getTypeSignature(pType) + ")V", false);
-						}
-
-						resultType = DefinitiveType.assume(finalType);
-						resultOwner = resultType.getObjectType();
-					}
-				}
-
-				resultName = part;
-				expressionType = LITERAL;
-				next = true;
-			} else if (part.equals("this")) {
-				if (this.data.hasModifier(ACC_STATIC)) {
-					throw new CompileError("Cannot access this from a static context");
-				}
-				if (block instanceof ConstructorBlock) {
-					ConstructorBlock cblock = (ConstructorBlock) block;
-					if (!cblock.hasCalledConstructor()) {
-						throw new CompileError("Cannot reference this until either super or this has been called");
-					}
-				}
-				if (write) {
-					m.visitVarInsn(ALOAD, 0);
-					this.data.ics();
-				}
-
-				thisType = true;
-				resultName = "this";
-				resultOwner = data;
-				resultType = DefinitiveType.assume(Types.getTypeSignature(data.getClassName()));
-				expressionType = THIS;
-				next = true;
-			} else if (Types.isTupleDefinition(part)) {
-				String[] tuple = Strings.splitParameters(part.substring(1, part.length() - 1).trim());
-
-				int idx = 16384 + this.data.getSyntheticVariables();
-				if (write) {
-					m.visitLocalVariable("_tuple_init_" + idx, "Lcornflakes/lang/Tuple;", null, block.getStartLabel(),
-							block.getEndLabel(), idx);
-
-					m.visitTypeInsn(NEW, "cornflakes/lang/Tuple");
-					m.visitInsn(DUP);
-					m.visitLdcInsn(tuple.length);
-					m.visitLdcInsn(9);
-					m.visitIntInsn(NEWARRAY, T_INT);
-					int idx2 = 16385 + this.data.getSyntheticVariables();
-					m.visitLocalVariable("_tuple_init_typearr_" + idx2, "[I", null, block.getStartLabel(),
-							block.getEndLabel(), idx2);
-					m.visitVarInsn(ASTORE, idx2);
-
-					for (int i = 0; i < tuple.length; i++) {
-						m.visitVarInsn(ALOAD, idx2);
-
-						String type = Types.getType(tuple[i].trim(), null);
-						int t = -1;
-						if (type == null || type.equals("string")) {
-							t = Tuple.OBJECT;
+						if (pType.equals("bool")) {
+							m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
 						} else {
-							if (type.equals("i8")) {
-								t = Tuple.I8;
-							} else if (type.equals("i16")) {
-								t = Tuple.I16;
-							} else if (type.equals("i32")) {
-								t = Tuple.I32;
-							} else if (type.equals("i64")) {
-								t = Tuple.I64;
-							} else if (type.equals("f32")) {
-								t = Tuple.F32;
-							} else if (type.equals("f64")) {
-								t = Tuple.F64;
-							} else if (type.equals("bool")) {
-								t = Tuple.BOOL;
-							} else if (type.equals("char")) {
-								t = Tuple.CHAR;
-							}
+							m.visitLdcInsn(literal);
 						}
-
-						m.visitLdcInsn(t);
-
-						m.visitVarInsn(ALOAD, idx2); // get the value of
-														// array[index] + 1
-						m.visitLdcInsn(t);
-						m.visitInsn(IALOAD);
-						m.visitLdcInsn(1);
-						m.visitInsn(IADD);
-
-						m.visitInsn(IASTORE);
 					}
 
-					m.visitVarInsn(ALOAD, idx2);
-					m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I[I)V", false);
-					m.visitVarInsn(ASTORE, idx);
-					this.data.addSyntheticVariable();
-					this.data.addSyntheticVariable();
-				}
-
-				String[] types = new String[tuple.length];
-				for (int i = 0; i < tuple.length; i++) {
-					String par = tuple[i].trim();
-					String type = Types.getType(par, null);
+					resultType = DefinitiveType.primitive(pType);
+					resultOwner = null;
+				} else {
 					if (write) {
-						m.visitVarInsn(ALOAD, idx);
-						m.visitLdcInsn(i);
-					}
-					if (type == null) {
-						ExpressionCompiler exp = new ExpressionCompiler(this.write, this.data);
-						exp.compile(data, m, block, new Line[] { line.derive(par) });
-
-						String sig = exp.getResultType().getAbsoluteTypeSignature();
-						if (write) {
-							if (Types.isPrimitive(sig)) {
-								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V",
-										false);
-							} else {
-								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
-										"(ILjava/lang/Object;)V", false);
-							}
+						m.visitTypeInsn(NEW, wrapper);
+						m.visitInsn(DUP);
+						if (pType.equals("bool")) {
+							m.visitLdcInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+						} else {
+							m.visitLdcInsn(literal);
 						}
+						m.visitMethodInsn(INVOKESPECIAL, wrapper, "<init>", "(" + Types.getTypeSignature(pType) + ")V",
+								false);
+					}
 
-						types[i] = Types.primitiveToCornflakes(exp.getResultType().getTypeSignature());
+					resultType = DefinitiveType.assume(finalType);
+					resultOwner = resultType.getObjectType();
+				}
+			}
+
+			resultName = part;
+			expressionType = LITERAL;
+			next = true;
+		} else if (part.equals("this")) {
+			if (this.data.hasModifier(ACC_STATIC)) {
+				throw new CompileError("Cannot access this from a static context");
+			}
+			if (block instanceof ConstructorBlock) {
+				ConstructorBlock cblock = (ConstructorBlock) block;
+				if (!cblock.hasCalledConstructor()) {
+					throw new CompileError("Cannot reference this until either super or this has been called");
+				}
+			}
+			if (write) {
+				m.visitVarInsn(ALOAD, 0);
+				this.data.ics();
+			}
+
+			thisType = true;
+			resultName = "this";
+			resultOwner = data;
+			resultType = DefinitiveType.assume(Types.getTypeSignature(data.getClassName()));
+			expressionType = THIS;
+			next = true;
+		} else if (Types.isTupleDefinition(part)) {
+			String[] tuple = Strings.splitParameters(part.substring(1, part.length() - 1).trim());
+
+			int idx = 16384 + this.data.getSyntheticVariables();
+			if (write) {
+				m.visitLocalVariable("_tuple_init_" + idx, "Lcornflakes/lang/Tuple;", null, block.getStartLabel(),
+						block.getEndLabel(), idx);
+
+				m.visitTypeInsn(NEW, "cornflakes/lang/Tuple");
+				m.visitInsn(DUP);
+				m.visitLdcInsn(tuple.length);
+				m.visitLdcInsn(9);
+				m.visitIntInsn(NEWARRAY, T_INT);
+				int idx2 = 16385 + this.data.getSyntheticVariables();
+				m.visitLocalVariable("_tuple_init_typearr_" + idx2, "[I", null, block.getStartLabel(),
+						block.getEndLabel(), idx2);
+				m.visitVarInsn(ASTORE, idx2);
+
+				for (int i = 0; i < tuple.length; i++) {
+					m.visitVarInsn(ALOAD, idx2);
+
+					String type = Types.getType(tuple[i].trim(), null);
+					int t = -1;
+					if (type == null || type.equals("string")) {
+						t = Tuple.OBJECT;
 					} else {
-						Object value = Types.parseLiteral(type, par);
-						int push = Types.getOpcode(Types.PUSH, type);
-
-						if (write) {
-							if (push == LDC) {
-								m.visitLdcInsn(value);
-								this.data.ics();
-							} else if (value != null) {
-								String toString = value.toString();
-								if (toString.equals("true") || toString.equals("false")) {
-									m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
-								} else {
-									m.visitVarInsn(push, Integer.parseInt(toString));
-									this.data.ics();
-								}
-							}
-						}
-
-						String sig = Types.getTypeSignature(type);
-						types[i] = Types.primitiveToCornflakes(sig);
-						if (write) {
-							if (Types.isPrimitive(sig)) {
-								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V",
-										false);
-							} else {
-								m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item",
-										"(ILjava/lang/Object;)V", false);
-							}
+						if (type.equals("i8")) {
+							t = Tuple.I8;
+						} else if (type.equals("i16")) {
+							t = Tuple.I16;
+						} else if (type.equals("i32")) {
+							t = Tuple.I32;
+						} else if (type.equals("i64")) {
+							t = Tuple.I64;
+						} else if (type.equals("f32")) {
+							t = Tuple.F32;
+						} else if (type.equals("f64")) {
+							t = Tuple.F64;
+						} else if (type.equals("bool")) {
+							t = Tuple.BOOL;
+						} else if (type.equals("char")) {
+							t = Tuple.CHAR;
 						}
 					}
+
+					m.visitLdcInsn(t);
+
+					m.visitVarInsn(ALOAD, idx2); // get the value of
+													// array[index] + 1
+					m.visitLdcInsn(t);
+					m.visitInsn(IALOAD);
+					m.visitLdcInsn(1);
+					m.visitInsn(IADD);
+
+					m.visitInsn(IASTORE);
 				}
 
+				m.visitVarInsn(ALOAD, idx2);
+				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/Tuple", "<init>", "(I[I)V", false);
+				m.visitVarInsn(ASTORE, idx);
+				this.data.addSyntheticVariable();
+				this.data.addSyntheticVariable();
+			}
+
+			String[] types = new String[tuple.length];
+			for (int i = 0; i < tuple.length; i++) {
+				String par = tuple[i].trim();
+				String type = Types.getType(par, null);
 				if (write) {
 					m.visitVarInsn(ALOAD, idx);
+					m.visitLdcInsn(i);
 				}
-
-				resultName = part;
-				resultOwner = ClassData.forName("cornflakes/lang/Tuple");
-
-				String str = "(";
-				for (int i = 0; i < types.length; i++) {
-					str += types[i];
-					if (i < types.length - 1) {
-						str += ", ";
-					}
-				}
-				str += ")";
-				resultType = DefinitiveType.object(str);
-				expressionType = TUPLE;
-
-				next = true;
-			} else if (Strings.contains(part, " as ")) {
-				String[] split = Strings.split(part, " as ");
-				String val = split[0].trim();
-				DefinitiveType cls = data.resolveClass(split[1].trim());
-
-				String type = Types.getType(val, cls.getTypeName());
-				String cast = null;
-				boolean prim = false;
 				if (type == null) {
-					ExpressionCompiler sub = new ExpressionCompiler(this.write, this.data);
-					sub.compile(data, m, block, new Line[] { line.derive(val) });
-					cast = sub.getResultType().getTypeSignature();
-					prim = sub.isPrimitiveResult();
-				} else {
-					cast = type;
-					prim = true;
+					ExpressionCompiler exp = new ExpressionCompiler(this.write, this.data);
+					exp.compile(data, m, block, new Line[] { line.derive(par) });
 
-					if (this.write) {
-						Object obj = Types.parseLiteral(type, val);
-
-						int push = Types.getOpcode(Types.PUSH, type);
-						if (push == LDC) {
-							m.visitLdcInsn(obj);
+					String sig = exp.getResultType().getAbsoluteTypeSignature();
+					if (write) {
+						if (Types.isPrimitive(sig)) {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V", false);
 						} else {
-							String toString = obj.toString();
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(ILjava/lang/Object;)V",
+									false);
+						}
+					}
 
+					types[i] = Types.primitiveToCornflakes(exp.getResultType().getTypeSignature());
+				} else {
+					Object value = Types.parseLiteral(type, par);
+					int push = Types.getOpcode(Types.PUSH, type);
+
+					if (write) {
+						if (push == LDC) {
+							m.visitLdcInsn(value);
+							this.data.ics();
+						} else if (value != null) {
+							String toString = value.toString();
 							if (toString.equals("true") || toString.equals("false")) {
 								m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
 							} else {
-								m.visitVarInsn(push, Integer.parseInt(obj.toString()));
+								m.visitVarInsn(push, Integer.parseInt(toString));
+								this.data.ics();
 							}
 						}
-						this.data.ics();
 					}
-				}
 
-				if (write) {
-					if (prim) {
-						if (cast.equals("i32")) {
-							if (cls.equals("B")) {
-								m.visitInsn(I2B);
-							} else if (cls.equals("C")) {
-								m.visitInsn(I2C);
-							} else if (cls.equals("S")) {
-								m.visitInsn(I2S);
-							} else if (cls.equals("F")) {
-								m.visitInsn(I2F);
-							} else if (cls.equals("D")) {
-								m.visitInsn(I2D);
-							} else if (cls.equals("L")) {
-								m.visitInsn(I2L);
-							}
-						} else if (cast.equals("i64")) {
-							if (cls.equals("F")) {
-								m.visitInsn(L2F);
-							} else if (cls.equals("D")) {
-								m.visitInsn(L2D);
-							} else if (cls.equals("I")) {
-								m.visitInsn(L2I);
-							} else if (cls.equals("C")) {
-								m.visitInsn(L2I);
-								m.visitInsn(I2C);
-							} else if (cls.equals("B")) {
-								m.visitInsn(L2I);
-								m.visitInsn(I2B);
-							} else if (cls.equals("S")) {
-								m.visitInsn(L2I);
-								m.visitInsn(I2S);
-							}
-						} else if (cast.equals("f32")) {
-							if (cls.equals("L")) {
-								m.visitInsn(F2L);
-							} else if (cls.equals("D")) {
-								m.visitInsn(F2D);
-							} else if (cls.equals("I")) {
-								m.visitInsn(F2I);
-							} else if (cls.equals("C")) {
-								m.visitInsn(F2I);
-								m.visitInsn(I2C);
-							} else if (cls.equals("B")) {
-								m.visitInsn(F2I);
-								m.visitInsn(I2B);
-							} else if (cls.equals("S")) {
-								m.visitInsn(F2I);
-								m.visitInsn(I2S);
-							}
-						} else if (cast.equals("f64")) {
-							if (cls.equals("L")) {
-								m.visitInsn(D2L);
-							} else if (cls.equals("D")) {
-								m.visitInsn(D2F);
-							} else if (cls.equals("I")) {
-								m.visitInsn(D2I);
-							} else if (cls.equals("C")) {
-								m.visitInsn(D2I);
-								m.visitInsn(I2C);
-							} else if (cls.equals("B")) {
-								m.visitInsn(D2I);
-								m.visitInsn(I2B);
-							} else if (cls.equals("S")) {
-								m.visitInsn(D2I);
-								m.visitInsn(I2S);
-							}
+					String sig = Types.getTypeSignature(type);
+					types[i] = Types.primitiveToCornflakes(sig);
+					if (write) {
+						if (Types.isPrimitive(sig)) {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(I" + sig + ")V", false);
+						} else {
+							m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/Tuple", "item", "(ILjava/lang/Object;)V",
+									false);
 						}
-					} else {
-						m.visitTypeInsn(CHECKCAST, cls.getAbsoluteTypeName());
 					}
 				}
+			}
 
-				resultName = val;
-				resultOwner = data;
-				resultType = cls;
-				expressionType = CAST;
+			if (write) {
+				m.visitVarInsn(ALOAD, idx);
+			}
 
-				next = true;
+			resultName = part;
+			resultOwner = ClassData.forName("cornflakes/lang/Tuple");
+
+			String str = "(";
+			for (int i = 0; i < types.length; i++) {
+				str += types[i];
+				if (i < types.length - 1) {
+					str += ", ";
+				}
+			}
+			str += ")";
+			resultType = DefinitiveType.object(str);
+			expressionType = TUPLE;
+
+			next = true;
+		} else if (Strings.contains(part, " as ")) {
+			String[] split = Strings.split(part, " as ");
+			String val = split[0].trim();
+			DefinitiveType cls = data.resolveClass(split[1].trim());
+
+			String type = Types.getType(val, cls.getTypeName());
+			String cast = null;
+			boolean prim = false;
+			if (type == null) {
+				ExpressionCompiler sub = new ExpressionCompiler(this.write, this.data);
+				sub.compile(data, m, block, new Line[] { line.derive(val) });
+				cast = sub.getResultType().getTypeSignature();
+				prim = sub.isPrimitiveResult();
 			} else {
-				boolean match = part.matches("^([a-zA-Z0-9!_]*?)\\(.*?\\)");
-				if (!match) {
-					match = part.matches("^([a-zA-Z0-9!_]*?)<.*?>\\(.*?\\)");
-				}
-				if (allowImplicitGetters) {
-					String test = "get" + Strings.capitalize(part);
+				cast = type;
+				prim = true;
 
-					boolean testb = containerData.getAllMethods(test).length > 0;
-					if (!testb) {
-						test = part;
-						testb = containerData.getAllMethods(test).length > 0;
+				if (this.write) {
+					Object obj = Types.parseLiteral(type, val);
+
+					int push = Types.getOpcode(Types.PUSH, type);
+					if (push == LDC) {
+						m.visitLdcInsn(obj);
+					} else {
+						String toString = obj.toString();
+
+						if (toString.equals("true") || toString.equals("false")) {
+							m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+						} else {
+							m.visitVarInsn(push, Integer.parseInt(obj.toString()));
+						}
 					}
+					this.data.ics();
+				}
+			}
 
-					if (testb) {
-						if (containerData != data
-								|| (!data.hasField(part) && !(this.data != null && this.data.hasLocal(part, block)))) {
-							compileMethodCall(last, containerData, data, m, block, line.derive(test + "()"), 0);
-							if (resultType.equals("V")) {
-								throw new CompileError("Cannot reference void-returning function with variable syntax");
+			if (write) {
+				if (prim) {
+					if (cast.equals("i32")) {
+						if (cls.equals("B")) {
+							m.visitInsn(I2B);
+						} else if (cls.equals("C")) {
+							m.visitInsn(I2C);
+						} else if (cls.equals("S")) {
+							m.visitInsn(I2S);
+						} else if (cls.equals("F")) {
+							m.visitInsn(I2F);
+						} else if (cls.equals("D")) {
+							m.visitInsn(I2D);
+						} else if (cls.equals("L")) {
+							m.visitInsn(I2L);
+						}
+					} else if (cast.equals("i64")) {
+						if (cls.equals("F")) {
+							m.visitInsn(L2F);
+						} else if (cls.equals("D")) {
+							m.visitInsn(L2D);
+						} else if (cls.equals("I")) {
+							m.visitInsn(L2I);
+						} else if (cls.equals("C")) {
+							m.visitInsn(L2I);
+							m.visitInsn(I2C);
+						} else if (cls.equals("B")) {
+							m.visitInsn(L2I);
+							m.visitInsn(I2B);
+						} else if (cls.equals("S")) {
+							m.visitInsn(L2I);
+							m.visitInsn(I2S);
+						}
+					} else if (cast.equals("f32")) {
+						if (cls.equals("L")) {
+							m.visitInsn(F2L);
+						} else if (cls.equals("D")) {
+							m.visitInsn(F2D);
+						} else if (cls.equals("I")) {
+							m.visitInsn(F2I);
+						} else if (cls.equals("C")) {
+							m.visitInsn(F2I);
+							m.visitInsn(I2C);
+						} else if (cls.equals("B")) {
+							m.visitInsn(F2I);
+							m.visitInsn(I2B);
+						} else if (cls.equals("S")) {
+							m.visitInsn(F2I);
+							m.visitInsn(I2S);
+						}
+					} else if (cast.equals("f64")) {
+						if (cls.equals("L")) {
+							m.visitInsn(D2L);
+						} else if (cls.equals("D")) {
+							m.visitInsn(D2F);
+						} else if (cls.equals("I")) {
+							m.visitInsn(D2I);
+						} else if (cls.equals("C")) {
+							m.visitInsn(D2I);
+							m.visitInsn(I2C);
+						} else if (cls.equals("B")) {
+							m.visitInsn(D2I);
+							m.visitInsn(I2B);
+						} else if (cls.equals("S")) {
+							m.visitInsn(D2I);
+							m.visitInsn(I2S);
+						}
+					}
+				} else {
+					m.visitTypeInsn(CHECKCAST, cls.getAbsoluteTypeName());
+				}
+			}
+
+			resultName = val;
+			resultOwner = data;
+			resultType = cls;
+			expressionType = CAST;
+
+			next = true;
+		} else {
+			boolean match = part.matches("^([a-zA-Z0-9!_]*?)\\(.*?\\)");
+			if (!match) {
+				match = part.matches("^([a-zA-Z0-9!_]*?)<.*?>\\(.*?\\)");
+			}
+			if (allowImplicitGetters) {
+				String test = "get" + Strings.capitalize(part);
+
+				boolean testb = containerData.getAllMethods(test).length > 0;
+				if (!testb) {
+					test = part;
+					testb = containerData.getAllMethods(test).length > 0;
+				}
+
+				if (testb) {
+					if (containerData != data
+							|| (!data.hasField(part) && !(this.data != null && this.data.hasLocal(part, block)))) {
+						compileMethodCall(last, containerData, data, m, block, line.derive(test + "()"), 0);
+						if (resultType.equals("V")) {
+							throw new CompileError("Cannot reference void-returning function with variable syntax");
+						}
+						next = true;
+					}
+				}
+			}
+			if (!next) {
+				if (match) {
+					String name = part.substring(0, part.indexOf('(')).trim();
+					if (!name.isEmpty()) {
+						if (name.endsWith("!")) {
+							String macro = name.substring(0, name.length() - 1);
+							if (!data.hasMacro(macro)) {
+								throw new CompileError("Undefined macro: " + macro);
 							}
+							name = data.resolveMacro(macro);
+
+							String theNew = name + part.substring(part.indexOf('(')).trim();
+							ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
+							compiler.compile(data, m, block, new Line[] { line.derive(theNew) });
+
+							resultType = compiler.getResultType();
+							resultName = compiler.getResultName();
+							resultOwner = compiler.getResultOwner();
+							expressionType = compiler.getExpressionType();
+
 							next = true;
 						}
-					}
-				}
-				if (!next) {
-					if (match) {
-						String name = part.substring(0, part.indexOf('(')).trim();
-						if (!name.isEmpty()) {
-							if (name.endsWith("!")) {
-								String macro = name.substring(0, name.length() - 1);
-								if (!data.hasMacro(macro)) {
-									throw new CompileError("Undefined macro: " + macro);
+
+						if (!next) {
+							int callType = 0;
+							boolean altCall = false;
+							if (this.data instanceof ConstructorData) {
+								if (name.equals("super") || name.equals("this")) {
+									if (((ConstructorBlock) block).hasCalledConstructor()) {
+										throw new CompileError("Cannot call super or this more than once");
+									}
+									altCall = true;
+
+									callType = name.equals("super") ? 1 : 2;
 								}
-								name = data.resolveMacro(macro);
-
-								String theNew = name + part.substring(part.indexOf('(')).trim();
-								ExpressionCompiler compiler = new ExpressionCompiler(this.write, this.data);
-								compiler.compile(data, m, block, new Line[] { line.derive(theNew) });
-
-								resultType = compiler.getResultType();
-								resultName = compiler.getResultName();
-								resultOwner = compiler.getResultOwner();
-								expressionType = compiler.getExpressionType();
-
-								next = true;
+							} else {
+								if (name.equals("super") || name.equals("this")) {
+									throw new CompileError("Cannot call super or this outside of a constructor");
+								}
 							}
 
-							if (!next) {
-								int callType = 0;
-								boolean altCall = false;
-								if (this.data instanceof ConstructorData) {
-									if (name.equals("super") || name.equals("this")) {
-										if (((ConstructorBlock) block).hasCalledConstructor()) {
-											throw new CompileError("Cannot call super or this more than once");
-										}
-										altCall = true;
+							ClassData toUse = thisType ? data : containerData;
 
-										callType = name.equals("super") ? 1 : 2;
-									}
-								} else {
-									if (name.equals("super") || name.equals("this")) {
-										throw new CompileError("Cannot call super or this outside of a constructor");
-									}
+							if (altCall || toUse.hasMethod(name)) {
+								compileMethodCall(last, toUse, data, m, block, line.derive(part), callType);
+								next = true;
+							} else if (name.equals("typeof")) {
+								compileMethodCall(last, toUse, data, m, block, line.derive(part), callType);
+								next = true;
+							} else {
+								MethodData[] methods = toUse.getAllMethods(name);
+								if (methods.length > 0) {
+									compileMethodCall(last, toUse, data, m, block, line.derive(part), callType);
+									next = true;
 								}
 
-								ClassData toUse = thisType ? data : containerData;
+								if (!next && !thisType) {
+									if (!name.equals("array")) {
+										DefinitiveType resolved = null;
+										try {
+											if (Strings.contains(name, "<")) {
+												name = name.substring(0, name.indexOf('<'));
+											}
 
-								if (altCall || toUse.hasMethod(name)) {
-									compileMethodCall(last, toUse, data, m, block, line.derive(part), callType);
-									next = true;
-								} else if (name.equals("typeof")) {
-									compileMethodCall(last, toUse, data, m, block, line.derive(part), callType);
-									next = true;
-								} else {
-									MethodData[] methods = toUse.getAllMethods(name);
-									if (methods.length > 0) {
-										compileMethodCall(last, toUse, data, m, block, line.derive(part), callType);
+											resolved = data.resolveClass(name, false);
+										} catch (CompileError e) {
+											throw new CompileError("Undefined function: " + name);
+										}
+
+										try {
+											compileConstructorCall(resolved.getObjectType(), data, m, block,
+													line.derive(part), resolved.getAbsoluteTypeName());
+										} catch (ClassNotFoundException e) {
+											throw new CompileError(e);
+										}
+										next = true;
+									} else {
+										compileConstructorCall(data, data, m, block, line.derive(part), "__array__");
 										next = true;
 									}
-
-									if (!next && !thisType) {
-										if (!name.equals("array")) {
-											DefinitiveType resolved = null;
-											try {
-												if (Strings.contains(name, "<")) {
-													name = name.substring(0, name.indexOf('<'));
-												}
-
-												resolved = data.resolveClass(name, false);
-											} catch (CompileError e) {
-												throw new CompileError("Undefined function: " + name);
-											}
-
-											try {
-												compileConstructorCall(resolved.getObjectType(), data, m, block,
-														line.derive(part), resolved.getAbsoluteTypeName());
-											} catch (ClassNotFoundException e) {
-												throw new CompileError(e);
-											}
-											next = true;
-										} else {
-											compileConstructorCall(data, data, m, block, line.derive(part),
-													"__array__");
-											next = true;
-										}
-									}
 								}
 							}
-						} else {
-							throw new CompileError("Method name cannot be empty");
 						}
 					} else {
-						if (part.equals("length") && resultType != null && resultType.getTypeName().startsWith("[")) {
-							if (this.write) {
-								m.visitInsn(ARRAYLENGTH);
-								if (this.data != null) {
-									this.data.ics();
-								}
+						throw new CompileError("Method name cannot be empty");
+					}
+				} else {
+					if (part.equals("length") && resultType != null && resultType.getTypeName().startsWith("[")) {
+						if (this.write) {
+							m.visitInsn(ARRAYLENGTH);
+							if (this.data != null) {
+								this.data.ics();
 							}
-							resultName = "length";
-							resultType = DefinitiveType.primitive("I");
-							expressionType = LOCAL_VARIABLE;
+						}
+						resultName = "length";
+						resultType = DefinitiveType.primitive("I");
+						expressionType = LOCAL_VARIABLE;
+						next = true;
+					} else {
+						boolean arr = part.contains("[");
+						boolean ptr = false;
+						String varPart = part.substring(0, !arr ? part.length() : part.indexOf('[')).trim();
+						String arrayIndex = null;
+						if (arr) {
+							arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
+						}
+
+						if (varPart.startsWith("*")) {
+							varPart = varPart.substring(1).trim();
+							ptr = true;
+						}
+
+						if (!thisType && this.data != null && this.data.hasLocal(varPart, block)) {
+							compileVariableReference(last, 1, containerData, data, m, block, line.derive(varPart),
+									arrayIndex, end == body.length(), ptr);
 							next = true;
 						} else {
-							boolean arr = part.contains("[");
-							boolean ptr = false;
-							String varPart = part.substring(0, !arr ? part.length() : part.indexOf('[')).trim();
-							String arrayIndex = null;
-							if (arr) {
-								arrayIndex = part.substring(part.indexOf('[') + 1, part.indexOf(']')).trim();
-							}
-
-							if (varPart.startsWith("*")) {
-								varPart = varPart.substring(1).trim();
-								ptr = true;
-							}
-
-							if (!thisType && this.data != null && this.data.hasLocal(varPart, block)) {
-								compileVariableReference(last, 1, containerData, data, m, block, line.derive(varPart),
+							if (data.hasField(varPart)) {
+								compileVariableReference(last, 0, data, data, m, block, line.derive(varPart),
+										arrayIndex, end == body.length(), ptr);
+								next = true;
+							} else if (!thisType && containerData.hasField(varPart)) {
+								compileVariableReference(last, 0, containerData, data, m, block, line.derive(varPart),
 										arrayIndex, end == body.length(), ptr);
 								next = true;
 							} else {
-								if (data.hasField(varPart)) {
-									compileVariableReference(last, 0, data, data, m, block, line.derive(varPart),
-											arrayIndex, end == body.length(), ptr);
-									next = true;
-								} else if (!thisType && containerData.hasField(varPart)) {
-									compileVariableReference(last, 0, containerData, data, m, block,
-											line.derive(varPart), arrayIndex, end == body.length(), ptr);
-									next = true;
-								} else {
-									boolean math = true;
-									if (allowBoolean) {
-										BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data,
-												null, false);
+								boolean math = true;
+								if (allowBoolean) {
+									BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, null,
+											false);
+									compiler.compile(data, m, block, new Line[] { line.derive(part) });
+
+									if (compiler.isValid()) {
+										Label iconst = new Label();
+										Label label = new Label();
+
+										compiler.setWrite(this.write);
+										compiler.setEnd(iconst);
+
+										compiler.compile(data, m, block, new Line[] { line.derive(part) });
+										if (compiler.isRequireBranch()) {
+											m.visitInsn(ICONST_1);
+											m.visitFrame(F_SAME, this.data.getLocalVariables(), null,
+													this.data.getCurrentStack(), null);
+											m.visitJumpInsn(GOTO, label);
+											m.visitLabel(iconst);
+											m.visitInsn(ICONST_0);
+										}
+
+										m.visitLabel(label);
+
+										resultName = body;
+										resultOwner = data;
+										resultType = DefinitiveType.primitive("Z");
+										expressionType = BOOLEAN_EXPRESSION;
+										next = true;
+										math = false;
+									}
+								}
+								if (math) {
+									if (source instanceof BooleanExpressionCompiler) {
+										next = true;
+									} else {
+										MathExpressionCompiler compiler = new MathExpressionCompiler(this.data,
+												this.allowBoolean, false);
 										compiler.compile(data, m, block, new Line[] { line.derive(part) });
 
 										if (compiler.isValid()) {
-											Label iconst = new Label();
-											Label label = new Label();
-
 											compiler.setWrite(this.write);
-											compiler.setEnd(iconst);
-
 											compiler.compile(data, m, block, new Line[] { line.derive(part) });
-											if (compiler.isRequireBranch()) {
-												m.visitInsn(ICONST_1);
-												m.visitFrame(F_SAME, this.data.getLocalVariables(), null,
-														this.data.getCurrentStack(), null);
-												m.visitJumpInsn(GOTO, label);
-												m.visitLabel(iconst);
-												m.visitInsn(ICONST_0);
-											}
-
-											m.visitLabel(label);
 
 											resultName = body;
 											resultOwner = data;
-											resultType = DefinitiveType.primitive("Z");
-											expressionType = BOOLEAN_EXPRESSION;
+											resultType = compiler.getResultType();
+											expressionType = MATH_EXPRESSION;
+											this.math = true;
 											next = true;
-											math = false;
-										}
-									}
-									if (math) {
-										if (source instanceof BooleanExpressionCompiler) {
-											next = true;
-										} else {
-											MathExpressionCompiler compiler = new MathExpressionCompiler(this.data,
-													this.allowBoolean, false);
-											compiler.compile(data, m, block, new Line[] { line.derive(part) });
-
-											if (compiler.isValid()) {
-												compiler.setWrite(this.write);
-												compiler.compile(data, m, block, new Line[] { line.derive(part) });
-
-												resultName = body;
-												resultOwner = data;
-												resultType = compiler.getResultType();
-												expressionType = MATH_EXPRESSION;
-												this.math = true;
-												next = true;
-											}
 										}
 									}
 								}
@@ -639,77 +634,75 @@ public class ExpressionCompiler implements GenericCompiler {
 					}
 				}
 			}
-
-			if (next) {
-				if (isPtrRef) {
-					String oldTypeName = resultType.getTypeName();
-					if (Types.isPrimitive(oldTypeName)) {
-						oldTypeName = Types.primitiveToCornflakes(oldTypeName);
-					}
-					resultType = DefinitiveType.object(ClassData.forName(oldTypeName + "*"));
-
-					if (this.write) {
-						String type = Types.isPrimitive(oldTypeName) ? Types.getTypeSignature(oldTypeName)
-								: "Ljava/lang/Object;";
-						m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
-								"(" + type + ")Lcornflakes/lang/Pointer;", false);
-					}
-				}
-
-				if (end != body.length()) {
-					String newBody = body.substring(end + 1, body.length()).trim();
-
-					if (resultType != null) {
-						if (resultType.getTypeSignature().length() == 1) {
-							return;
-						}
-
-						ClassData newClass = null;
-						try {
-							newClass = ClassData.forName(Types.unpadSignature(resultType.getTypeSignature()));
-						} catch (ClassNotFoundException e) {
-							throw new CompileError(e);
-						}
-
-						compile(this, newClass, data, m, block, new Line[] { line.derive(newBody) });
-					} else {
-						compile(this, data, data, m, block, new Line[] { line.derive(newBody) });
-					}
-				}
-				return;
-			}
-
-			DefinitiveType clazz = null;
-
-			if (part.equals("true") || part.equals("false")) {
-				m.visitInsn(part.equals("true") ? ICONST_1 : ICONST_0);
-
-				resultName = body;
-				resultOwner = data;
-				resultType = DefinitiveType.primitive("Z");
-				expressionType = BOOLEAN_EXPRESSION;
-
-				return;
-			} else {
-				try {
-					clazz = data.resolveClass(part, false);
-				} catch (CompileError e) {
-					throw new CompileError(
-							"Could not find a class, variable, method, or keyword derived from '" + part + "'");
-				}
-			}
-
-			ClassData cls = clazz.getObjectType();
-
-			if (end == body.length()) {
-				return;
-			}
-			String newBody = body.substring(end + 1).trim();
-
-			compile(this, cls, data, m, block, new Line[] { line.derive(newBody) });
-		} catch (CompileError e) {
-			line.rethrow(e);
 		}
+
+		if (next) {
+			if (isPtrRef) {
+				String oldTypeName = resultType.getTypeName();
+				if (Types.isPrimitive(oldTypeName)) {
+					oldTypeName = Types.primitiveToCornflakes(oldTypeName);
+				}
+				resultType = DefinitiveType.object(ClassData.forName(oldTypeName + "*"));
+
+				if (this.write) {
+					String type = Types.isPrimitive(oldTypeName) ? Types.getTypeSignature(oldTypeName)
+							: "Ljava/lang/Object;";
+					m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/Pointer", "from",
+							"(" + type + ")Lcornflakes/lang/Pointer;", false);
+				}
+			}
+
+			if (end != body.length()) {
+				String newBody = body.substring(end + 1, body.length()).trim();
+
+				if (resultType != null) {
+					if (resultType.getTypeSignature().length() == 1) {
+						return;
+					}
+
+					ClassData newClass = null;
+					try {
+						newClass = ClassData.forName(Types.unpadSignature(resultType.getTypeSignature()));
+					} catch (ClassNotFoundException e) {
+						throw new CompileError(e);
+					}
+
+					compile(this, newClass, data, m, block, new Line[] { line.derive(newBody) });
+				} else {
+					compile(this, data, data, m, block, new Line[] { line.derive(newBody) });
+				}
+			}
+			return;
+		}
+
+		DefinitiveType clazz = null;
+
+		if (part.equals("true") || part.equals("false")) {
+			m.visitInsn(part.equals("true") ? ICONST_1 : ICONST_0);
+
+			resultName = body;
+			resultOwner = data;
+			resultType = DefinitiveType.primitive("Z");
+			expressionType = BOOLEAN_EXPRESSION;
+
+			return;
+		} else {
+			try {
+				clazz = data.resolveClass(part, false);
+			} catch (CompileError e) {
+				throw new CompileError(
+						"Could not find a class, variable, method, or keyword derived from '" + part + "'");
+			}
+		}
+
+		ClassData cls = clazz.getObjectType();
+
+		if (end == body.length()) {
+			return;
+		}
+		String newBody = body.substring(end + 1).trim();
+
+		compile(this, cls, data, m, block, new Line[] { line.derive(newBody) });
 	}
 
 	private void compileVariableReference(ExpressionCompiler last, int source, ClassData containerData, ClassData data,
