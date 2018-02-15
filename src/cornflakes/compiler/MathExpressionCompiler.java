@@ -2,9 +2,12 @@ package cornflakes.compiler;
 
 import static cornflakes.compiler.Operator.*;
 
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 public class MathExpressionCompiler implements GenericCompiler {
+	public static final int NULL_COALESCE = 127;
+
 	private int type = -1;
 	private MethodData data;
 	private DefinitiveType resultType;
@@ -157,6 +160,9 @@ public class MathExpressionCompiler implements GenericCompiler {
 		} else if (Strings.contains(body, ">>")) {
 			split = Strings.split(body, ">>", 2);
 			type = RIGHT_SHIFT;
+		} else if (Strings.contains(body, "??")) {
+			split = Strings.split(body, "??", 2);
+			type = NULL_COALESCE;
 		} else {
 			invalid(new CompileError("Expecting mathematical operator"));
 			return;
@@ -166,7 +172,37 @@ public class MathExpressionCompiler implements GenericCompiler {
 		Line right = split[1].trim();
 
 		DefinitiveType leftType = pushToStack(left, left.getLine(), data, m, block);
+
+		Label nullCoal = new Label();
+		Label nullEnd = new Label();
+		if (type == NULL_COALESCE) {
+			if (write) {
+				m.visitInsn(ACONST_NULL);
+				m.visitJumpInsn(IF_ACMPEQ, nullCoal);
+			}
+			pushToStack(left, left.getLine(), data, m, block);
+			if (write) {
+				m.visitJumpInsn(GOTO, nullEnd);
+			}
+		}
+
 		DefinitiveType rightType = pushToStack(right, right.getLine(), data, m, block);
+
+		if (type == NULL_COALESCE) {
+			if (write) {
+				m.visitLabel(nullCoal);
+
+				m.visitInsn(ACONST_NULL);
+				m.visitJumpInsn(IF_ACMPEQ, nullEnd);
+			}
+			pushToStack(right, right.getLine(), data, m, block);
+			if (write) {
+				m.visitLabel(nullEnd);
+			}
+			resultType = leftType;
+			return;
+		}
+
 		boolean isLong = leftType.equals("J") || rightType.equals("J");
 		boolean isInt = leftType.equals("I") || rightType.equals("I");
 		boolean isFloat = leftType.equals("F") || rightType.equals("F");
@@ -192,6 +228,9 @@ public class MathExpressionCompiler implements GenericCompiler {
 		}
 
 		if (leftType.isPrimitive() && rightType.isPrimitive()) {
+			if (type == NULL_COALESCE) {
+				throw new CompileError("Primitives cannot be null-coalesced");
+			}
 			int op = 0;
 			if (type == ADD) {
 				if (isDouble) {
@@ -310,9 +349,9 @@ public class MathExpressionCompiler implements GenericCompiler {
 					throw new CompileError(e);
 				}
 			}
-
-			resultType = leftType;
 		}
+
+		resultType = leftType;
 	}
 
 	private DefinitiveType pushToStack(Line line, String term, ClassData data, MethodVisitor m, Block thisBlock) {

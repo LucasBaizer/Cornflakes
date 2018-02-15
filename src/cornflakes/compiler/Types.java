@@ -381,8 +381,8 @@ public class Types implements Opcodes {
 	}
 
 	public static boolean isSuitable(String target, String test) {
-		if (test == null) {
-			return true;
+		if (test == null || test.equals("null")) {
+			return !Types.isPrimitive(target);
 		}
 		if (target.equals(test)) {
 			return true;
@@ -445,10 +445,14 @@ public class Types implements Opcodes {
 	}
 
 	public static String padSignature(String sig) {
+		if(sig == null || sig.equals("null")) {
+			return sig;
+		}
+		
 		if (Types.isTupleDefinition(sig)) {
 			return sig;
 		}
-
+		
 		if (Types.isPrimitive(sig)) {
 			sig = Types.primitiveToSignature(sig);
 		}

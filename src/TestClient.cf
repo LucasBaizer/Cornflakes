@@ -4,4 +4,11 @@ public class TestClient
 use org.jnetwork.{Connection, UDPConnection}
 
 public static func main(args: string[]) {
+	var obj1: object = null
+	var obj2: object = null
+	
+	var obj3 = obj1 ?? obj2
+	println!(obj1)
+	println!(obj2)
+	println!(obj3)
 }
