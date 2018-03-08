@@ -12,6 +12,9 @@ public class DefinitiveType {
 		if (Types.isPrimitive(name)) {
 			return primitive(name);
 		}
+		if (name.equals("null")) {
+			return primitive(name);
+		}
 
 		return object(name);
 	}

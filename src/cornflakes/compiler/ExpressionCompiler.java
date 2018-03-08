@@ -68,7 +68,7 @@ public class ExpressionCompiler implements GenericCompiler {
 
 			resultType = DefinitiveType.primitive("null");
 			resultOwner = null;
-			resultName = null;
+			resultName = "null";
 			expressionType = NULL;
 			return;
 		}

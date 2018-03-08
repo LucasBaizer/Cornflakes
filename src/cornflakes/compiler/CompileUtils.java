@@ -153,6 +153,10 @@ public class CompileUtils {
 					math = compiler.isMath();
 					generics = compiler.getGenericTypes();
 					isRef = !compiler.isPrimitiveResult();
+
+					if (valueType.equals("null")) {
+						value = "null";
+					}
 				}
 
 				if (valueType != null) {
