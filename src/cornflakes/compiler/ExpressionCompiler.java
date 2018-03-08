@@ -59,8 +59,12 @@ public class ExpressionCompiler implements GenericCompiler {
 		String body = line.getLine();
 
 		if (body.equals("null")) {
-			if (write)
+			if (write) {
 				m.visitInsn(ACONST_NULL);
+				if (this.data != null) {
+					this.data.ics();
+				}
+			}
 
 			resultType = DefinitiveType.primitive("null");
 			resultOwner = null;

@@ -1,7 +1,0 @@
-package game.server
-public class TestClient
-
-use org.jnetwork.{Connection, UDPConnection}
-
-public static func main(args: string[]) {
-}

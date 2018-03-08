@@ -25,6 +25,32 @@ public final class StringUtility {
 	}
 
 	/**
+	 * Combines an object and a string
+	 * 
+	 * @param x
+	 *            The object
+	 * @param y
+	 *            The string
+	 * @return The resulting string
+	 */
+	public static String combine(Object x, String y) {
+		return x + y;
+	}
+
+	/**
+	 * Combines a string and an object
+	 * 
+	 * @param x
+	 *            The string
+	 * @param y
+	 *            The object
+	 * @return The resulting string
+	 */
+	public static String combine(String x, Object y) {
+		return x + y;
+	}
+
+	/**
 	 * Combines a string and another string
 	 * 
 	 * @param x

@@ -1,0 +1,21 @@
+package game.server
+public class HelloWorld
+
+use java.math.BigInteger
+
+public static func main(args: string[]) {
+	var y1 = BigInteger("1")
+	var y2 = "3"
+	
+	println!(y1 + y2)
+}
+
+private var x: i32 = 0
+
+public func setX(x: i32) {
+	this.x = x
+}
+
+public func getX() -> i32 {
+	return this.x
+}

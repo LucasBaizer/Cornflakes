@@ -182,6 +182,15 @@ public class MathExpressionCompiler implements GenericCompiler {
 		}
 
 		if (leftType.equals("Ljava/lang/String;") || rightType.equals("Ljava/lang/String;")) {
+			DefinitiveType other = !leftType.equals("Ljava/lang/String;") ? leftType : rightType;
+			if (!other.isPrimitive()) {
+				if (leftType == other) {
+					leftType = DefinitiveType.object("Ljava/lang/Object;");
+				} else {
+					rightType = DefinitiveType.object("Ljava/lang/Object;");
+				}
+			}
+
 			if (write) {
 				this.data.ics();
 				m.visitMethodInsn(INVOKESTATIC, "cornflakes/lang/StringUtility", "combine",
@@ -271,6 +280,10 @@ public class MathExpressionCompiler implements GenericCompiler {
 			}
 		} else {
 			ClassData type = leftType.getObjectType();
+			if (type == null) {
+				invalid(new CompileError("Cannot call operators on a primitive type and an object"));
+				return;
+			}
 			if (type.getClassName().equals("java/math/BigInteger")) {
 				if (write) {
 					m.visitMethodInsn(INVOKEVIRTUAL, "java/math/BigInteger",
@@ -288,6 +301,7 @@ public class MathExpressionCompiler implements GenericCompiler {
 					if (!type.hasOperatorOverload(this.type)) {
 						invalid(new CompileError(
 								"Operator not overloaded for class " + Types.beautify(type.getClassName())));
+						return;
 					}
 
 					MethodData[] overloads = type.getOperatorOverloads(this.type);
