@@ -34,7 +34,8 @@ public class GenericBodyCompiler implements GenericCompiler {
 				List<Line[]> list = new ArrayList<>();
 				list.add(blockLines);
 
-				while (next.trim().startsWith("else")) {
+				while (next.trim().startsWith("else") || next.trim().startsWith("catch")
+						|| next.trim().startsWith("finally")) {
 					int spaces = next.trim().length() - next.length();
 					Line[] acc = Strings.accumulate(next);
 					int old = close;

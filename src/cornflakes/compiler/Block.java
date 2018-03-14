@@ -47,6 +47,10 @@ public class Block implements Comparable<Block> {
 		return subBlocks.get(subBlocks.size() - 1).start + 1;
 	}
 
+	public List<Block> getSubBlocks() {
+		return subBlocks;
+	}
+
 	public void addBlock(Block sub) {
 		subBlocks.add(sub);
 
