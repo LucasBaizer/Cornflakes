@@ -7,12 +7,17 @@ public class BlockCompiler extends Compiler {
 	public void compile(ClassData data, ClassWriter cw, Line body, Line[] lines) {
 		String firstLine = Strings.normalizeSpaces(lines[0].getLine());
 
-		if (firstLine.contains("func ")) {
-			new FunctionCompiler(false, false).compile(data, cw, body, lines);
-		} else if (firstLine.contains("constructor")) {
+		if (firstLine.contains("constructor")) {
 			new ConstructorCompiler(false).compile(data, cw, body, lines);
 			data.setHasConstructor(true);
 		} else {
+			for (FunctionType type : FunctionType.values()) {
+				if (firstLine.contains(type.getKeyword() + " ")) {
+					new FunctionCompiler(type, false, false).compile(data, cw, body, lines);
+					return;
+				}
+			}
+
 			throw new CompileError("Expecting statement");
 		}
 	}

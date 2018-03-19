@@ -10,6 +10,7 @@ import org.objectweb.asm.MethodVisitor;
 
 public class FunctionCompiler extends Compiler implements PostCompiler {
 	private MethodData methodData;
+	private FunctionType type;
 	private boolean write;
 	private int accessor;
 	private ClassData data;
@@ -18,7 +19,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 	private Line[] lines;
 	private boolean isBodyless;
 
-	public FunctionCompiler(boolean write, boolean bodyless) {
+	public FunctionCompiler(FunctionType type, boolean write, boolean bodyless) {
+		this.type = type;
 		this.write = write;
 		this.isBodyless = bodyless;
 	}
@@ -34,17 +36,21 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			this.lines = lines;
 
 			boolean override = false;
-			boolean index = false;
-			boolean iter = false;
-			boolean operator = false;
-			String keywords = lines[0].substring(0, lines[0].indexOf("func")).trim().getLine();
+			String keywords = lines[0].substring(0, lines[0].indexOf(this.type.getKeyword())).trim().getLine();
 			List<String> usedKeywords = new ArrayList<>();
+			if (type == FunctionType.OPERATOR_OVERLOAD) {
+				usedKeywords.add("static");
+			}
 			if (!keywords.isEmpty()) {
 				String[] split = keywords.split(" ");
 				for (String key : split) {
 					key = key.trim();
 					if (usedKeywords.contains(key)) {
-						throw new CompileError("Duplicate keyword: " + key);
+						if (type == FunctionType.OPERATOR_OVERLOAD && key.equals("static")) {
+							throw new CompileError("Operator overloads are implicitly static");
+						} else {
+							throw new CompileError("Duplicate keyword: " + key);
+						}
 					}
 					if (key.equals("abstract")) {
 						accessor |= ACC_ABSTRACT;
@@ -60,14 +66,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						accessor |= ACC_STATIC;
 					} else if (key.equals("sync")) {
 						accessor |= ACC_SYNCHRONIZED;
-					} else if (key.equals("this")) {
-						index = true;
 					} else if (key.equals("override")) {
 						override = true;
-					} else if (key.equals("iter")) {
-						iter = true;
-					} else if (key.equals("operator")) {
-						operator = true;
 					} else {
 						throw new CompileError("Unexpected keyword: " + key);
 					}
@@ -129,21 +129,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					accessor |= ACC_STATIC;
 				} else if (key.equals("sync")) {
 					accessor |= ACC_SYNCHRONIZED;
-				} else if (key.equals("this")) {
-					if (usedKeywords.contains("operator")) {
-						throw new CompileError("Operator overloads cannot be indexer functions");
-					}
 				} else if (key.equals("override")) {
 					if (isBodyless) {
 						throw new CompileError("Bodyless functions cannot be overrides for functions from a parent");
-					}
-				} else if (key.equals("iter")) {
-					if (usedKeywords.contains("operator")) {
-						throw new CompileError("Operator overloads cannot be iterator functions");
-					}
-				} else if (key.equals("operator")) {
-					if (!usedKeywords.contains("static")) {
-						throw new CompileError("Operator overloads must be static");
 					}
 				}
 			}
@@ -154,25 +142,27 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			String after = lines[0].substring(lines[0].indexOf("func") + "func".length()).trim().getLine();
+			String after = lines[0].substring(lines[0].indexOf(type.getKeyword()) + type.getKeyword().length()).trim()
+					.getLine();
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
-			if (index) {
+			if (type == FunctionType.INDEXER) {
 				Strings.handleMatching(withoutBracket, '[', ']');
 			} else {
 				Strings.handleMatching(withoutBracket, '(', ')');
 			}
 
-			String methodName = withoutBracket.substring(0, withoutBracket.indexOf(index ? '[' : '(')).trim();
+			String methodName = withoutBracket
+					.substring(0, withoutBracket.indexOf(type == FunctionType.INDEXER ? '[' : '(')).trim();
 			int operatorType = -1;
-			if (operator) {
+			if (type == FunctionType.OPERATOR_OVERLOAD) {
 				operatorType = Operator.toOp(methodName);
 				methodName = Operator.getOperatorOverloadFunction(operatorType);
 			}
 			Strings.handleLetterString(methodName, Strings.VARIABLE_NAME);
 
 			String returnType = "V";
-			if (withoutBracket.contains("->")) {
-				String afterParams = withoutBracket.substring(withoutBracket.indexOf("->") + 2).trim();
+			if (withoutBracket.indexOf(":", withoutBracket.lastIndexOf(')')) != -1) {
+				String afterParams = withoutBracket.substring(withoutBracket.lastIndexOf(":") + 1).trim();
 				Strings.handleLetterString(afterParams, Strings.TYPE);
 
 				if (Types.isTupleDefinition(afterParams)) {
@@ -181,13 +171,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					returnType = data.resolveClass(afterParams).getTypeSignature();
 				}
 
-				if (iter) {
+				if (type == FunctionType.ITERATOR) {
 					if (!(returnType.equals("Ljava/util/Iterator;")
 							|| returnType.equals("Lcornflakes/lang/FunctionalIterator;"))) {
 						throw new CompileError(
-								"Iterator functions do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.YieldIterator");
+								"Iterator functions do not need a specified type; if one is supplied, it should be of explicit type java.util.Iterator or cornflakes.lang.FunctionalIterator");
 					}
-				} else if (operator) {
+				} else if (type == FunctionType.OPERATOR_OVERLOAD) {
 					if (Operator.isMathOperator(operatorType)) {
 						if (!returnType.equals(Types.padSignature(data.getClassName()))) {
 							throw new CompileError(
@@ -201,16 +191,16 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 					}
 				}
 			} else {
-				if (iter) {
-					returnType = "Lcornflakes/lang/YieldIterator;";
-				} else if (operator) {
+				if (type == FunctionType.ITERATOR) {
+					returnType = "Lcornflakes/lang/FunctionalIterator;";
+				} else if (type == FunctionType.OPERATOR_OVERLOAD) {
 					returnType = Operator.isMathOperator(operatorType) ? Types.padSignature(data.getClassName()) : "Z";
 				}
 			}
 
 			this.methodData = new MethodData(data, null, null, false, -1);
 			List<ParameterData> parameters = new ArrayList<>();
-			if (index) {
+			if (type == FunctionType.INDEXER) {
 				String params = withoutBracket.substring(withoutBracket.indexOf('[') + 1, withoutBracket.indexOf(']'))
 						.trim();
 				if (!params.isEmpty()) {
@@ -294,7 +284,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 				}
 			}
 
-			if (operator) {
+			if (type == FunctionType.OPERATOR_OVERLOAD) {
 				if (parameters.size() != 2 || !parameters.get(0).getType().equals(data.getClassName())) {
 					throw new CompileError(
 							"Operator overloads have 2 parameters, where the first one has the type of the declaring class");
@@ -327,7 +317,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}
-			if (iter) {
+			if (type == FunctionType.ITERATOR) {
 				methodData.setIterator(-3);
 			}
 
@@ -364,9 +354,9 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			if (methodData.isIterator()) {
-				m.visitTypeInsn(NEW, "cornflakes/lang/YieldIterator");
+				m.visitTypeInsn(NEW, "cornflakes/lang/FunctionalIterator");
 				m.visitInsn(DUP);
-				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/YieldIterator", "<init>", "()V", false);
+				m.visitMethodInsn(INVOKESPECIAL, "cornflakes/lang/FunctionalIterator", "<init>", "()V", false);
 				m.visitVarInsn(ASTORE, itrIdx);
 			}
 
@@ -376,19 +366,17 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			gbc.compile(data, m, block, inner);
 
 			if (!gbc.returns()) {
-				if (!block.doesThrow()) {
-					if (methodData.getReturnType().getTypeSignature().equals("V")) {
-						if (methodData.getName().equals("_get_index_")) {
-							throw new CompileError("Get-indexer functions must return a value");
-						}
-
-						m.visitInsn(RETURN);
-					} else if (methodData.isIterator()) {
-						m.visitVarInsn(ALOAD, itrIdx);
-						m.visitInsn(ARETURN);
-					} else {
-						throw new CompileError("A non-void function must return a value");
+				if (methodData.getReturnType().getTypeSignature().equals("V")) {
+					if (methodData.getName().equals("_get_index_")) {
+						throw new CompileError("Get-indexer functions must return a value");
 					}
+
+					m.visitInsn(RETURN);
+				} else if (methodData.isIterator()) {
+					m.visitVarInsn(ALOAD, itrIdx);
+					m.visitInsn(ARETURN);
+				} else {
+					throw new CompileError("A non-void function must return a value");
 				}
 			}
 
@@ -398,7 +386,7 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			}
 
 			if (methodData.isIterator()) {
-				m.visitLocalVariable("_iterator", "Lcornflakes/lang/YieldIterator;", null, start, post, itrIdx);
+				m.visitLocalVariable("_iterator", "Lcornflakes/lang/FunctionalIterator;", null, start, post, itrIdx);
 			}
 			for (ParameterData par : methodData.getParameters()) {
 				m.visitLocalVariable(par.getName(), par.getType().getAbsoluteTypeSignature(), null, start, post,
@@ -421,5 +409,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 	public void setBodyless(boolean isBodyless) {
 		this.isBodyless = isBodyless;
+	}
+
+	public FunctionType getType() {
+		return type;
+	}
+
+	public void setType(FunctionType type) {
+		this.type = type;
 	}
 }

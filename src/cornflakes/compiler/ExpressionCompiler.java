@@ -1217,6 +1217,29 @@ public class ExpressionCompiler implements GenericCompiler {
 				throw new CompileError("Method is not accessible from this context");
 			}
 
+			for (DefinitiveType type : method.getExceptionTypes()) {
+				boolean success = false;
+				if (this.data != null) {
+					for (DefinitiveType thrown : this.data.getExceptionTypes()) {
+						if (thrown.getObjectType().is(type)) {
+							success = true;
+							break;
+						}
+					}
+				}
+				if (!success && !type.getObjectType().is("java.lang.RuntimeException")
+						&& !type.getObjectType().is("java.lang.Error")) {
+					if (!(block instanceof TryBlock)) {
+						throw new CompileError(
+								"Exception of type " + Types.beautify(type.getTypeSignature()) + " must be handled");
+					}
+				}
+
+				if (block instanceof TryBlock) {
+					((TryBlock) block).addThrownException(type);
+				}
+			}
+
 			if (callType == 0) {
 				if (!this.data.hasModifier(ACC_STATIC) && !thisType && (last == null || !last.thisType)
 						&& containerData.getClassName().equals(data.getClassName()) && write) {

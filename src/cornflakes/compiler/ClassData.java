@@ -135,6 +135,10 @@ public class ClassData {
 			use("java.lang.Character", "char");
 			use("java.lang.System");
 			use("java.lang.Thread");
+			use("java.lang.Throwable");
+			use("java.lang.Exception");
+			use("java.lang.RuntimeException");
+			use("java.lang.Error");
 			use("cornflakes.lang.Tuple");
 			use("cornflakes.lang.FunctionalIterator");
 			use("cornflakes.lang.Range");
@@ -489,6 +493,10 @@ public class ClassData {
 
 	public void setIsInterface(boolean isInterface) {
 		this.isInterface = isInterface;
+	}
+
+	public boolean is(DefinitiveType type) throws ClassNotFoundException {
+		return is(type.getAbsoluteTypeSignature());
 	}
 
 	public boolean is(String type) throws ClassNotFoundException {

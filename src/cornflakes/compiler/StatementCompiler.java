@@ -176,7 +176,7 @@ public class StatementCompiler extends Compiler {
 					useValue ? value : null).visitEnd();
 			data.addField(fdata);
 		} else if (Strings.contains(body, " func ")) {
-			FunctionCompiler comp = new FunctionCompiler(true, true);
+			FunctionCompiler comp = new FunctionCompiler(FunctionType.FUNCTION, true, true);
 			comp.compile(data, cw, line, lines);
 		} else {
 			throw new CompileError("Unexpected statement: " + cmd);

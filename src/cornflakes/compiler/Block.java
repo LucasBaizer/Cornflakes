@@ -2,7 +2,9 @@ package cornflakes.compiler;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.objectweb.asm.Label;
 
@@ -11,7 +13,7 @@ public class Block implements Comparable<Block> {
 	private Label startLabel;
 	private Label endLabel;
 	private List<Block> subBlocks = new ArrayList<>();
-	private boolean doesThrow;
+	private Set<DefinitiveType> thrownExceptions = new HashSet<>();
 
 	public Block(int start, Label slabel, Label elabel) {
 		this.start = start;
@@ -62,11 +64,11 @@ public class Block implements Comparable<Block> {
 		return this.start - o2.start;
 	}
 
-	public boolean doesThrow() {
-		return doesThrow;
+	public Set<DefinitiveType> getThrownExceptions() {
+		return thrownExceptions;
 	}
 
-	public void setDoesThrow(boolean doesThrow) {
-		this.doesThrow = doesThrow;
+	public void addThrownException(DefinitiveType exception) {
+		this.thrownExceptions.add(exception);
 	}
 }

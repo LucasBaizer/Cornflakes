@@ -19,6 +19,7 @@ public class MethodData implements Accessible {
 	private DefinitiveType returnType;
 	private List<ParameterData> parameters = new ArrayList<>();
 	private Set<GenericParameter> genericParameters = new HashSet<>();
+	private Set<DefinitiveType> exceptionTypes = new HashSet<>();
 	private List<LocalData> locals = new ArrayList<>();
 	private int stackSize;
 	private int localVariables;
@@ -47,9 +48,12 @@ public class MethodData implements Accessible {
 				}
 			} else {
 				mData.addParameter(new ParameterData(mData, param.getName(),
-						DefinitiveType.object(Types.getTypeSignature(param.getType())),
-						param.getModifiers()));
+						DefinitiveType.object(Types.getTypeSignature(param.getType())), param.getModifiers()));
 			}
+		}
+
+		for (Class<?> type : method.getExceptionTypes()) {
+			mData.addExceptionType(DefinitiveType.object(Strings.transformClassName(type.getName())));
 		}
 
 		mData.setIterator(Iterator.class.isAssignableFrom(method.getReturnType()) ? -2 : -1);
@@ -280,5 +284,17 @@ public class MethodData implements Accessible {
 
 	public void addSyntheticVariable() {
 		this.syntheticVariables++;
+	}
+
+	public Set<DefinitiveType> getExceptionTypes() {
+		return exceptionTypes;
+	}
+
+	public void setExceptionTypes(Set<DefinitiveType> exceptionTypes) {
+		this.exceptionTypes = exceptionTypes;
+	}
+
+	public void addExceptionType(DefinitiveType type) {
+		this.exceptionTypes.add(type);
 	}
 }

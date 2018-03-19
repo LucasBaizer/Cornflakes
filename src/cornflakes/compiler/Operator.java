@@ -70,7 +70,7 @@ public class Operator {
 			case "<=":
 				return LESS_THAN_OR_EQUAL;
 			default:
-				throw new CompileError("Invalid op string");
+				throw new CompileError("Invalid operator string: " + str);
 		}
 	}
 

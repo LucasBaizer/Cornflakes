@@ -427,8 +427,14 @@ public class Types implements Opcodes {
 		} else if (type.equals("char") || type.equals("C")) {
 			return (int) val.charAt(1);
 		} else if (type.equals("f32") || type.equals("F")) {
+			if (val.toLowerCase().endsWith("f")) {
+				val = val.substring(0, val.length() - 1);
+			}
 			return Float.parseFloat(val);
 		} else if (type.equals("f64") || type.equals("D")) {
+			if (val.toLowerCase().endsWith("d")) {
+				val = val.substring(0, val.length() - 1);
+			}
 			return Double.parseDouble(val);
 		} else if (type.equals("i8") || type.equals("B")) {
 			Byte.parseByte(val);
@@ -438,21 +444,24 @@ public class Types implements Opcodes {
 			return Integer.parseInt(val);
 		} else if (type.equals("i32") || type.equals("I")) {
 			return Integer.parseInt(val);
-		} else if (type.equals("i64") || type.equals("L")) {
+		} else if (type.equals("i64") || type.equals("J")) {
+			if (val.toLowerCase().endsWith("l")) {
+				val = val.substring(0, val.length() - 1);
+			}
 			return Long.parseLong(val);
 		}
 		throw new CompileError("Invalid literal: " + val);
 	}
 
 	public static String padSignature(String sig) {
-		if(sig == null || sig.equals("null")) {
+		if (sig == null || sig.equals("null")) {
 			return sig;
 		}
-		
+
 		if (Types.isTupleDefinition(sig)) {
 			return sig;
 		}
-		
+
 		if (Types.isPrimitive(sig)) {
 			sig = Types.primitiveToSignature(sig);
 		}
@@ -509,6 +518,17 @@ public class Types implements Opcodes {
 
 		if (x.startsWith("\"") && x.endsWith("\"") && !Strings.contains(x, "+")) {
 			return "string";
+		}
+
+		String xl = x.toLowerCase();
+		if (xl.matches("([1-9.]+?)[a-z]")) {
+			if (xl.endsWith("l")) {
+				return "i64";
+			} else if (xl.endsWith("f")) {
+				return "f32";
+			} else if (xl.endsWith("d")) {
+				return "f64";
+			}
 		}
 
 		boolean frac = false;

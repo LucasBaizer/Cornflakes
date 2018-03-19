@@ -263,6 +263,11 @@ public class FunctionalIterator<T> implements Iterator<T> {
 		return list.size();
 	}
 
+	@Override
+	public String toString() {
+		return list.toString();
+	}
+
 	private FunctionalIterator<T> copy() {
 		FunctionalIterator<T> iter = new FunctionalIterator<>();
 		iter.list = new ArrayList<>(this.list);

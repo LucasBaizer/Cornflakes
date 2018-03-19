@@ -84,6 +84,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/FunctionalIterator", "add",
 					"(Ljava/lang/Object;)Lcornflakes/lang/FunctionalIterator;", false);
+			m.visitVarInsn(ASTORE, this.data.getIterator());
 		} else if (body.startsWith("return")) {
 			type = RETURN;
 
@@ -186,8 +187,29 @@ public class GenericStatementCompiler implements GenericCompiler {
 				if (!signature.getObjectType().is("java/lang/Throwable")) {
 					throw new CompileError("Only types which are subclasses of java.lang.Throwable can be thrown");
 				}
+
+				if (!signature.getObjectType().is("java.lang.RuntimeException")
+						&& !signature.getObjectType().is("java.lang.Error")) {
+					boolean success = false;
+					for (DefinitiveType type : this.data.getExceptionTypes()) {
+						if (signature.getObjectType().is(type)) {
+							success = true;
+							break;
+						}
+					}
+					if (!success && !(block instanceof TryBlock)) {
+						throw new CompileError("Exception of type " + Types.beautify(signature.getTypeSignature())
+								+ " must be handled");
+					}
+				}
+
+				if (block instanceof TryBlock) {
+					((TryBlock) block).addThrownException(signature);
+				}
+
 				m.visitInsn(ATHROW);
-				block.setDoesThrow(true);
+
+				block.addThrownException(signature);
 			} catch (ClassNotFoundException e) {
 				throw new CompileError(e);
 			}

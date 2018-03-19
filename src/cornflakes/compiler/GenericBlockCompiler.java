@@ -81,26 +81,31 @@ public class GenericBlockCompiler implements GenericCompiler {
 
 				m.visitLabel(finalEnd);
 			} else if (condition.equals("try")) {
-				TryBlock tryBlock = new TryBlock(block.getStart() + 1, start, null);
-				block.addBlock(tryBlock);
-				Line[] within = Strings.before(Strings.after(lines.get(0), 1), 1);
-
-				Label endLabel = block.getEndLabel();
-				int itrEnd = lines.size();
-				if (lines.get(lines.size() - 1)[0].getLine().trim().matches("\\}( *?)finally( *?)\\{")) {
-					itrEnd--;
-					endLabel = new Label();
-				}
-
-				tryBlock.setEndLabel(endLabel);
-				new GenericBodyCompiler(this.data).compile(data, m, tryBlock, within);
-
 				if (lines.size() == 1) {
 					throw new CompileError("Expecting catch block");
 				}
 
+				TryBlock tryBlock = new TryBlock(block.getStart() + 1, start, null);
+				block.addBlock(tryBlock);
+				Line[] within = Strings.before(Strings.after(lines.get(0), 1), 1);
+
+				Label endLabel = new Label();
+				int itrEnd = lines.size();
+				boolean hasFinally = false;
+				if (lines.get(lines.size() - 1)[0].getLine().trim().matches("( *?)finally( *?)\\{")) {
+					itrEnd--;
+					hasFinally = true;
+				}
+
+				tryBlock.setEndLabel(endLabel);
+				new GenericBodyCompiler(this.data).compile(data, m, tryBlock, within);
+				m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+				m.visitJumpInsn(GOTO, endLabel);
+
 				int last = tryBlock.getStart() + 1;
-				Label lastLabel = start;
+				Label firstCatch = new Label();
+				Label lastLabel = firstCatch;
+				m.visitLabel(lastLabel);
 				for (int i = 1; i < itrEnd; i++) {
 					CatchBlock currentBlock = new CatchBlock(last++, lastLabel, null);
 					block.addBlock(currentBlock);
@@ -113,12 +118,12 @@ public class GenericBlockCompiler implements GenericCompiler {
 
 					String parse = condition.substring(5).trim().toString();
 
-					DefinitiveType type;
 					String varName = null;
-					if (parse.contains(" -> ")) {
-						String[] spl = parse.split(" -> ", 2);
-						type = data.resolveClass(spl[0].trim());
-						varName = spl[1].trim();
+					DefinitiveType type;
+					if (parse.contains(": ")) {
+						String[] spl = parse.split(": ", 2);
+						varName = spl[0].trim();
+						type = data.resolveClass(spl[1].trim());
 					} else {
 						type = data.resolveClass(parse);
 					}
@@ -131,17 +136,24 @@ public class GenericBlockCompiler implements GenericCompiler {
 						throw new CompileError(e);
 					}
 
+					currentBlock.setExceptionType(type);
+					tryBlock.appendCatchBlock(currentBlock);
+
 					if (varName != null) {
 						m.visitLocalVariable(varName, type.getAbsoluteTypeSignature(), null,
 								currentBlock.getStartLabel(), currentBlock.getEndLabel(),
-								this.data.getLocalVariables() + 1);
+								this.data.getLocalVariables());
 						this.data.addLocal(
 								new LocalData(varName, type, currentBlock, this.data.getLocalVariables(), ACC_FINAL));
+						this.data.addLocalVariable();
 					}
 
-					// m.visitTryCatchBlock(tryBlock.getStartLabel(), endLabel,
-					// handler, type);
+					m.visitTryCatchBlock(tryBlock.getStartLabel(), firstCatch, currentBlock.getStartLabel(),
+							type.getAbsoluteTypeName());
 
+					if (varName != null) {
+						m.visitVarInsn(ASTORE, this.data.getLocalVariables() - 1);
+					}
 					new GenericBodyCompiler(this.data).compile(data, m, block, newLines);
 					m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
 					m.visitJumpInsn(GOTO, endLabel);
@@ -150,7 +162,46 @@ public class GenericBlockCompiler implements GenericCompiler {
 					lastLabel = theEnd;
 				}
 
+				try {
+					for (DefinitiveType type : tryBlock.getThrownExceptions()) {
+						if (!type.getObjectType().is("java.lang.RuntimeException")
+								&& !type.getObjectType().is("java.lang.Error")) {
+							if (!tryBlock.getHandledExceptions().contains(type)) {
+								throw new CompileError("Exception of type " + Types.beautify(type.getTypeSignature())
+										+ " must be handled");
+							}
+						}
+					}
+
+					for (DefinitiveType type : tryBlock.getHandledExceptions()) {
+						if (!type.getObjectType().is("java.lang.RuntimeException")
+								&& !type.getObjectType().is("java.lang.Error")) {
+							if (!tryBlock.getThrownExceptions().contains(type)) {
+								throw new CompileError("Unneccesary catch block for exception of type "
+										+ Types.beautify(type.getTypeSignature()));
+							}
+						}
+					}
+				} catch (ClassNotFoundException e) {
+					throw new CompileError(e);
+				}
+
 				m.visitLabel(endLabel);
+
+				if (hasFinally) {
+					Block thisBlock = new Block(block.getStart() + 1, start, null);
+					block.addBlock(thisBlock);
+					Line[] newLines = Strings.before(Strings.after(lines.get(lines.size() - 1), 1), 1);
+
+					thisBlock.setEndLabel(block.getEndLabel());
+					new GenericBodyCompiler(this.data).compile(data, m, thisBlock, newLines);
+
+					Label after = new Label();
+					m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(), null);
+					m.visitJumpInsn(GOTO, after);
+
+					m.visitLabel(after);
+				}
 			} else if (condition.startsWith("while ")) {
 				Block currentBlock = new Block(block.getStart() + 1, start, null);
 				block.addBlock(currentBlock);
