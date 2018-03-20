@@ -144,7 +144,15 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			String after = lines[0].substring(lines[0].indexOf(type.getKeyword()) + type.getKeyword().length()).trim()
 					.getLine();
+
 			String withoutBracket = after.substring(0, after.length() - 1).trim();
+			String exceptionString = null;
+			if (withoutBracket.contains(" throws ")) {
+				exceptionString = withoutBracket.substring(withoutBracket.indexOf(" throws ") + " throws ".length())
+						.trim();
+				withoutBracket = withoutBracket.substring(0, withoutBracket.indexOf(" throws ")).trim();
+			}
+
 			if (type == FunctionType.INDEXER) {
 				Strings.handleMatching(withoutBracket, '[', ']');
 			} else {
@@ -296,6 +304,25 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 			methodData.setModifiers(accessor);
 			methodData.setParameters(parameters);
 
+			if (exceptionString != null) {
+				String[] exceptionSplit = exceptionString.split(",");
+				for (String rawException : exceptionSplit) {
+					rawException = rawException.trim();
+
+					DefinitiveType exception = data.resolveClass(rawException);
+					try {
+						if (!exception.isObject() && exception.getObjectType().is("java.lang.Throwable")) {
+							throw new CompileError(
+									"Cannot add 'throws' declaration for a type which is not the type of or a subclass of java.lang.Throwable: "
+											+ Types.beautify(exception.getTypeName()));
+						}
+					} catch (ClassNotFoundException e) {
+						throw new CompileError(e);
+					}
+					methodData.addExceptionType(exception);
+				}
+			}
+
 			try {
 				boolean hasAny = data.hasMethodBySignature(methodName, methodData.getSignature());
 				if (hasAny) {
@@ -323,7 +350,13 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 
 			data.addMethod(methodData);
 		} else {
-			MethodVisitor m = cw.visitMethod(accessor, methodData.getName(), methodData.getSignature(), null, null);
+			String[] ex = null;
+			if (this.methodData.getExceptionTypes().size() > 0) {
+				ex = this.methodData.getExceptionTypes().stream().map(x -> x.getAbsoluteTypeName())
+						.toArray(String[]::new);
+			}
+
+			MethodVisitor m = cw.visitMethod(accessor, methodData.getName(), methodData.getSignature(), null, ex);
 			m.visitCode();
 
 			Label start = new Label();

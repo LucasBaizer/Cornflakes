@@ -223,7 +223,7 @@ public class ClassData {
 							arrayType ? "[L" + use.getValue().replace('.', '/') : use.getValue().replace('.', '/'));
 				}
 			}
-			throw new CompileError("Unresolved type: " + Types.beautify(name));
+			throw new CompileError("Unresolved type: " + name);
 		}
 	}
 

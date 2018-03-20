@@ -1221,7 +1221,7 @@ public class ExpressionCompiler implements GenericCompiler {
 				boolean success = false;
 				if (this.data != null) {
 					for (DefinitiveType thrown : this.data.getExceptionTypes()) {
-						if (thrown.getObjectType().is(type)) {
+						if (type.getObjectType().is(thrown)) {
 							success = true;
 							break;
 						}
