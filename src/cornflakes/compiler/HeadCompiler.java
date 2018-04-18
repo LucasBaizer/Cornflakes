@@ -37,43 +37,48 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 		}
 
 		List<String> interfaces = new ArrayList<>();
+		String type = "";
 		int accessor = ACC_SUPER;
-		if (!firstLine.contains("class ")) {
-			throw new CompileError("Expecting class definition");
+		if (firstLine.contains("class ")) {
+			type = "class";
+		} else if (firstLine.contains("struct")) {
+			type = "struct";
 		} else {
-			String before = firstLine.substring(0, firstLine.indexOf("class")).trim().getLine();
+			throw new CompileError("Expecting class definition");
+		}
 
-			if (!before.isEmpty()) {
-				List<String> usedKeywords = new ArrayList<>();
-				String[] split = before.split(" ");
-				for (String key : split) {
-					key = key.trim();
-					if (usedKeywords.contains(key)) {
-						throw new CompileError("Duplicate keyword: " + key);
-					}
-					if (key.equals("abstract")) {
-						accessor |= ACC_ABSTRACT;
-					} else if (key.equals("public")) {
-						if (usedKeywords.contains("private") || usedKeywords.contains("protected")) {
-							throw new CompileError("Cannot have multiple access modifiers");
-						}
+		String before = firstLine.substring(0, firstLine.indexOf("class")).trim().getLine();
 
-						accessor |= ACC_PUBLIC;
-					} else if (key.equals("protected")) {
-						if (usedKeywords.contains("private") || usedKeywords.contains("public")) {
-							throw new CompileError("Cannot have multiple access modifiers");
-						}
-
-						accessor |= ACC_PROTECTED;
-					} else if (key.equals("sealed")) {
-						accessor |= ACC_FINAL;
-					} else if (key.equals("serial")) {
-						interfaces.add("java/io/Serializable");
-					} else {
-						throw new CompileError("Unexpected keyword: " + key);
-					}
-					usedKeywords.add(key);
+		if (!before.isEmpty()) {
+			List<String> usedKeywords = new ArrayList<>();
+			String[] split = before.split(" ");
+			for (String key : split) {
+				key = key.trim();
+				if (usedKeywords.contains(key)) {
+					throw new CompileError("Duplicate keyword: " + key);
 				}
+				if (key.equals("abstract")) {
+					accessor |= ACC_ABSTRACT;
+				} else if (key.equals("public")) {
+					if (usedKeywords.contains("private") || usedKeywords.contains("protected")) {
+						throw new CompileError("Cannot have multiple access modifiers");
+					}
+
+					accessor |= ACC_PUBLIC;
+				} else if (key.equals("protected")) {
+					if (usedKeywords.contains("private") || usedKeywords.contains("public")) {
+						throw new CompileError("Cannot have multiple access modifiers");
+					}
+
+					accessor |= ACC_PROTECTED;
+				} else if (key.equals("sealed")) {
+					accessor |= ACC_FINAL;
+				} else if (key.equals("serial")) {
+					interfaces.add("java/io/Serializable");
+				} else {
+					throw new CompileError("Unexpected keyword: " + key);
+				}
+				usedKeywords.add(key);
 			}
 
 			String after = firstLine.substring(firstLine.indexOf("class")).trim().getLine();

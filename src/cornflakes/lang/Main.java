@@ -1,5 +1,7 @@
 package cornflakes.lang;
 
+import java.util.function.Supplier;
+
 import cornflakes.compiler.MainCompiler;
 import game.server.HelloWorld;
 
@@ -12,7 +14,9 @@ import game.server.HelloWorld;
 public class Main {
 	public static void main(String[] args) throws Exception {
 		MainCompiler.main(new String[] { "src" });
-		
+
+		Supplier<String> sup = () -> "hello";
+
 		HelloWorld.main(new String[0]);
 	}
 }

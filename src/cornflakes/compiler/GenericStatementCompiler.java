@@ -61,26 +61,7 @@ public class GenericStatementCompiler implements GenericCompiler {
 
 			m.visitVarInsn(ALOAD, this.data.getIterator());
 			String str = body.substring(5).trim();
-			String type = Types.getType(str, null);
-			if (type != null) {
-				Object val = Types.parseLiteral(type, str);
-				int push = Types.getOpcode(Types.PUSH, type);
-				if (push == LDC) {
-					m.visitLdcInsn(val);
-				} else {
-					String toString = val.toString();
-
-					if (toString.equals("true") || toString.equals("false")) {
-						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
-					} else {
-						m.visitVarInsn(push, Integer.parseInt(val.toString()));
-					}
-				}
-				this.data.ics();
-			} else {
-				ExpressionCompiler exp = new ExpressionCompiler(true, this.data);
-				exp.compile(data, m, block, new Line[] { line.derive(str) });
-			}
+			CompileUtils.push(str, data, m, block, line, this.data);
 
 			m.visitMethodInsn(INVOKEVIRTUAL, "cornflakes/lang/FunctionalIterator", "add",
 					"(Ljava/lang/Object;)Lcornflakes/lang/FunctionalIterator;", false);

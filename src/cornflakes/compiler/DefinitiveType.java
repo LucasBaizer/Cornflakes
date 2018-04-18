@@ -29,6 +29,9 @@ public class DefinitiveType {
 		if (name == null) {
 			throw new CompileError("Invalid object");
 		}
+		if (name.equals("string")) {
+			name = "Ljava/lang/String;";
+		}
 		if (Types.isPrimitive(name)) {
 			return primitive(name);
 		}

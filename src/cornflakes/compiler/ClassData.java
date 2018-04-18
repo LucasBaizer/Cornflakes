@@ -20,6 +20,13 @@ import org.objectweb.asm.ClassWriter;
 
 public class ClassData {
 	private static final HashMap<String, ClassData> classes = new HashMap<>();
+
+	public static final int TYPE_CLASS = 1;
+	public static final int TYPE_STRUCT = 2 | TYPE_CLASS;
+	public static final int TYPE_INTERFACE = 4;
+	public static final int TYPE_ENUM = 8 | TYPE_CLASS;
+	public static final int TYPE_ANNOTATION = 16 | TYPE_INTERFACE;
+
 	private static ClassData currentClass;
 	private String simpleClassName;
 	private String parentName;
@@ -41,6 +48,7 @@ public class ClassData {
 	private boolean isGetIndexed;
 	private boolean isSetIndexed;
 	private boolean isInterface;
+	private int classType = TYPE_CLASS;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
 		if (Types.isTupleDefinition(name)) {
@@ -572,5 +580,13 @@ public class ClassData {
 
 	public static void setCurrentClass(ClassData currentClass) {
 		ClassData.currentClass = currentClass;
+	}
+
+	public int getClassType() {
+		return classType;
+	}
+
+	public void setClassType(int classType) {
+		this.classType = classType;
 	}
 }

@@ -27,6 +27,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	private boolean write;
 	private boolean loadVariableReference = true;
 	private DefinitiveType resultType;
+	private DefinitiveType typeHint;
 	private String resultName;
 	private ClassData resultOwner;
 	private int expressionType;
@@ -426,6 +427,51 @@ public class ExpressionCompiler implements GenericCompiler {
 			resultOwner = data;
 			resultType = cls;
 			expressionType = CAST;
+
+			next = true;
+		} else if (Strings.contains(part, "=>")) {
+			Label start = new Label();
+			m.visitLabel(start);
+
+			Block lambdaBlock = new Block(block.getStart() + 1, start, null);
+			block.addBlock(lambdaBlock);
+
+			MethodData lambdaMethod = new MethodData(data, "", typeHint, false, 0);
+			lambdaMethod.setBlock(lambdaBlock);
+
+			String[] lambdaParts = Strings.split(part, "=>");
+
+			String[] inputs = lambdaParts[0].trim().split(",");
+			for (int i = 0; i < inputs.length; i++) {
+				inputs[i] = inputs[i].trim();
+			}
+
+			DefinitiveType lambdaType = typeHint;
+			MethodData toImpl;
+
+			String rawResult = lambdaParts[1].trim();
+			DefinitiveType resultType = null;
+			if (!rawResult.startsWith("{") && !rawResult.endsWith("}")) {
+				resultType = CompileUtils.push(rawResult, data, m, lambdaBlock, line.derive(part), this.data);
+			}
+
+			if (lambdaType == null) {
+				// TODO: built-in java stuff
+			} else {
+				ClassData clazz = lambdaType.getObjectType();
+				if (!clazz.isInterface() || clazz.getMethods().length != 1) {
+					throw new CompileError("Lambda expression must represent a functional interface");
+				}
+
+				toImpl = clazz.getMethods()[0];
+			}
+
+			Line inner = line.derive(rawResult.substring(1, rawResult.length() - 1).trim());
+
+			MethodVisitor visitor = data.getClassWriter().visitMethod(ACC_PRIVATE | ACC_SYNTHETIC, "lambda$0", "", null,
+					new String[0]);
+			Label innerLabel = new Label();
+			visitor.visitLabel(innerLabel);
 
 			next = true;
 		} else {
@@ -1013,6 +1059,7 @@ public class ExpressionCompiler implements GenericCompiler {
 							}
 						} else {
 							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
+							compiler.typeHint = paramType;
 							compiler.compile(this, data, data, m, block, new Line[] { line.derive(par) });
 
 							if (!Types.isSuitable(paramType, compiler.getResultType())) {
@@ -1131,6 +1178,7 @@ public class ExpressionCompiler implements GenericCompiler {
 							}
 						} else {
 							ExpressionCompiler compiler = new ExpressionCompiler(false, this.data);
+							compiler.typeHint = paramType;
 							compiler.compile(this, data, data, m, block, new Line[] { line.derive(par) });
 
 							if (!Types.isSuitable(paramType, compiler.getResultType())) {

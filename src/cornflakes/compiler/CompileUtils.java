@@ -1,6 +1,7 @@
 package cornflakes.compiler;
 
 import java.util.ArrayList;
+import static org.objectweb.asm.Opcodes.*;
 import java.util.List;
 
 import org.objectweb.asm.MethodVisitor;
@@ -180,5 +181,31 @@ public class CompileUtils {
 
 		return new VariableDeclaration(DefinitiveType.assume(variableType), value,
 				valueType == null ? null : DefinitiveType.assume(valueType), raw, generics, isRef);
+	}
+
+	public static DefinitiveType push(String raw, ClassData cdata, MethodVisitor m, Block block, Line line, MethodData data) {
+		String type = Types.getType(raw, null);
+		if (type != null) {
+			Object val = Types.parseLiteral(type, raw);
+			int push = Types.getOpcode(Types.PUSH, type);
+			if (push == LDC) {
+				m.visitLdcInsn(val);
+			} else {
+				String toString = val.toString();
+
+				if (toString.equals("true") || toString.equals("false")) {
+					m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+				} else {
+					m.visitVarInsn(push, Integer.parseInt(val.toString()));
+				}
+			}
+			data.ics();
+			
+			return DefinitiveType.assume(type);
+		} else {
+			ExpressionCompiler exp = new ExpressionCompiler(true, data);
+			exp.compile(cdata, m, block, new Line[] { line.derive(raw) });
+			return exp.getResultType();
+		}
 	}
 }

@@ -2,4 +2,5 @@ package game.server
 public class HelloWorld
 
 public static func main(args: string[]) {
+	var x = () => "hello, world!"
 }

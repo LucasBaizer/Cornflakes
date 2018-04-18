@@ -66,6 +66,8 @@ public class FunctionCompiler extends Compiler implements PostCompiler {
 						accessor |= ACC_STATIC;
 					} else if (key.equals("sync")) {
 						accessor |= ACC_SYNCHRONIZED;
+					} else if (key.equals("synthetic")) {
+						accessor |= ACC_SYNTHETIC;
 					} else if (key.equals("override")) {
 						override = true;
 					} else {
