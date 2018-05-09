@@ -22,11 +22,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 		Line firstLine = Strings.normalizeSpaces(lines[0]);
 		int index = 1;
 
-		if (firstLine.startsWith("package")) {
-			if (!firstLine.startsWith("package ")) {
-				throw new CompileError("Expecting space ' ' between identifiers");
-			}
-
+		if (firstLine.startsWith("package ")) {
 			className = firstLine.substring(firstLine.indexOf(" ") + 1).getLine();
 			Strings.handleLetterString(className, Strings.PERIOD);
 			className = Strings.transformClassName(className) + "/";
@@ -41,13 +37,13 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 		int accessor = ACC_SUPER;
 		if (firstLine.contains("class ")) {
 			type = "class";
-		} else if (firstLine.contains("struct")) {
+		} else if (firstLine.contains("struct ")) {
 			type = "struct";
 		} else {
 			throw new CompileError("Expecting class definition");
 		}
 
-		String before = firstLine.substring(0, firstLine.indexOf("class")).trim().getLine();
+		String before = firstLine.substring(0, firstLine.indexOf(type)).trim().getLine();
 
 		if (!before.isEmpty()) {
 			List<String> usedKeywords = new ArrayList<>();
@@ -81,7 +77,7 @@ public class HeadCompiler extends Compiler implements PostCompiler {
 				usedKeywords.add(key);
 			}
 
-			String after = firstLine.substring(firstLine.indexOf("class")).trim().getLine();
+			String after = firstLine.substring(firstLine.indexOf(type)).trim().getLine();
 			String[] keywordSplit = after.split(" ");
 			className += simple = keywordSplit[1];
 

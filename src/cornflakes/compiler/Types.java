@@ -275,6 +275,10 @@ public class Types implements Opcodes {
 				"Could not get opcode for type " + Types.beautify(type) + " (raw " + type + ") with code " + op);
 	}
 
+	public static String beautify(DefinitiveType type) {
+		return beautify(type.getTypeSignature());
+	}
+
 	public static String beautify(String txt1) {
 		if (Types.isTupleDefinition(txt1)) {
 			return txt1;

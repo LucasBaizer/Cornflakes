@@ -49,6 +49,7 @@ public class ClassData {
 	private boolean isSetIndexed;
 	private boolean isInterface;
 	private int classType = TYPE_CLASS;
+	private int lambdas;
 
 	public static ClassData forName(String name) throws ClassNotFoundException {
 		if (Types.isTupleDefinition(name)) {
@@ -73,7 +74,21 @@ public class ClassData {
 			return classes.get(t);
 		}
 
-		ClassData container = new ClassData(false);
+		ClassData container;
+		if (cls.isInterface()) {
+			int i = 0;
+			for (Method method : cls.getMethods()) {
+				if (!method.isDefault()) {
+					if (++i == 2) { // there is more than 1 interface method
+						container = new ClassData(false);
+						break;
+					}
+				}
+			}
+			container = new LambdaClassData();
+		} else {
+			container = new ClassData(false);
+		}
 		container.javaClass = cls;
 		container.setIsInterface(cls.isInterface());
 		container.setClassName(t);
@@ -588,5 +603,17 @@ public class ClassData {
 
 	public void setClassType(int classType) {
 		this.classType = classType;
+	}
+
+	public int getLambdas() {
+		return lambdas;
+	}
+
+	public void setLambdas(int lambdas) {
+		this.lambdas = lambdas;
+	}
+
+	public void addLambda() {
+		this.lambdas++;
 	}
 }

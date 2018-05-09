@@ -32,7 +32,7 @@ public class MethodData implements Accessible {
 	public static MethodData fromJavaMethod(ClassData context, Method method) {
 		MethodData mData = new MethodData(context, method.getName(),
 				DefinitiveType.assume(Types.getTypeSignature(method.getReturnType())),
-				method.getDeclaringClass().isInterface(), method.getModifiers());
+				!method.isDefault() && method.getDeclaringClass().isInterface(), method.getModifiers());
 		Parameter[] params = method.getParameters();
 		Type[] genericTypes = method.getGenericParameterTypes();
 		for (int i = 0; i < params.length; i++) {
@@ -171,11 +171,15 @@ public class MethodData implements Accessible {
 	}
 
 	public String getSignature() {
+		return getParameterString() + returnType.getAbsoluteTypeSignature();
+	}
+
+	public String getParameterString() {
 		String desc = "(";
 		for (ParameterData par : parameters) {
 			desc += par.getType().getAbsoluteTypeSignature();
 		}
-		desc += ")" + returnType.getAbsoluteTypeSignature();
+		desc += ")";
 
 		return desc;
 	}
@@ -260,6 +264,10 @@ public class MethodData implements Accessible {
 	@Override
 	public ClassData getContext() {
 		return context;
+	}
+	
+	public void setContext(ClassData context) {
+		this.context = context;
 	}
 
 	public boolean isIterator() {

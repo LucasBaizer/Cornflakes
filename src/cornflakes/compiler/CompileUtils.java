@@ -183,27 +183,36 @@ public class CompileUtils {
 				valueType == null ? null : DefinitiveType.assume(valueType), raw, generics, isRef);
 	}
 
-	public static DefinitiveType push(String raw, ClassData cdata, MethodVisitor m, Block block, Line line, MethodData data) {
+	public static DefinitiveType push(String raw, ClassData cdata, MethodVisitor m, Block block, Line line,
+			MethodData data) {
+		return push(raw, cdata, m, block, line, data, true);
+	}
+
+	public static DefinitiveType push(String raw, ClassData cdata, MethodVisitor m, Block block, Line line,
+			MethodData data, boolean actual) {
 		String type = Types.getType(raw, null);
 		if (type != null) {
 			Object val = Types.parseLiteral(type, raw);
 			int push = Types.getOpcode(Types.PUSH, type);
 			if (push == LDC) {
-				m.visitLdcInsn(val);
+				if (actual)
+					m.visitLdcInsn(val);
 			} else {
 				String toString = val.toString();
 
 				if (toString.equals("true") || toString.equals("false")) {
-					m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
+					if (actual)
+						m.visitInsn(toString.equals("false") ? ICONST_0 : ICONST_1);
 				} else {
-					m.visitVarInsn(push, Integer.parseInt(val.toString()));
+					if (actual)
+						m.visitVarInsn(push, Integer.parseInt(val.toString()));
 				}
 			}
 			data.ics();
-			
+
 			return DefinitiveType.assume(type);
 		} else {
-			ExpressionCompiler exp = new ExpressionCompiler(true, data);
+			ExpressionCompiler exp = new ExpressionCompiler(actual, data);
 			exp.compile(cdata, m, block, new Line[] { line.derive(raw) });
 			return exp.getResultType();
 		}

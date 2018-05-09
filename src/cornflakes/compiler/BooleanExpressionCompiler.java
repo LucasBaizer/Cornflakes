@@ -109,7 +109,7 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				rightType = pushToStack(body, right, data, m, block);
 			}
 
-			if (leftType.isPrimitive() && rightType.isPrimitive()) {
+			if (ifType != IS && leftType.isPrimitive() && rightType.isPrimitive()) {
 				int op = 0;
 				int stack = this.data.getCurrentStack();
 				if (ifType == EQUAL) {
@@ -143,9 +143,9 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 				}
 			} else {
 				boolean aleft = Types.isPrimitive(leftType);
-				boolean aright = Types.isPrimitive(rightType);
+				boolean aright = ifType == IS ? false : Types.isPrimitive(rightType);
 
-				if (aleft ^ aright) {
+				if (ifType != IS && aleft ^ aright) {
 					invalid(new CompileError("Cannot compare " + leftType + " to " + rightType));
 				}
 
@@ -191,6 +191,9 @@ public class BooleanExpressionCompiler implements GenericCompiler {
 					invalid(new CompileError("References cannot be compared using the given comparator"));
 				}
 				if (ifType == IS) {
+					if (aleft) {
+						throw new CompileError("instanceof can only be used with object types");
+					}
 					if (write) {
 						m.visitTypeInsn(INSTANCEOF, data.resolveClass(right).getAbsoluteTypeName());
 					}

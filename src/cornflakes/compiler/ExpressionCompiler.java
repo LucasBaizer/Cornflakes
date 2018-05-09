@@ -1,8 +1,10 @@
 package cornflakes.compiler;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
@@ -22,6 +24,7 @@ public class ExpressionCompiler implements GenericCompiler {
 	public static final int CAST = 9;
 	public static final int TUPLE = 9;
 	public static final int LITERAL = 10;
+	public static final int LAMBDA = 11;
 
 	private MethodData data;
 	private boolean write;
@@ -436,42 +439,115 @@ public class ExpressionCompiler implements GenericCompiler {
 			Block lambdaBlock = new Block(block.getStart() + 1, start, null);
 			block.addBlock(lambdaBlock);
 
-			MethodData lambdaMethod = new MethodData(data, "", typeHint, false, 0);
-			lambdaMethod.setBlock(lambdaBlock);
-
 			String[] lambdaParts = Strings.split(part, "=>");
 
-			String[] inputs = lambdaParts[0].trim().split(",");
-			for (int i = 0; i < inputs.length; i++) {
-				inputs[i] = inputs[i].trim();
+			String trimmed = lambdaParts[0].trim();
+			if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
+				trimmed = trimmed.substring(1, trimmed.length() - 1);
+			}
+			List<String> inputs = new ArrayList<>(Arrays.asList(trimmed.split(",")));
+			for (int i = 0; i < inputs.size(); i++) {
+				String input = inputs.get(i).trim();
+				if (input.isEmpty() || input.equals("_")) {
+					inputs.remove(i);
+				} else {
+					inputs.set(i, input);
+				}
 			}
 
-			DefinitiveType lambdaType = typeHint;
-			MethodData toImpl;
+			ParameterData[] parameters = new ParameterData[inputs.size()];
+			LambdaClassData lambdaType = typeHint != null ? (LambdaClassData) typeHint.getObjectType() : null;
+			MethodData toImpl = null;
+			String name = "lambda$" + data.getLambdas();
+
+			if (lambdaType != null) {
+				if (!lambdaType.isInterface() || lambdaType.getMethods().length != 1) {
+					throw new CompileError("Lambda expression must represent a functional interface");
+				}
+
+				toImpl = lambdaType.getLambdaMethod();
+				toImpl.setContext(data);
+				toImpl.setName(name);
+
+				for (int i = 0; i < inputs.size(); i++) {
+					parameters[i] = toImpl.getParameters().get(i);
+				}
+			}
 
 			String rawResult = lambdaParts[1].trim();
 			DefinitiveType resultType = null;
 			if (!rawResult.startsWith("{") && !rawResult.endsWith("}")) {
-				resultType = CompileUtils.push(rawResult, data, m, lambdaBlock, line.derive(part), this.data);
+				resultType = CompileUtils.push(rawResult, data, m, lambdaBlock, line.derive(part), this.data, false);
+
+				if (toImpl != null) {
+					if (!Types.isSuitable(resultType, toImpl.getReturnType())) {
+						throw new CompileError(Types.beautify(resultType) + " is not assignable to "
+								+ Types.beautify(toImpl.getReturnType()));
+					}
+				}
 			}
 
 			if (lambdaType == null) {
-				// TODO: built-in java stuff
-			} else {
-				ClassData clazz = lambdaType.getObjectType();
-				if (!clazz.isInterface() || clazz.getMethods().length != 1) {
-					throw new CompileError("Lambda expression must represent a functional interface");
+				if (resultType == null) { // (...)V
+					if (inputs.size() == 0) {
+						lambdaType = (LambdaClassData) ClassData.forName("java.lang.Runnable");
+					} else if (inputs.size() == 1) {
+						lambdaType = (LambdaClassData) ClassData.forName("java.util.function.Consumer");
+					}
+				} else {
+					if (inputs.size() == 0) {
+						lambdaType = (LambdaClassData) ClassData.forName("java.util.function.Supplier");
+					} else if (inputs.size() == 1) {
+						lambdaType = (LambdaClassData) ClassData.forName("java.util.function.Function");
+					}
 				}
 
-				toImpl = clazz.getMethods()[0];
+				if (lambdaType != null) {
+					toImpl = lambdaType.getLambdaMethod();
+				}
 			}
 
-			Line inner = line.derive(rawResult.substring(1, rawResult.length() - 1).trim());
+			if (lambdaType == null) {
+				throw new CompileError("No lambda expression type could be assumed");
+			}
 
-			MethodVisitor visitor = data.getClassWriter().visitMethod(ACC_PRIVATE | ACC_SYNTHETIC, "lambda$0", "", null,
-					new String[0]);
+			DefinitiveType lambdaDef = DefinitiveType.object(lambdaType);
+			MethodVisitor visitor = data.getClassWriter().visitMethod(ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC, name,
+					toImpl.getSignature(), null, new String[0]);
+			data.addLambda();
+
 			Label innerLabel = new Label();
 			visitor.visitLabel(innerLabel);
+			visitor.visitLineNumber(line.getNumber(), innerLabel);
+
+			Label innerEnd = new Label();
+
+			int x = 0;
+			for (String input : inputs) {
+				DefinitiveType type = toImpl.getParameters().get(x).getType();
+				visitor.visitLocalVariable(input, type.getAbsoluteTypeSignature(), null, innerLabel, innerEnd, x++);
+			}
+
+			if (resultType != null) {
+				CompileUtils.push(rawResult, data, visitor, lambdaBlock, line.derive(part), this.data, true);
+
+				visitor.visitLabel(innerEnd);
+				visitor.visitInsn(Types.getOpcode(Types.RETURN, lambdaDef.getTypeSignature()));
+				visitor.visitMaxs(1, inputs.size());
+				visitor.visitEnd();
+			}
+
+			Type sam = Type.getMethodType(toImpl.getSignature());
+			m.visitInvokeDynamicInsn(toImpl.getName(), "()" + lambdaDef.getAbsoluteTypeSignature(),
+					new Handle(H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
+							"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+							false),
+					sam, new Handle(H_INVOKESTATIC, data.getClassName(), name, toImpl.getSignature(), false), sam);
+
+			this.resultName = "";
+			this.resultType = lambdaDef;
+			this.resultOwner = lambdaType;
+			this.expressionType = LAMBDA;
 
 			next = true;
 		} else {

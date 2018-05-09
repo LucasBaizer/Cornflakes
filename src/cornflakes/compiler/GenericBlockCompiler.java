@@ -63,8 +63,15 @@ public class GenericBlockCompiler implements GenericCompiler {
 						if (parse.startsWith("if ")) {
 							parse = parse.substring(2).trim();
 						}
-						new BooleanExpressionCompiler(this.data, theEnd, true).compile(data, m, currentBlock,
-								new Line[] { parse });
+
+						BooleanExpressionCompiler compiler = new BooleanExpressionCompiler(this.data, theEnd, true);
+						compiler.compile(data, m, currentBlock, new Line[] { parse });
+
+						if (!compiler.isRequireBranch()) {
+							m.visitFrame(F_SAME, this.data.getLocalVariables(), null, this.data.getCurrentStack(),
+									null);
+							m.visitJumpInsn(IFEQ, theEnd);
+						}
 					} else {
 						if (hasElse) {
 							throw new CompileError("Cannot have multiple else blocks attached to one if chain");
