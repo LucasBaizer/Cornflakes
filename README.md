@@ -2,6 +2,8 @@
 
 I began writing Cornflakes when I was 15 years old; it was my first adventure into the wonderful word of language design. Although incredibly buggy and lacking many core features, Cornflakes is one of my favorite projects I'd ever worked on. As I got older and learned more about other JVM languages, I found that many of them have lots of features Cornflakes has that I thought I had invented on my own (i.e. shorthand syntactical sugar for getters/setters, etc). My knowledge of parsing text was extremely limited; Cornflakes has no AST parsing, or even regular expressions for that matter. I rolled my own tokenizer (which is why it's so dang buggy) simply because I didn't know what other tools were out there; but I like to look back on this project as something I can see how much progress I've made in my own knowledge and understanding. Maybe some day I'll do it again properly.
 
+Everything below is from the original README. Enjoy!
+
 # Cornflakes
 A powerful yet simple JVM language with a compiler written in Java.
 
